@@ -162,6 +162,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* ERR */
 .err-box{background:#fff5f5;border:1px solid #fecaca;border-radius:12px;padding:16px;margin-top:12px;font-size:.85rem;color:#b91c1c;}
 
+/* LOADING */
+#loading-section{display:none;}
+.l-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:32px 20px;text-align:center;}
+.l-pulse{font-size:3rem;display:block;margin-bottom:14px;animation:lpulse 1.4s ease-in-out infinite;}
+@keyframes lpulse{0%,100%{transform:scale(1);}50%{transform:scale(1.14);}}
+.l-title{font-size:1.15rem;font-weight:700;margin-bottom:4px;}
+.l-sub{font-size:.82rem;color:var(--gray-400);margin-bottom:22px;}
+.l-bar-wrap{height:8px;background:var(--gray-100);border-radius:4px;overflow:hidden;margin-bottom:6px;}
+.l-bar{height:100%;background:var(--green);border-radius:4px;width:0%;transition:width .7s ease;}
+.l-pct{font-size:.78rem;color:var(--green-d);text-align:right;margin-bottom:22px;font-weight:700;}
+.l-steps{text-align:left;display:flex;flex-direction:column;gap:11px;margin-bottom:20px;}
+.l-step{display:flex;align-items:flex-start;gap:10px;}
+.l-ic{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;transition:all .3s;}
+.l-ic.done{background:var(--green);}
+.l-ic.active{background:var(--green-bg);border:2px solid var(--green);}
+.l-ic.pending{background:var(--gray-100);filter:grayscale(1);opacity:.5;}
+.l-body{padding-top:5px;}
+.l-name{font-size:.88rem;font-weight:600;transition:color .3s;}
+.l-name.done{color:var(--green);}
+.l-name.active{color:var(--gray-900);}
+.l-name.pending{color:var(--gray-400);}
+.l-desc{font-size:.74rem;color:var(--gray-400);margin-top:2px;line-height:1.4;}
+.dots{display:inline-flex;gap:2px;margin-left:3px;vertical-align:middle;}
+.dots span{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--green);animation:db .65s ease-in-out infinite;}
+.dots span:nth-child(2){animation-delay:.13s;}
+.dots span:nth-child(3){animation-delay:.26s;}
+@keyframes db{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
+.l-tip{background:var(--green-bg);border-radius:10px;padding:12px 14px;font-size:.8rem;color:#374151;line-height:1.6;text-align:left;}
+
 /* DESKTOP */
 @media(min-width:640px){
   .main{padding:28px 24px 80px;}
@@ -190,6 +219,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="status-msg" id="statusMsg"></div>
     </div>
     <div id="errBox"></div>
+  </div>
+
+  <!-- LOADING -->
+  <div id="loading-section">
+    <div class="l-card">
+      <span class="l-pulse">🩺</span>
+      <div class="l-title">플레이스 진단 중이에요</div>
+      <div class="l-sub">키워드를 하나씩 검색하고 있어요 · 1~3분 소요</div>
+      <div class="l-bar-wrap"><div class="l-bar" id="lBar"></div></div>
+      <div class="l-pct" id="lPct">0%</div>
+      <div class="l-steps" id="lSteps"></div>
+      <div class="l-tip" id="lTip"></div>
+    </div>
   </div>
 
   <!-- RESULT -->
@@ -301,6 +343,82 @@ function animateGauge(target){
   requestAnimationFrame(step);
 }
 
+// ── 로딩 애니메이션 ───────────────────────────────────────────────────────────
+const L_STEPS = [
+  { label:'매장 정보 수집 중',    icon:'🔍', desc:'네이버 플레이스에서 매장 정보를 읽어오고 있어요',       ms:12000 },
+  { label:'키워드 순위 분석 중',  icon:'📊', desc:'검색 키워드 20개를 하나씩 확인하고 있어요 (가장 오래 걸려요)', ms:80000 },
+  { label:'리뷰·별점 수집 중',   icon:'⭐', desc:'방문자 리뷰, 블로그 리뷰, 별점 데이터를 모으고 있어요', ms:20000 },
+  { label:'경쟁사 비교 중',      icon:'🏆', desc:'같은 키워드 1위 매장 정보를 분석하고 있어요',         ms:20000 },
+  { label:'점수 계산 중',        icon:'📝', desc:'4축 진단 점수를 계산하고 있어요 — 거의 다 됐어요!',    ms:999999 },
+];
+const L_TIPS = [
+  '💡 방문자 리뷰 50개 이상이면 검색 노출에 유리해요',
+  '💡 플레이스 사진은 최소 10장 이상 등록하면 점수가 올라요',
+  '💡 키워드가 업종·지역과 잘 맞을수록 상위 노출 가능성이 높아요',
+  '💡 최근 30일 이내 리뷰가 있으면 활성도 점수가 높아져요',
+  '💡 매장 정보(주소·전화·영업시간)가 완전할수록 노출에 유리해요',
+];
+
+let _lStart=0, _lTimer=null, _lStepIdx=0, _lRafId=null, _lProg=0;
+
+function startLoading(){
+  _lStart=Date.now(); _lStepIdx=0; _lProg=0;
+  document.getElementById('lBar').style.width='0%';
+  document.getElementById('lPct').textContent='0%';
+  document.getElementById('lTip').textContent=L_TIPS[Math.floor(Math.random()*L_TIPS.length)];
+  _renderLSteps(0);
+  _animateLBar();
+  _lTimer=setInterval(_advanceLStep,1000);
+}
+
+function stopLoading(){
+  clearInterval(_lTimer); cancelAnimationFrame(_lRafId);
+  document.getElementById('lBar').style.width='100%';
+  document.getElementById('lPct').textContent='100%';
+}
+
+function _advanceLStep(){
+  const elapsed=Date.now()-_lStart;
+  let cum=0, idx=0;
+  for(let i=0;i<L_STEPS.length;i++){cum+=L_STEPS[i].ms;if(elapsed<cum){idx=i;break;}idx=L_STEPS.length-1;}
+  if(idx!==_lStepIdx){_lStepIdx=idx;_renderLSteps(idx);}
+  // rotate tip every 20s
+  const tipIdx=Math.floor(elapsed/20000)%L_TIPS.length;
+  document.getElementById('lTip').textContent=L_TIPS[tipIdx];
+}
+
+function _renderLSteps(active){
+  document.getElementById('lSteps').innerHTML=L_STEPS.map((s,i)=>{
+    const state=i<active?'done':i===active?'active':'pending';
+    const ic=state==='done'?'✓':s.icon;
+    const dots=state==='active'?'<span class="dots"><span></span><span></span><span></span></span>':'';
+    return `<div class="l-step">
+      <div class="l-ic ${state}">${ic}</div>
+      <div class="l-body">
+        <div class="l-name ${state}">${s.label}${dots}</div>
+        ${state!=='pending'?`<div class="l-desc">${s.desc}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _animateLBar(){
+  // 총 진행 시간의 95% 까지만 자동으로 채우고, 나머지는 API 응답 후 100%
+  const totalMs=L_STEPS.slice(0,-1).reduce((a,s)=>a+s.ms,0); // 마지막 step 제외
+  const target=95;
+  const update=()=>{
+    const elapsed=Date.now()-_lStart;
+    // easing: fast at start, slow near end
+    const raw=Math.min(elapsed/totalMs,1);
+    const eased=1-Math.pow(1-raw,2.5);
+    _lProg=Math.min(eased*target,target);
+    document.getElementById('lBar').style.width=_lProg.toFixed(1)+'%';
+    document.getElementById('lPct').textContent=Math.floor(_lProg)+'%';
+    _lRafId=requestAnimationFrame(update);
+  };
+  _lRafId=requestAnimationFrame(update);
+}
+
 // ── 메인 진단 요청 ────────────────────────────────────────────────────────────
 async function diagnose(){
   const name = document.getElementById('storeName').value.trim();
@@ -309,10 +427,14 @@ async function diagnose(){
   if(!name||!url){alert('매장명과 URL을 입력해주세요.');return;}
 
   const btn = document.getElementById('diagBtn');
-  const msg = document.getElementById('statusMsg');
   btn.disabled=true; btn.textContent='분석 중...';
-  msg.textContent='키워드별 순위를 분석하고 있어요. 1~3분 소요됩니다 ☕';
   document.getElementById('errBox').innerHTML='';
+
+  // 즉시 로딩 화면으로 전환
+  document.getElementById('input-section').style.display='none';
+  document.getElementById('loading-section').style.display='block';
+  startLoading();
+  window.scrollTo({top:0,behavior:'smooth'});
 
   try{
     const res = await fetch('/diagnose',{
@@ -321,19 +443,25 @@ async function diagnose(){
       body: JSON.stringify({store_name:name,place_url:url,force_refresh:force})
     });
     const text = await res.text();
+    stopLoading();
     if(!res.ok){
+      document.getElementById('loading-section').style.display='none';
+      document.getElementById('input-section').style.display='block';
       document.getElementById('errBox').innerHTML=`<div class="err-box">오류 (${res.status})<br><small>${esc(text.slice(0,400))}</small></div>`;
+      btn.disabled=false; btn.textContent='🔍 진단하기';
       return;
     }
+    // 결과 화면으로 자연스럽게 전환
+    document.getElementById('loading-section').style.display='none';
     renderResult(JSON.parse(text));
-    document.getElementById('input-section').style.display='none';
     document.getElementById('result').style.display='block';
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(e){
+    stopLoading();
+    document.getElementById('loading-section').style.display='none';
+    document.getElementById('input-section').style.display='block';
     document.getElementById('errBox').innerHTML=`<div class="err-box">요청 실패: ${esc(e.message)}</div>`;
-  }finally{
     btn.disabled=false; btn.textContent='🔍 진단하기';
-    msg.textContent='';
   }
 }
 
