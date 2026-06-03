@@ -1,17 +1,41 @@
 import asyncio
 import re
 import sys
+import threading
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
-# Windows: uvicorn은 기본적으로 ProactorEventLoop를 사용하므로
-# diagnose_store를 직접 await해서 Playwright subprocess가 작동한다.
 from .database import engine, get_db
 from .models import Base
 from . import crud, schemas
 from .core.scraper import diagnose_store
+
+# ── Windows ProactorEventLoop 전용 스레드 ────────────────────────────────────
+# uvicorn --reload 모드에서는 SelectorEventLoop를 강제하므로
+# Playwright subprocess 호출이 실패한다.
+# test_scraper.py는 asyncio.run()을 직접 쓰기 때문에 ProactorEventLoop가 생성됨.
+# 동일한 방식으로: 영구 데몬 스레드에서 ProactorEventLoop를 실행하고
+# asyncio.run_coroutine_threadsafe()로 코루틴을 위임한다.
+
+_proactor_loop: asyncio.AbstractEventLoop | None = None
+_proactor_ready = threading.Event()
+
+def _proactor_thread_main():
+    global _proactor_loop
+    if sys.platform == "win32":
+        loop = asyncio.ProactorEventLoop()
+    else:
+        loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    _proactor_loop = loop
+    _proactor_ready.set()
+    loop.run_forever()
+
+_t = threading.Thread(target=_proactor_thread_main, daemon=True, name="proactor-playwright")
+_t.start()
+_proactor_ready.wait()  # 루프가 준비될 때까지 대기
 
 Base.metadata.create_all(bind=engine)
 
@@ -207,9 +231,17 @@ async def diagnose(req: schemas.DiagnoseRequest, db: Session = Depends(get_db)):
             return cached
 
     try:
-        result = await diagnose_store(req.store_name, req.place_url)
+        # ProactorEventLoop 전용 스레드에서 실행 (--reload 모드의 SelectorEventLoop 우회)
+        future = asyncio.run_coroutine_threadsafe(
+            diagnose_store(req.store_name, req.place_url),
+            _proactor_loop,
+        )
+        result = await asyncio.get_running_loop().run_in_executor(
+            None, future.result, 600  # 최대 10분
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
+        import traceback
+        raise HTTPException(status_code=500, detail=traceback.format_exc())
 
     try:
         crud.save_diagnosis(db, result, req.place_url)
