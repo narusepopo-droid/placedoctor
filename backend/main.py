@@ -1,37 +1,17 @@
 import asyncio
 import re
 import sys
-from concurrent.futures import ThreadPoolExecutor
-from functools import partial
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
+# Windows: uvicorn은 기본적으로 ProactorEventLoop를 사용하므로
+# diagnose_store를 직접 await해서 Playwright subprocess가 작동한다.
 from .database import engine, get_db
 from .models import Base
 from . import crud, schemas
 from .core.scraper import diagnose_store
-
-# uvicorn --reload 모드에서는 모듈 import 전에 SelectorEventLoop가 이미 생성됨.
-# 따라서 Playwright(subprocess)는 별도 스레드의 ProactorEventLoop에서 실행.
-_playwright_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="playwright")
-
-
-def _diagnose_sync(store_name: str, place_url: str) -> dict:
-    """Playwright 진단을 전용 스레드에서 실행. 전체 트레이스백 포함."""
-    import traceback as _tb
-    try:
-        if sys.platform == "win32":
-            # loop_factory=ProactorEventLoop: Python 3.12+ 공식 방법
-            return asyncio.run(
-                diagnose_store(store_name, place_url),
-                loop_factory=asyncio.ProactorEventLoop,
-            )
-        return asyncio.run(diagnose_store(store_name, place_url))
-    except Exception as exc:
-        # 전체 스택 트레이스를 RuntimeError 메시지에 포함
-        raise RuntimeError(_tb.format_exc()) from exc
 
 Base.metadata.create_all(bind=engine)
 
@@ -227,13 +207,9 @@ async def diagnose(req: schemas.DiagnoseRequest, db: Session = Depends(get_db)):
             return cached
 
     try:
-        loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
-            _playwright_executor,
-            partial(_diagnose_sync, req.store_name, req.place_url),
-        )
+        result = await diagnose_store(req.store_name, req.place_url)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
 
     try:
         crud.save_diagnosis(db, result, req.place_url)
