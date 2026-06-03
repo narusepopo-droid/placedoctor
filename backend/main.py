@@ -50,151 +50,531 @@ _HTML = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>플레이스닥터</title>
+<title>플레이스닥터 — 네이버 플레이스 무료 진단</title>
 <style>
-  body { font-family: -apple-system, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 20px; color: #222; }
-  h1 { font-size: 1.5rem; margin-bottom: 4px; }
-  .sub { color: #666; font-size: 0.9rem; margin-bottom: 24px; }
-  label { display: block; margin-top: 14px; font-weight: 600; font-size: 0.9rem; }
-  input[type=text] {
-    width: 100%; padding: 9px 12px; margin-top: 5px; box-sizing: border-box;
-    border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem;
-  }
-  input[type=text]:focus { outline: none; border-color: #03c75a; }
-  .row { display: flex; align-items: center; gap: 16px; margin-top: 18px; }
-  button {
-    padding: 10px 28px; background: #03c75a; color: white;
-    border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: 600;
-  }
-  button:disabled { background: #aaa; cursor: not-allowed; }
-  .chk-lbl { font-size: 0.85rem; color: #555; display: flex; align-items: center; gap: 6px; }
-  #status { margin-top: 12px; color: #555; font-size: 0.9rem; min-height: 20px; }
-  #result { margin-top: 20px; }
-  .card { background: #f7f7f7; border-radius: 10px; padding: 18px 20px; margin-top: 14px; }
-  .card h3 { margin: 0 0 12px 0; font-size: 1rem; color: #333; }
-  .scores { display: flex; gap: 10px; flex-wrap: wrap; }
-  .sc { background: white; border-radius: 8px; padding: 14px 18px; text-align: center; min-width: 80px; }
-  .sc .val { font-size: 2rem; font-weight: 700; }
-  .sc .lbl { font-size: 0.75rem; color: #888; margin-top: 2px; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid #eee; font-size: 0.88rem; }
-  th { color: #666; font-weight: 600; width: 130px; }
-  .hit { color: #03c75a; font-weight: 600; }
-  .miss { color: #bbb; }
-  .err { color: #cc3300; background: #fff0ed; border-radius: 6px; padding: 12px 16px; }
-  .badge-cached { background: #e0e0e0; color: #555; border-radius: 4px; font-size: 0.75rem; padding: 2px 6px; }
+:root{
+  --green:#03c75a;--green-d:#02a84d;--green-bg:#f0fdf6;
+  --red:#ef4444;--orange:#f97316;--score-green:#22c55e;
+  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;
+  --gray-400:#9ca3af;--gray-600:#4b5563;--gray-800:#1f2937;--gray-900:#111827;
+  --radius:16px;--shadow:0 2px 16px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f9fafb;color:var(--gray-900);min-height:100vh;}
+
+/* HEADER */
+.header{background:var(--green);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(3,199,90,.3);}
+.logo{display:flex;align-items:center;gap:8px;color:#fff;font-size:1.2rem;font-weight:800;letter-spacing:-.3px;}
+.logo-icon{font-size:1.4rem;}
+.header-badge{background:rgba(255,255,255,.25);color:#fff;font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:20px;}
+
+/* MAIN */
+.main{max-width:520px;margin:0 auto;padding:20px 16px 100px;}
+
+/* INPUT CARD */
+.input-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 20px;}
+.input-card h2{font-size:1.15rem;font-weight:700;margin-bottom:4px;}
+.input-card p{font-size:.85rem;color:var(--gray-600);margin-bottom:20px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:.82rem;font-weight:600;color:var(--gray-800);margin-bottom:6px;}
+.field input{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:10px;font-size:.95rem;outline:none;transition:border .2s;}
+.field input:focus{border-color:var(--green);}
+.btn-diagnose{width:100%;padding:14px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;transition:background .2s;margin-top:4px;}
+.btn-diagnose:hover{background:var(--green-d);}
+.btn-diagnose:disabled{background:var(--gray-400);cursor:not-allowed;}
+.status-msg{text-align:center;color:var(--gray-600);font-size:.85rem;margin-top:12px;min-height:20px;}
+
+/* RESULT */
+#result{display:none;}
+.result-header{text-align:center;padding:24px 0 8px;}
+.store-badge{display:inline-flex;align-items:center;gap:6px;background:var(--green-bg);color:var(--green-d);font-size:.8rem;font-weight:600;padding:4px 12px;border-radius:20px;margin-bottom:10px;}
+.store-name{font-size:1.4rem;font-weight:800;margin-bottom:4px;}
+.store-meta{font-size:.82rem;color:var(--gray-600);}
+
+/* GAUGE CARD */
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 20px;margin-top:14px;}
+.card-title{font-size:.82rem;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;}
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;}
+.gauge-svg{overflow:visible;}
+.gauge-track{fill:none;stroke:var(--gray-100);stroke-width:12;}
+.gauge-fill{fill:none;stroke-width:12;stroke-linecap:round;transition:stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1),stroke .4s;transform:rotate(-90deg);transform-origin:50% 50%;}
+.gauge-text{font-size:2.2rem;font-weight:800;text-anchor:middle;dominant-baseline:middle;}
+.gauge-sub{font-size:.9rem;fill:var(--gray-600);text-anchor:middle;}
+.grade-badge{font-size:1rem;font-weight:700;padding:6px 18px;border-radius:20px;color:#fff;}
+.gauge-summary{font-size:.88rem;color:var(--gray-600);text-align:center;max-width:260px;}
+
+/* 4-AXIS CARDS */
+.axis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
+@media(max-width:380px){.axis-grid{grid-template-columns:1fr;}}
+@media(min-width:640px){.axis-grid{grid-template-columns:1fr 1fr;}}
+.axis-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 16px;}
+.axis-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.axis-icon{font-size:1.3rem;}
+.axis-name{font-size:.82rem;font-weight:700;color:var(--gray-600);}
+.axis-score{font-size:1.8rem;font-weight:800;margin-bottom:6px;}
+.progress-bar{height:6px;background:var(--gray-100);border-radius:4px;overflow:hidden;margin-bottom:14px;}
+.progress-fill{height:100%;border-radius:4px;transition:width 1s ease;}
+.detail-list{display:flex;flex-direction:column;gap:8px;}
+.detail-row{display:flex;justify-content:space-between;align-items:center;}
+.detail-label{font-size:.78rem;color:var(--gray-600);}
+.detail-val{display:flex;align-items:center;gap:4px;}
+.detail-num{font-size:.8rem;font-weight:600;}
+.chip{font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:8px;color:#fff;}
+.chip-good{background:var(--score-green);}
+.chip-ok{background:var(--orange);}
+.chip-bad{background:var(--red);}
+
+/* COMPETITOR */
+.comp-rows{display:flex;flex-direction:column;gap:14px;}
+.comp-label{font-size:.8rem;font-weight:600;color:var(--gray-600);margin-bottom:4px;}
+.comp-bar-wrap{display:flex;align-items:center;gap:10px;}
+.comp-tag{font-size:.75rem;font-weight:700;width:44px;flex-shrink:0;}
+.comp-bar-bg{flex:1;height:22px;background:var(--gray-100);border-radius:6px;overflow:hidden;}
+.comp-bar{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:8px;transition:width 1s ease;font-size:.75rem;font-weight:700;color:#fff;white-space:nowrap;min-width:32px;}
+.comp-gap{margin-top:8px;font-size:.82rem;color:var(--red);font-weight:600;}
+
+/* KEYWORDS */
+.kw-list{display:flex;flex-wrap:wrap;gap:8px;}
+.kw-item{display:flex;align-items:center;gap:6px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:7px 11px;}
+.kw-item.exposed{border-color:transparent;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.08);}
+.kw-item.hidden{opacity:.45;}
+.kw-text{font-size:.82rem;font-weight:600;}
+.kw-rank{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:6px;color:#fff;}
+.kw-more{margin-top:10px;font-size:.82rem;color:var(--green-d);font-weight:600;cursor:pointer;}
+
+/* DOCTOR COMMENT */
+.comment-box{background:var(--green-bg);border-left:4px solid var(--green);border-radius:0 var(--radius) var(--radius) 0;padding:16px;margin-top:6px;}
+.comment-line{font-size:.88rem;color:var(--gray-800);line-height:1.65;margin-bottom:6px;}
+.comment-line:last-child{margin-bottom:0;}
+
+/* BUTTONS */
+.btn-area{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
+.btn-main{padding:15px;background:var(--green);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+.btn-secondary{padding:13px;background:#fff;color:var(--gray-800);border:1.5px solid var(--gray-200);border-radius:12px;font-size:.9rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+.btn-row{display:flex;gap:8px;}
+.btn-row .btn-secondary{flex:1;}
+.bottom-note{text-align:center;font-size:.75rem;color:var(--gray-400);margin-top:10px;}
+
+/* RE-DIAGNOSE */
+.btn-redo{margin-top:16px;text-align:center;}
+.btn-redo button{background:none;border:none;color:var(--gray-400);font-size:.82rem;cursor:pointer;text-decoration:underline;}
+
+/* ERR */
+.err-box{background:#fff5f5;border:1px solid #fecaca;border-radius:12px;padding:16px;margin-top:12px;font-size:.85rem;color:#b91c1c;}
+
+/* DESKTOP */
+@media(min-width:640px){
+  .main{padding:28px 24px 80px;}
+  .axis-grid{grid-template-columns:1fr 1fr;}
+}
 </style>
 </head>
 <body>
-<h1>플레이스닥터</h1>
-<p class="sub">네이버 플레이스 순위 진단 도구 (테스트용)</p>
-
-<label>매장명</label>
-<input type="text" id="storeName" placeholder="예: 감동식당" />
-<label>네이버 플레이스 URL</label>
-<input type="text" id="placeUrl" placeholder="https://naver.me/... 또는 https://map.naver.com/p/entry/place/..." />
-
-<div class="row">
-  <button id="btn" onclick="diagnose()">진단하기</button>
-  <label class="chk-lbl">
-    <input type="checkbox" id="force"> 강제 재크롤링
-  </label>
+<div class="header">
+  <div class="logo"><span class="logo-icon">🩺</span>플레이스닥터</div>
+  <span class="header-badge">무료 진단</span>
 </div>
-<div id="status"></div>
-<div id="result"></div>
+<div class="main">
 
+  <!-- INPUT -->
+  <div id="input-section">
+    <div class="input-card">
+      <h2>내 매장, 지금 몇 위인지 아세요?</h2>
+      <p>네이버 플레이스 URL만 있으면 순위·리뷰·경쟁사까지 무료로 분석해드려요</p>
+      <div class="field"><label>매장명</label><input type="text" id="storeName" placeholder="예: 감동식당"></div>
+      <div class="field"><label>네이버 플레이스 URL</label><input type="text" id="placeUrl" placeholder="https://naver.me/... 또는 map.naver.com/..."></div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--gray-600);margin-bottom:14px;cursor:pointer;">
+        <input type="checkbox" id="forceRefresh"> 강제 재크롤링
+      </label>
+      <button class="btn-diagnose" id="diagBtn" onclick="diagnose()">🔍 진단하기</button>
+      <div class="status-msg" id="statusMsg"></div>
+    </div>
+    <div id="errBox"></div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result">
+    <div class="result-header">
+      <div class="store-badge">📍 <span id="rCategory"></span></div>
+      <div class="store-name" id="rStoreName"></div>
+      <div class="store-meta" id="rMeta"></div>
+    </div>
+
+    <!-- GAUGE -->
+    <div class="card">
+      <div class="card-title">종합 플레이스 점수</div>
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" width="160" height="160" viewBox="0 0 160 160">
+          <circle class="gauge-track" cx="80" cy="80" r="66"/>
+          <circle class="gauge-fill" id="gaugeFill" cx="80" cy="80" r="66" stroke-dasharray="0 415" stroke="#22c55e"/>
+          <text class="gauge-text" id="gaugeNum" x="80" y="76" fill="#111827">0</text>
+          <text class="gauge-sub" x="80" y="98">/100점</text>
+        </svg>
+        <span class="grade-badge" id="gradeBadge">-</span>
+        <p class="gauge-summary" id="gaugeSummary"></p>
+      </div>
+    </div>
+
+    <!-- 4-AXIS -->
+    <div style="margin-top:6px;font-size:.82rem;font-weight:700;color:var(--gray-600);padding:12px 0 0;">진단 상세</div>
+    <div class="axis-grid" id="axisGrid"></div>
+
+    <!-- COMPETITOR -->
+    <div class="card" id="compCard" style="display:none;">
+      <div class="card-title">🏆 경쟁사 비교</div>
+      <div class="comp-rows" id="compRows"></div>
+    </div>
+
+    <!-- KEYWORDS -->
+    <div class="card">
+      <div class="card-title">🔑 키워드 순위</div>
+      <div class="kw-list" id="kwList"></div>
+      <div class="kw-more" id="kwMore" onclick="toggleKw()"></div>
+    </div>
+
+    <!-- DOCTOR COMMENT -->
+    <div class="card">
+      <div class="card-title">💬 닥터 코멘트</div>
+      <div class="comment-box" id="commentBox"></div>
+    </div>
+
+    <!-- BUTTONS -->
+    <div class="card">
+      <div class="btn-area">
+        <button class="btn-main" onclick="handleLead()">📋 상세 리포트 카톡으로 받기</button>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="handlePwa()">📱 홈 화면 추가</button>
+          <button class="btn-secondary" onclick="handleShare()">💬 카톡 공유</button>
+        </div>
+      </div>
+      <p class="bottom-note">개선 로드맵 + 키워드별 분석 무료 발송 · 운영 <strong>광고토대왕</strong></p>
+    </div>
+
+    <div class="btn-redo"><button onclick="resetForm()">← 다시 진단하기</button></div>
+  </div>
+
+</div>
 <script>
-async function diagnose() {
-  const storeName = document.getElementById('storeName').value.trim();
-  const placeUrl  = document.getElementById('placeUrl').value.trim();
-  const force     = document.getElementById('force').checked;
-  if (!storeName || !placeUrl) { alert('매장명과 URL을 모두 입력해주세요.'); return; }
+// ── 상태 ──────────────────────────────────────────────────────────────────────
+const CIRC = 2 * Math.PI * 66; // ≈ 414.7
+let _allKw = [], _kwExpanded = false;
 
-  const btn = document.getElementById('btn');
-  const status = document.getElementById('status');
-  const out = document.getElementById('result');
-  btn.disabled = true;
-  btn.textContent = '진단 중...';
-  status.textContent = '진단 중입니다. 키워드 수에 따라 1~3분 소요됩니다.';
-  out.innerHTML = '';
+// ── 유틸 ──────────────────────────────────────────────────────────────────────
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt = n => (n == null ? '-' : Number(n).toLocaleString());
 
-  try {
-    const res = await fetch('/diagnose', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ store_name: storeName, place_url: placeUrl, force_refresh: force })
+function scoreColor(s){
+  if(s == null) return '#9ca3af';
+  if(s >= 70)   return '#22c55e';
+  if(s >= 40)   return '#f97316';
+  return '#ef4444';
+}
+function scoreChip(s, low='부족', mid='보통', high='좋음'){
+  if(s == null) return `<span class="chip chip-ok">-</span>`;
+  const c = s>=70?'chip-good':s>=40?'chip-ok':'chip-bad';
+  const l = s>=70?high:s>=40?mid:low;
+  return `<span class="chip ${c}">${l}</span>`;
+}
+function grade(s){
+  if(s>=90)return{text:'A등급 · 최우수',bg:'#22c55e'};
+  if(s>=70)return{text:'B등급 · 우수',bg:'#22c55e'};
+  if(s>=50)return{text:'C등급 · 보통',bg:'#f97316'};
+  if(s>=30)return{text:'D등급 · 미흡',bg:'#f97316'};
+  return{text:'F등급 · 위험',bg:'#ef4444'};
+}
+
+// ── 게이지 애니메이션 ──────────────────────────────────────────────────────────
+function animateGauge(target){
+  const fill = document.getElementById('gaugeFill');
+  const num  = document.getElementById('gaugeNum');
+  const color = scoreColor(target);
+  fill.setAttribute('stroke', color);
+  let cur = 0;
+  const step = () => {
+    cur = Math.min(cur + 2, target);
+    const dash = (cur / 100 * CIRC).toFixed(1);
+    fill.setAttribute('stroke-dasharray', `${dash} ${CIRC}`);
+    num.textContent = cur;
+    num.setAttribute('fill', color);
+    if(cur < target) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+// ── 메인 진단 요청 ────────────────────────────────────────────────────────────
+async function diagnose(){
+  const name = document.getElementById('storeName').value.trim();
+  const url  = document.getElementById('placeUrl').value.trim();
+  const force= document.getElementById('forceRefresh').checked;
+  if(!name||!url){alert('매장명과 URL을 입력해주세요.');return;}
+
+  const btn = document.getElementById('diagBtn');
+  const msg = document.getElementById('statusMsg');
+  btn.disabled=true; btn.textContent='분석 중...';
+  msg.textContent='키워드별 순위를 분석하고 있어요. 1~3분 소요됩니다 ☕';
+  document.getElementById('errBox').innerHTML='';
+
+  try{
+    const res = await fetch('/diagnose',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({store_name:name,place_url:url,force_refresh:force})
     });
     const text = await res.text();
-    if (!res.ok) {
-      out.innerHTML = `<div class="err"><b>오류 (${res.status})</b><br><pre style="white-space:pre-wrap;margin:8px 0 0">${escHtml(text)}</pre></div>`;
+    if(!res.ok){
+      document.getElementById('errBox').innerHTML=`<div class="err-box">오류 (${res.status})<br><small>${esc(text.slice(0,400))}</small></div>`;
       return;
     }
     renderResult(JSON.parse(text));
-  } catch(e) {
-    out.innerHTML = `<div class="err">요청 실패: ${escHtml(e.message)}</div>`;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '진단하기';
-    status.textContent = '';
+    document.getElementById('input-section').style.display='none';
+    document.getElementById('result').style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){
+    document.getElementById('errBox').innerHTML=`<div class="err-box">요청 실패: ${esc(e.message)}</div>`;
+  }finally{
+    btn.disabled=false; btn.textContent='🔍 진단하기';
+    msg.textContent='';
   }
 }
 
-function renderResult(d) {
-  const sc = d.scores || {};
-  const comp = d.competitor || {};
-  const compD = comp.details || {};
-  const gap = comp.gap || {};
-  const results = d.place_results || [];
-  const hits = results.filter(r => r.rank).length;
+// ── 결과 렌더링 ───────────────────────────────────────────────────────────────
+function renderResult(d){
+  const sc = d.scores||{};
+  // 매장 정보
+  document.getElementById('rStoreName').textContent = d.store_name||'-';
+  document.getElementById('rCategory').textContent  = d.category||'매장';
+  document.getElementById('rMeta').textContent      = d.address||'';
 
-  const scoreHtml = ['SEO','콘텐츠','활성도','종합'].map((lbl, i) => {
-    const val = [sc.seo, sc.content, sc.activity, sc.total][i];
-    const color = val == null ? '#999' : val >= 70 ? '#03c75a' : val >= 40 ? '#e09000' : '#cc3300';
-    return `<div class="sc"><div class="val" style="color:${color}">${val ?? '-'}</div><div class="lbl">${lbl}</div></div>`;
-  }).join('');
+  // 종합 게이지
+  const tot = sc.total??0;
+  animateGauge(tot);
+  const g = grade(tot);
+  const badge = document.getElementById('gradeBadge');
+  badge.textContent=g.text; badge.style.background=g.bg;
+  document.getElementById('gaugeSummary').textContent = buildSummary(d,sc);
 
-  const badge = d.cached ? ' <span class="badge-cached">캐시</span>' : '';
-  const infoRows = [
-    ['매장명', d.store_name],
-    ['place_id', (d.place_id || '-') + badge],
-    ['카테고리', d.category || '-'],
-    ['주소', d.address || '-'],
-    ['방문자 리뷰', fmt(d.visitor_reviews)],
-    ['블로그 리뷰', fmt(d.blog_reviews)],
-    ['별점', d.star_score != null ? d.star_score : '-'],
-    ['사진 수', fmt(d.photo_count)],
-    ['최근 리뷰', d.latest_review_date || '-'],
-  ].map(([k,v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('');
+  // 4축 카드
+  renderAxisCards(d, sc);
 
-  const kwRows = results.map(r =>
-    `<tr class="${r.rank ? 'hit' : 'miss'}"><td>${escHtml(r.keyword)}</td><td>${r.rank ? r.rank + '위' : '-'}</td></tr>`
-  ).join('');
+  // 경쟁사
+  renderCompetitor(d);
 
-  const compHtml = comp.competitor_id ? `<table>
-    <tr><th>경쟁사 ID</th><td>${comp.competitor_id}</td></tr>
-    <tr><th>경쟁사 순위</th><td>${comp.competitor_rank != null ? comp.competitor_rank + '위' : '-'}</td></tr>
-    <tr><th>우리 순위</th><td>${comp.my_rank != null ? comp.my_rank + '위' : '-'}</td></tr>
-    <tr><th>경쟁사 방문자</th><td>${fmt(compD.visitor_reviews)}</td></tr>
-    <tr><th>방문자 격차</th><td>${gap.visitor_reviews != null ? (gap.visitor_reviews > 0 ? '+' : '') + gap.visitor_reviews : '-'}</td></tr>
-    <tr><th>경쟁사 블로그</th><td>${fmt(compD.blog_reviews)}</td></tr>
-    <tr><th>블로그 격차</th><td>${gap.blog_reviews != null ? (gap.blog_reviews > 0 ? '+' : '') + gap.blog_reviews : '-'}</td></tr>
-  </table>` : '<p style="color:#999;margin:0">경쟁사 정보 없음</p>';
+  // 키워드
+  _allKw = d.place_results||[];
+  renderKeywords(false);
 
-  document.getElementById('result').innerHTML = `
-    <div class="card"><h3>진단 점수</h3><div class="scores">${scoreHtml}</div></div>
-    <div class="card"><h3>매장 정보</h3><table>${infoRows}</table></div>
-    <div class="card"><h3>키워드 순위 (${hits}/${results.length} 노출)</h3>
-      <table><tr><th>키워드</th><th>순위</th></tr>${kwRows}</table></div>
-    <div class="card"><h3>경쟁사 비교</h3>${compHtml}</div>
-  `;
+  // 닥터 코멘트
+  renderComment(d, sc);
 }
 
-function fmt(n) { return n != null ? n.toLocaleString() : '-'; }
-function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function buildSummary(d, sc){
+  const tot=sc.total??0;
+  if(tot>=80) return '전반적으로 잘 관리되고 있는 매장이에요. 경쟁사와의 격차를 더 벌려볼 수 있어요.';
+  if(tot>=60) return '일부 항목이 개선되면 상위 노출 가능성이 높아져요. 충분히 올릴 수 있는 구간이에요.';
+  if(tot>=40) return '아직 개선 여지가 많아요. 리뷰·키워드 관리부터 시작하면 빠르게 효과를 볼 수 있어요.';
+  return '지금 당장 개선이 필요해요. 기본기부터 차근차근 채워나가면 달라집니다.';
+}
 
-document.getElementById('placeUrl').addEventListener('keydown', e => {
-  if (e.key === 'Enter') diagnose();
-});
+// ── 4축 카드 ─────────────────────────────────────────────────────────────────
+function renderAxisCards(d, sc){
+  const grid = document.getElementById('axisGrid');
+  const axes = [
+    buildSeoCard(d, sc.seo??0),
+    buildContentCard(d, sc.content??0),
+    buildActivityCard(d, sc.activity??0),
+    buildAdCard(sc.ad??20),
+  ];
+  grid.innerHTML = axes.join('');
+  // 진행바 애니메이션
+  setTimeout(()=>{
+    document.querySelectorAll('.progress-fill').forEach(el=>{
+      el.style.width = el.dataset.w;
+    });
+  },100);
+}
+
+function axisCard(icon, name, score, details){
+  const color = scoreColor(score);
+  return `<div class="axis-card">
+    <div class="axis-head"><span class="axis-icon">${icon}</span><span class="axis-name">${name}</span></div>
+    <div class="axis-score" style="color:${color}">${score}<small style="font-size:.9rem;font-weight:600;color:var(--gray-400)">/100</small></div>
+    <div class="progress-bar"><div class="progress-fill" data-w="${score}%" style="width:0%;background:${color}"></div></div>
+    <div class="detail-list">${details}</div>
+  </div>`;
+}
+
+function detailRow(label, val, chipScore){
+  return `<div class="detail-row">
+    <span class="detail-label">${label}</span>
+    <div class="detail-val"><span class="detail-num">${val}</span>${scoreChip(chipScore)}</div>
+  </div>`;
+}
+
+function buildSeoCard(d, score){
+  const kws = d.place_results||[];
+  const topRank = kws.reduce((best,k)=>k.rank&&k.rank<(best||999)?k.rank:best, null);
+  const infoScore = (d.address?30:0)+(d.category?30:0)+((d.photo_count||0)>=10?40:(d.photo_count||0)>=3?20:0);
+  const photoCount = d.photo_count??null;
+  return axisCard('📍','SEO·노출',score,[
+    detailRow('대표 키워드 순위', topRank?`${topRank}위`:'30위 밖', topRank?Math.max(0,100-topRank*3):5),
+    detailRow('정보 완성도', infoScore+'%', infoScore),
+    detailRow('사진 수', photoCount!=null?photoCount+'장':'-', photoCount!=null?Math.min(100,photoCount*8):null),
+  ].join(''));
+}
+
+function buildContentCard(d, score){
+  const vr = d.visitor_reviews, br = d.blog_reviews, ss = d.star_score;
+  return axisCard('⭐','콘텐츠',score,[
+    detailRow('방문자 리뷰', vr!=null?fmt(vr)+'개':'-', vr!=null?Math.min(100,vr/5):null),
+    detailRow('블로그 리뷰', br!=null?fmt(br)+'개':'-', br!=null?Math.min(100,br/3):null),
+    detailRow('별점', ss!=null?ss+'점':'-', ss!=null?(ss>=4.5?90:ss>=4.0?65:ss>=3.5?40:20):null),
+  ].join(''));
+}
+
+function buildActivityCard(d, score){
+  const lr = d.latest_review_date;
+  let dayStr='-', dayScore=null;
+  if(lr){
+    const diff=Math.floor((Date.now()-new Date(lr.replace(/[.]/g,'-')))/86400000);
+    dayStr=diff<=0?'오늘':`${diff}일 전`;
+    dayScore=diff<=7?100:diff<=30?80:diff<=90?55:diff<=180?30:10;
+  }
+  const vr=d.visitor_reviews;
+  return axisCard('🔥','활성도',score,[
+    detailRow('최근 리뷰', dayStr, dayScore),
+    detailRow('방문자 리뷰 수', vr!=null?fmt(vr)+'개':'-', vr!=null?Math.min(100,vr/5):null),
+    detailRow('정보 최신성', d.address?'최신':'미확인', d.address?80:30),
+  ].join(''));
+}
+
+function buildAdCard(score){
+  const adItems = [
+    {name:'플레이스광고', on:false},
+    {name:'파워링크', on:false},
+    {name:'지역소상공인광고', on:false},
+  ];
+  const rows = adItems.map(a=>`<div class="detail-row">
+    <span class="detail-label">${a.name}</span>
+    <div class="detail-val"><span class="chip chip-bad">${a.on?'✓집행':'✗미집행'}</span></div>
+  </div>`).join('');
+  const card = axisCard('📣','광고',score, rows);
+  // 광고 카드 하단 멘트 추가
+  return card.replace('</div>\n  </div>','</div>\n    <p style="font-size:.72rem;color:var(--gray-600);margin-top:10px;line-height:1.5;">광고가 켜져 있어도 키워드·소재 최적화로 효율을 더 올릴 수 있어요</p>\n  </div>');
+}
+
+// ── 경쟁사 비교 ───────────────────────────────────────────────────────────────
+function renderCompetitor(d){
+  const comp=d.competitor||{}, compD=comp.details||{}, gap=comp.gap||{};
+  if(!comp.competitor_id){document.getElementById('compCard').style.display='none';return;}
+  document.getElementById('compCard').style.display='block';
+
+  const myVr=d.visitor_reviews??0, cVr=compD.visitor_reviews??0;
+  const maxVr=Math.max(myVr,cVr,1);
+  const myBr=d.blog_reviews??0, cBr=compD.blog_reviews??0;
+  const maxBr=Math.max(myBr,cBr,1);
+
+  const vrGap=gap.visitor_reviews, brGap=gap.blog_reviews;
+  const rankGap=comp.my_rank?comp.my_rank-1:null;
+
+  let rows='';
+
+  // 방문자 리뷰 막대
+  rows+=`<div>
+    <div class="comp-label">방문자 리뷰</div>
+    <div class="comp-bar-wrap">
+      <div class="comp-tag" style="color:var(--green);font-size:.7rem;">우리</div>
+      <div class="comp-bar-bg"><div class="comp-bar" style="width:${(myVr/maxVr*100).toFixed(0)}%;background:var(--green);">${fmt(myVr)}</div></div>
+    </div>
+    <div class="comp-bar-wrap" style="margin-top:6px;">
+      <div class="comp-tag" style="color:var(--gray-600);font-size:.7rem;">1위</div>
+      <div class="comp-bar-bg"><div class="comp-bar" style="width:${(cVr/maxVr*100).toFixed(0)}%;background:var(--gray-400);">${fmt(cVr)}</div></div>
+    </div>
+    ${vrGap!=null&&vrGap>0?`<p class="comp-gap">▼ ${fmt(vrGap)}개 뒤처져 있어요</p>`:''}
+  </div>`;
+
+  // 순위 격차
+  if(rankGap!=null&&rankGap>0){
+    rows+=`<div class="comp-gap" style="border-top:1px solid var(--gray-100);padding-top:10px;">
+      현재 ${comp.my_rank}위 · 1위와 ${rankGap}계단 차이
+    </div>`;
+  }
+
+  document.getElementById('compRows').innerHTML=rows;
+}
+
+// ── 키워드 ────────────────────────────────────────────────────────────────────
+function renderKeywords(expanded){
+  _kwExpanded=expanded;
+  const list=document.getElementById('kwList');
+  const more=document.getElementById('kwMore');
+  const show = expanded?_allKw:_allKw.slice(0,8);
+  list.innerHTML=show.map(k=>{
+    const r=k.rank;
+    const cls=r?'kw-item exposed':'kw-item hidden';
+    const rankColor=r?(r<=3?'#22c55e':r<=10?'#f97316':'#9ca3af'):'#d1d5db';
+    const rankText=r?`${r}위`:'미노출';
+    return `<div class="${cls}">
+      <span class="kw-text">${esc(k.keyword)}</span>
+      <span class="kw-rank" style="background:${rankColor}">${rankText}</span>
+    </div>`;
+  }).join('');
+  if(_allKw.length>8){
+    more.textContent=expanded?'▲ 접기':`전체 ${_allKw.length}개 키워드 보기 →`;
+  }
+}
+function toggleKw(){ renderKeywords(!_kwExpanded); }
+
+// ── 닥터 코멘트 ───────────────────────────────────────────────────────────────
+function renderComment(d, sc){
+  const lines=[];
+  const tot=sc.total??0, seo=sc.seo??0, con=sc.content??0, act=sc.activity??0;
+  const vr=d.visitor_reviews, ss=d.star_score;
+  const kws=d.place_results||[];
+  const hitKws=kws.filter(k=>k.rank);
+
+  // 잘하는 점
+  if(ss!=null&&ss>=4.5) lines.push(`✅ 별점 ${ss}점으로 고객 신뢰도가 높아요. 이건 큰 강점입니다.`);
+  if(hitKws.length>=5) lines.push(`✅ ${hitKws.length}개 키워드에서 30위 이내에 노출되고 있어요.`);
+  if(vr!=null&&vr>=100) lines.push(`✅ 방문자 리뷰 ${fmt(vr)}개로 콘텐츠 기반이 탄탄해요.`);
+
+  // 개선 필요
+  if(seo<50) lines.push(`🔸 주요 키워드에서 노출이 부족해요. 정보 완성도와 키워드 일치도를 높여보세요.`);
+  if(con<50){
+    if(vr!=null&&vr<20) lines.push(`🔸 방문자 리뷰가 ${vr}개로 적어요. 리뷰 유도 캠페인이 효과적이에요.`);
+    else lines.push(`🔸 콘텐츠(리뷰·별점) 관리를 강화하면 순위 상승에 도움이 돼요.`);
+  }
+  if(act<50) lines.push(`🔸 최근 리뷰 활성도가 낮아요. 꾸준한 리뷰 관리가 필요해요.`);
+
+  // 희망 메시지
+  if(tot<70) lines.push(`💡 현재 점수에서 꾸준히 관리하면 충분히 상위권 진입이 가능한 구간이에요.`);
+
+  const box=document.getElementById('commentBox');
+  box.innerHTML=lines.map(l=>`<p class="comment-line">${esc(l)}</p>`).join('');
+}
+
+// ── 버튼 액션 (자리 확보, 동작은 추후) ──────────────────────────────────────
+function handleLead(){
+  alert('상세 리포트 발송 기능은 준비 중입니다.');
+}
+function handlePwa(){
+  const isIos=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(isIos) alert('사파리에서 하단 공유 버튼 → "홈 화면에 추가"를 탭하세요.');
+  else if(window._pwaPrompt){window._pwaPrompt.prompt();}
+  else alert('브라우저 주소창 옆 설치 아이콘을 눌러주세요.');
+}
+function handleShare(){
+  alert('카톡 공유 기능은 준비 중입니다.');
+}
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window._pwaPrompt=e;});
+
+// ── 폼 리셋 ──────────────────────────────────────────────────────────────────
+function resetForm(){
+  document.getElementById('result').style.display='none';
+  document.getElementById('input-section').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+document.getElementById('placeUrl').addEventListener('keydown',e=>{if(e.key==='Enter')diagnose();});
 </script>
 </body>
 </html>"""

@@ -7,10 +7,14 @@ PlaceDoctor 4축 점수 계산 모듈
 from datetime import datetime, date
 
 # ── 가중치 ────────────────────────────────────────────────────────────────────
-SEO_WEIGHT      = 0.40
-CONTENT_WEIGHT  = 0.35
-ACTIVITY_WEIGHT = 0.25
-# 광고 축은 미구현 — 가중치 배분 없음 (위 3개 합 = 1.0)
+# 광고 실제 감지 미구현이므로 플레이스홀더 20점(미집행) 고정.
+# 낮은 점수가 고정되므로 비중을 15%로 제한해 종합 점수 변별력 유지.
+SEO_WEIGHT      = 0.34
+CONTENT_WEIGHT  = 0.30
+ACTIVITY_WEIGHT = 0.21
+AD_WEIGHT       = 0.15  # 광고 축 비중
+
+AD_SCORE_PLACEHOLDER = 20  # 미집행 기본값 (실제 감지 구현 시 교체)
 
 # ── SEO 축 상수 ───────────────────────────────────────────────────────────────
 # 키워드 순위 → 점수 (키워드 하나당)
@@ -127,11 +131,11 @@ def calculate_scores(store_data: dict, competitor_data: dict = None, benchmark: 
                 activity = score
                 break
 
-    # ── 광고 축 (미구현) ──────────────────────────────────────────────────────
-    ad = None
+    # ── 광고 축 (감지 미구현 — 플레이스홀더) ────────────────────────────────
+    ad = AD_SCORE_PLACEHOLDER
 
-    # ── 종합 점수 (광고 제외 3축 가중 평균) ──────────────────────────────────
-    total = round(seo * SEO_WEIGHT + content * CONTENT_WEIGHT + activity * ACTIVITY_WEIGHT)
+    # ── 종합 점수 (4축 가중 평균) ────────────────────────────────────────────
+    total = round(seo * SEO_WEIGHT + content * CONTENT_WEIGHT + activity * ACTIVITY_WEIGHT + ad * AD_WEIGHT)
 
     detail = {
         "kw_score_raw": raw_kw_score,
