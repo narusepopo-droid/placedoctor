@@ -587,13 +587,9 @@ function buildAdCard(score){
     {name:'파워링크', on:false},
     {name:'지역소상공인광고', on:false},
   ];
-  const rows = adItems.map(a=>`<div class="detail-row">
-    <span class="detail-label">${a.name}</span>
-    <div class="detail-val"><span class="chip chip-bad">${a.on?'✓집행':'✗미집행'}</span></div>
-  </div>`).join('');
-  const card = axisCard('📣','광고',score, rows);
-  // 광고 카드 하단 멘트 추가
-  return card.replace('</div>\n  </div>','</div>\n    <p style="font-size:.72rem;color:var(--gray-600);margin-top:10px;line-height:1.5;">광고가 켜져 있어도 키워드·소재 최적화로 효율을 더 올릴 수 있어요</p>\n  </div>');
+  const rows = adItems.map(a=>`<div class="detail-row"><span class="detail-label">${a.name}</span><div class="detail-val"><span class="chip chip-bad">${a.on?'✓집행':'✗미집행'}</span></div></div>`).join('');
+  const note = '<p style="font-size:.72rem;color:var(--gray-600);margin-top:10px;line-height:1.5;">광고가 켜져 있어도 키워드·소재 최적화로 효율을 더 올릴 수 있어요</p>';
+  return axisCard('📣','광고',score, rows + note);
 }
 
 // ── 경쟁사 비교 ───────────────────────────────────────────────────────────────
