@@ -1,19 +1,35 @@
 import asyncio
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
-# Windows에서 Playwright(subprocess) 사용을 위해 ProactorEventLoop 필요
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
 from .database import engine, get_db
 from .models import Base
 from . import crud, schemas
 from .core.scraper import diagnose_store
+
+# uvicorn --reload 모드에서는 모듈 import 전에 SelectorEventLoop가 이미 생성됨.
+# 따라서 Playwright(subprocess)는 별도 스레드의 ProactorEventLoop에서 실행.
+_playwright_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="playwright")
+
+
+def _diagnose_sync(store_name: str, place_url: str) -> dict:
+    """Playwright 진단을 전용 스레드의 ProactorEventLoop에서 실행."""
+    if sys.platform == "win32":
+        loop = asyncio.ProactorEventLoop()
+    else:
+        loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(diagnose_store(store_name, place_url))
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
 
 Base.metadata.create_all(bind=engine)
 
@@ -209,7 +225,11 @@ async def diagnose(req: schemas.DiagnoseRequest, db: Session = Depends(get_db)):
             return cached
 
     try:
-        result = await diagnose_store(req.store_name, req.place_url)
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            _playwright_executor,
+            partial(_diagnose_sync, req.store_name, req.place_url),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"진단 중 오류: {type(e).__name__}: {e}")
 
