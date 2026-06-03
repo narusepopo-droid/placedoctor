@@ -135,11 +135,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* KEYWORDS */
 .kw-list{display:flex;flex-wrap:wrap;gap:8px;}
-.kw-item{display:flex;align-items:center;gap:6px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:7px 11px;}
-.kw-item.exposed{border-color:transparent;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.08);}
-.kw-item.hidden{opacity:.45;}
-.kw-text{font-size:.82rem;font-weight:600;}
-.kw-rank{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:6px;color:#fff;}
+.kw-item{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:8px 12px;}
+.kw-item.kw-opp{background:#fff;border-color:transparent;box-shadow:0 1px 8px rgba(0,0,0,.09);}
+.kw-row{display:flex;align-items:center;gap:6px;}
+.kw-text{font-size:.82rem;font-weight:600;flex:1;}
+.kw-rank{font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:6px;color:#fff;white-space:nowrap;}
+.kw-comment{font-size:.75rem;color:var(--gray-600);margin-top:5px;line-height:1.5;}
 .kw-more{margin-top:10px;font-size:.82rem;color:var(--green-d);font-weight:600;cursor:pointer;}
 
 /* DOCTOR COMMENT */
@@ -473,6 +474,7 @@ async function diagnose(){
 
 // ── 결과 렌더링 ───────────────────────────────────────────────────────────────
 function renderResult(d){
+  window._diagData = d;  // 키워드 태그에서 competitor 접근용
   const sc = d.scores||{};
   // 매장 정보
   document.getElementById('rStoreName').textContent = d.store_name||'-';
@@ -632,24 +634,58 @@ function renderCompetitor(d){
   document.getElementById('compRows').innerHTML=rows;
 }
 
-// ── 키워드 ────────────────────────────────────────────────────────────────────
+// ── 키워드 기회 태그 ──────────────────────────────────────────────────────────
+function kwTag(rank, hasComp){
+  if(rank!=null && rank<=5)  return {label:'노출 중', color:'#22c55e', priority:4};
+  if(rank!=null && rank<=10) return {label:`${rank}위`, color:'#86efac', priority:3};
+  if(rank!=null && rank<=15) return {label:'아깝다!', color:'#f97316', priority:1};
+  if(rank!=null && rank<=30) return {label:`${rank}위`, color:'#9ca3af', priority:3};
+  return hasComp
+    ? {label:'경쟁사 우위', color:'#ef4444', priority:0}
+    : {label:'놓침', color:'#ef4444', priority:2};
+}
+
+// ── 키워드별 규칙 기반 멘트 ──────────────────────────────────────────────────
+const KW_COMMENTS = {
+  '아깝다!': (r) => `첫 화면(1~5위)까지 ${r-5}계단 남았어요. 지금 이 키워드로 검색하는 손님은 대부분 경쟁사로 가고 있어요.`,
+  '놓침':    ()  => `노출이 안 되고 있어요. 이 키워드를 검색하는 신규 고객이 매장을 못 찾습니다.`,
+  '경쟁사 우위': () => `같은 동네 경쟁사는 이 키워드를 잡고 있어요. 그만큼 손님을 뺏기는 중이에요.`,
+};
+
+// ── 키워드 렌더링 ─────────────────────────────────────────────────────────────
 function renderKeywords(expanded){
   _kwExpanded=expanded;
   const list=document.getElementById('kwList');
   const more=document.getElementById('kwMore');
-  const show = expanded?_allKw:_allKw.slice(0,8);
+  const comp = (window._diagData||{}).competitor||{};
+  const hasComp = !!(comp.competitor_id);
+
+  // 기회 우선 정렬
+  const sorted = [..._allKw].sort((a,b)=>{
+    const ta=kwTag(a.rank, hasComp), tb=kwTag(b.rank, hasComp);
+    return ta.priority - tb.priority;
+  });
+
+  const SHOW_COMMENTS_FOR = ['아깝다!','놓침','경쟁사 우위'];
+  const show = expanded ? sorted : sorted.slice(0,8);
+
   list.innerHTML=show.map(k=>{
-    const r=k.rank;
-    const cls=r?'kw-item exposed':'kw-item hidden';
-    const rankColor=r?(r<=3?'#22c55e':r<=10?'#f97316':'#9ca3af'):'#d1d5db';
-    const rankText=r?`${r}위`:'미노출';
-    return `<div class="${cls}">
-      <span class="kw-text">${esc(k.keyword)}</span>
-      <span class="kw-rank" style="background:${rankColor}">${rankText}</span>
+    const tag=kwTag(k.rank, hasComp);
+    const isOpportunity=SHOW_COMMENTS_FOR.includes(tag.label);
+    const comment=KW_COMMENTS[tag.label]?.(k.rank);
+    return `<div class="kw-item${isOpportunity?' kw-opp':''}">
+      <div class="kw-row">
+        <span class="kw-text">${esc(k.keyword)}</span>
+        <span class="kw-rank" style="background:${tag.color}">${tag.label}</span>
+      </div>
+      ${comment?`<div class="kw-comment">${esc(comment)}</div>`:''}
     </div>`;
   }).join('');
-  if(_allKw.length>8){
-    more.textContent=expanded?'▲ 접기':`전체 ${_allKw.length}개 키워드 보기 →`;
+
+  if(sorted.length>8){
+    more.textContent=expanded?'▲ 접기':`전체 ${sorted.length}개 키워드 보기 →`;
+  } else {
+    more.textContent='';
   }
 }
 function toggleKw(){ renderKeywords(!_kwExpanded); }

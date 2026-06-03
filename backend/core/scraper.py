@@ -1169,9 +1169,11 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
           "scores":     { seo, content, activity, ad, total, detail },
         }
     """
+    N_WORKERS  = 4   # 동시 검색 페이지 수 (네이버 차단 방지: 3~4 이하 유지)
+    MAX_KW     = 10  # 상위 우선순위 키워드만 검색 (1분 이내 목표)
+
     playwright, browser, context = await create_browser()
     try:
-        search_page = await context.new_page()
         detail_page = await context.new_page()
 
         # ── 우리 매장 상세정보 ──────────────────────────────────────────────
@@ -1188,8 +1190,9 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
         keyword_list      = details.get("keyword_list", [])
 
         if keywords:
-            target_keywords = keywords
+            target_keywords = keywords[:MAX_KW]
         else:
+            # generate_keywords는 이미 우선순위순(keywordList > 역 > 동 > 구) 정렬
             target_keywords = generate_keywords(
                 store_name=store_name,
                 category=category,
@@ -1198,23 +1201,58 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
                 official_keywords=official_keywords,
                 nearby_station=nearby_station,
                 keyword_list=keyword_list,
-            )[:20]
+            )[:MAX_KW]
 
-        # ── 키워드별 순위 검색 ──────────────────────────────────────────────
-        place_results = []
-        for kw in target_keywords:
-            rank = await check_place_rank(search_page, kw, place_id)
-            place_results.append({"keyword": kw, "rank": rank})
+        # ── 병렬 키워드 순위 검색 + 경쟁사 탐색 동시 실행 ─────────────────
+        # 페이지 풀: N_WORKERS개 (키워드 검색) + 1개 (경쟁사 상세정보 전용)
+        comp_detail_page = await context.new_page()
+        search_pages = [await context.new_page() for _ in range(N_WORKERS)]
+        page_pool: asyncio.Queue = asyncio.Queue()
+        for p in search_pages:
+            await page_pool.put(p)
 
-        # ── 경쟁사 탐색 (가장 경쟁이 치열한 핵심 키워드 1개 사용) ──────────
-        competitor = {}
-        best_kw = next((r["keyword"] for r in place_results if r["rank"]), None)
-        if not best_kw:
-            best_kw = target_keywords[0] if target_keywords else None
+        async def _rank_task(kw: str) -> dict:
+            pg = await page_pool.get()
+            try:
+                r = await check_place_rank(pg, kw, place_id)
+                return {"keyword": kw, "rank": r}
+            finally:
+                await page_pool.put(pg)
 
-        if best_kw and place_id:
-            competitor = await find_competitor(search_page, detail_page, best_kw, place_id)
-            # gap에 우리 매장 리뷰 수 반영
+        # 경쟁사 탐색: 1순위 키워드로 시작, 풀에서 페이지 빌려 쓰다 반납
+        async def _comp_task() -> dict:
+            if not target_keywords or not place_id:
+                return {}
+            pg = await page_pool.get()  # 키워드 검색 첫 배치가 시작되면 바로 가용
+            try:
+                return await find_competitor(pg, comp_detail_page, target_keywords[0], place_id)
+            except Exception as e:
+                logger.warning(f"경쟁사 탐색 실패: {e}")
+                return {}
+            finally:
+                await page_pool.put(pg)
+
+        # 키워드 검색과 경쟁사 탐색을 한 번에 동시 실행
+        all_results = await asyncio.gather(
+            *[_rank_task(kw) for kw in target_keywords],
+            _comp_task(),
+        )
+        place_results = list(all_results[:-1])
+        competitor    = all_results[-1] or {}
+
+        # 경쟁사 없으면 순위가 나온 첫 키워드로 폴백 (추가 탐색)
+        if not competitor.get("competitor_id") and place_id:
+            best_kw = next((r["keyword"] for r in place_results if r["rank"]), None)
+            if best_kw and best_kw != (target_keywords[0] if target_keywords else None):
+                try:
+                    fb_pg = await page_pool.get()
+                    competitor = await find_competitor(fb_pg, comp_detail_page, best_kw, place_id)
+                    await page_pool.put(fb_pg)
+                except Exception as e:
+                    logger.warning(f"경쟁사 폴백 탐색 실패: {e}")
+
+        # gap에 우리 매장 리뷰 수 반영
+        if competitor.get("competitor_id"):
             my_visitor = details.get("visitor_reviews")
             my_blog    = details.get("blog_reviews")
             comp_d     = competitor.get("details", {})
