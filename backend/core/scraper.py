@@ -316,13 +316,15 @@ async def get_store_details(page, url):
         if nearby_dong and nearby_dong not in address_full:
             address_full = address_full + " " + nearby_dong
 
-        # ── 리뷰·별점·사진수 추출 ─────────────────────────────────────────────
+        # ── 리뷰·별점·사진수 추출 (JSON + DOM 텍스트 이중 탐색) ──────────────────
         review_data = await page.evaluate('''() => {
             const html = document.documentElement.innerHTML;
+            const bodyText = (document.body && document.body.innerText) ? document.body.innerText : "";
+
             function mNum(pats) {
                 for (const p of pats) {
                     const m = html.match(p);
-                    if (m) { const n = parseInt((m[1] || "").replace(/[,\\s]/g, "")); if (!isNaN(n)) return n; }
+                    if (m) { const n = parseInt((m[1] || "").replace(/[,\\s]/g, "")); if (!isNaN(n) && n >= 0) return n; }
                 }
                 return null;
             }
@@ -340,42 +342,125 @@ async def get_store_details(page, url):
                 }
                 return null;
             }
-            return {
-                visitorReviews: mNum([
-                    /"visitorReviewCount"\\s*:\\s*(\\d+)/,
-                    /"visitor_review_count"\\s*:\\s*(\\d+)/,
-                    /visitorReview[^"]*"count"\\s*:\\s*(\\d+)/,
-                    /"reviewCount"\\s*:\\s*(\\d+)/
-                ]),
-                blogReviews: mNum([
-                    /"blogCafeReviewCount"\\s*:\\s*(\\d+)/,
-                    /"blog(?:Cafe)?ReviewCount"\\s*:\\s*(\\d+)/,
-                    /"blogReviewCount"\\s*:\\s*(\\d+)/
-                ]),
-                starScore: mFloat([
-                    /"starScoreAvg"\\s*:\\s*"?([\\d.]+)"?/,
-                    /"starScore"\\s*:\\s*"?([\\d.]+)"?/,
-                    /"ratingScore"\\s*:\\s*"?([\\d.]+)"?/,
-                    /"avgScore"\\s*:\\s*"?([\\d.]+)"?/
-                ]),
-                photoCount: mNum([
-                    /"representativePhotoCount"\\s*:\\s*(\\d+)/,
-                    /"photoCount"\\s*:\\s*(\\d+)/,
-                    /"totalPhotoCount"\\s*:\\s*(\\d+)/,
-                    /"imageCount"\\s*:\\s*(\\d+)/
-                ]),
-                latestReview: mStr([
-                    /"latestVisitorReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
-                    /"latestReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
-                    /"recentReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/
-                ])
-            };
+            function domNum(patterns) {
+                for (const p of patterns) {
+                    const m = bodyText.match(p);
+                    if (m) { const n = parseInt((m[1] || "").replace(/,/g, "")); if (!isNaN(n) && n >= 0) return n; }
+                }
+                return null;
+            }
+            function domFloat(patterns) {
+                for (const p of patterns) {
+                    const m = bodyText.match(p);
+                    if (m) { const f = parseFloat(m[1]); if (!isNaN(f) && f >= 1 && f <= 5) return f; }
+                }
+                return null;
+            }
+
+            // 방문자 리뷰: JSON "reviewCount" 우선
+            const visitorReviews = mNum([
+                /"visitorReviewCount"\\s*:\\s*(\\d+)/,
+                /"reviewCount"\\s*:\\s*(\\d+)/,
+                /"visitor_review_count"\\s*:\\s*(\\d+)/
+            ]);
+
+            // 블로그 리뷰: DOM 텍스트 우선 (JSON에 키 없음)
+            const blogReviews =
+                domNum([/블로그\\s*리뷰\\s*([\\d,]+)/, /블로그([\\d,]+)/, /blog[\\s:]*([\\d,]+)/i]) ||
+                mNum([/"blogCafeReviewCount"\\s*:\\s*(\\d+)/, /"blogReviewCount"\\s*:\\s*(\\d+)/]);
+
+            // 별점: DOM 텍스트 우선 (1.0~5.0 범위 숫자)
+            const starScore =
+                domFloat([/([1-5]\\.[0-9]{1,2})\\s*(?:\\/|점|★)/, /평점\\s*([1-5]\\.[0-9]{1,2})/, /별점\\s*([1-5]\\.[0-9]{1,2})/]) ||
+                mFloat([/"starScoreAvg"\\s*:\\s*"?([\\d.]+)"?/, /"starScore"\\s*:\\s*"?([\\d.]+)"?/, /"ratingScore"\\s*:\\s*"?([\\d.]+)"?/]);
+
+            // 사진 수: DOM 텍스트 우선
+            const photoCount =
+                domNum([/사진\\s*([\\d,]+)/, /포토\\s*([\\d,]+)/]) ||
+                mNum([/"representativePhotoCount"\\s*:\\s*(\\d+)/, /"photoCount"\\s*:\\s*(\\d+)/, /"imageCount"\\s*:\\s*(\\d+)/]);
+
+            // 최근 리뷰 날짜: JSON 패턴 (DOM 날짜는 오늘 날짜가 포함돼 신뢰도 낮음)
+            const latestReview = mStr([
+                /"latestVisitorReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
+                /"latestReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
+                /"recentReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
+                /"created"\\s*:\\s*"(20[12]\\d[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/
+            ]);
+
+            return { visitorReviews, blogReviews, starScore, photoCount, latestReview };
         }''')
         visitor_reviews  = review_data.get("visitorReviews")
         blog_reviews     = review_data.get("blogReviews")
         star_score       = review_data.get("starScore")
         photo_count      = review_data.get("photoCount")
         latest_review_date = review_data.get("latestReview")
+
+        # 블로그리뷰·사진수·별점이 없으면 모바일 페이지에서 보완
+        if (blog_reviews is None or photo_count is None or star_score is None) and p_id:
+            try:
+                mob_url = f"https://m.place.naver.com/restaurant/{p_id}/home"
+                await page.goto(mob_url, wait_until="domcontentloaded", timeout=15000)
+                await page.wait_for_timeout(2000)
+                mob_data = await page.evaluate(r'''() => {
+                    const t = document.body ? document.body.innerText : "";
+                    function domNum(pats) {
+                        for (const p of pats) {
+                            const m = t.match(p);
+                            if (m) { const n = parseInt((m[1]||"").replace(/,/g,"")); if(!isNaN(n) && n>=0) return n; }
+                        }
+                        return null;
+                    }
+                    function domFloat(pats) {
+                        for (const p of pats) {
+                            const m = t.match(p);
+                            if (m) { const f = parseFloat(m[1]); if(!isNaN(f) && f>=1.0 && f<=5.0) return f; }
+                        }
+                        return null;
+                    }
+                    return {
+                        blog:  domNum([/블로그\s*리뷰[^\d]*([\d,]+)/, /블로그[^\d]+([\d,]+)/]),
+                        photo: domNum([/사진[^\d]*([\d,]+)/, /포토[^\d]*([\d,]+)/]),
+                        star:  domFloat([/([1-5]\.[0-9]{1,2})\s*(?:\/|점|★)/, /별점[^\d]*([1-5]\.[0-9]{1,2})/, /평점[^\d]*([1-5]\.[0-9]{1,2})/]),
+                    };
+                }''')
+                if blog_reviews  is None: blog_reviews  = mob_data.get("blog")
+                if photo_count   is None: photo_count   = mob_data.get("photo")
+                if star_score    is None: star_score    = mob_data.get("star")
+            except Exception:
+                pass
+
+        # 최근 리뷰 날짜 — 모바일 리뷰 탭에서 추출 (오늘·내일 날짜 제외, 상대날짜 변환)
+        if not latest_review_date and p_id:
+            from datetime import date as _date, timedelta as _td
+            _today     = _date.today()
+            today_str  = _today.strftime("%Y.%m.%d")
+            yest_str   = (_today - _td(days=1)).strftime("%Y.%m.%d")
+            try:
+                mob_rev_url = f"https://m.place.naver.com/restaurant/{p_id}/review/visitor"
+                await page.goto(mob_rev_url, wait_until="domcontentloaded", timeout=12000)
+                await page.wait_for_timeout(2000)
+                latest_review_date = await page.evaluate(
+                    f'''() => {{
+                        const t = document.body ? document.body.innerText : "";
+                        // 절대 날짜 (리뷰 탭에서는 오늘 날짜도 유효한 리뷰 날짜)
+                        const dates = t.match(/20[12]\\d[.\\-\\/]\\d{{2}}[.\\-\\/]\\d{{2}}/g) || [];
+                        if (dates.length) return dates[0];
+                        // 상대 날짜: "오늘" / "어제" / "N일 전"
+                        if (/오늘|방금/.test(t)) return "{today_str}";
+                        if (/어제/.test(t))      return "{yest_str}";
+                        const relM = t.match(/(\\d{{1,3}})일\\s*전/);
+                        if (relM) {{
+                            const n = parseInt(relM[1]);
+                            const d = new Date(); d.setDate(d.getDate() - n);
+                            return d.getFullYear() + "." +
+                                String(d.getMonth()+1).padStart(2,"0") + "." +
+                                String(d.getDate()).padStart(2,"0");
+                        }}
+                        return null;
+                    }}'''
+                )
+            except Exception:
+                pass
 
         logger.info(
             f"리뷰: 방문자 {visitor_reviews} / 블로그 {blog_reviews} | "
