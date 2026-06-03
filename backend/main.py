@@ -19,17 +19,19 @@ _playwright_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="pla
 
 
 def _diagnose_sync(store_name: str, place_url: str) -> dict:
-    """Playwright 진단을 전용 스레드의 ProactorEventLoop에서 실행."""
-    if sys.platform == "win32":
-        loop = asyncio.ProactorEventLoop()
-    else:
-        loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    """Playwright 진단을 전용 스레드에서 실행. 전체 트레이스백 포함."""
+    import traceback as _tb
     try:
-        return loop.run_until_complete(diagnose_store(store_name, place_url))
-    finally:
-        loop.close()
-        asyncio.set_event_loop(None)
+        if sys.platform == "win32":
+            # loop_factory=ProactorEventLoop: Python 3.12+ 공식 방법
+            return asyncio.run(
+                diagnose_store(store_name, place_url),
+                loop_factory=asyncio.ProactorEventLoop,
+            )
+        return asyncio.run(diagnose_store(store_name, place_url))
+    except Exception as exc:
+        # 전체 스택 트레이스를 RuntimeError 메시지에 포함
+        raise RuntimeError(_tb.format_exc()) from exc
 
 Base.metadata.create_all(bind=engine)
 
@@ -231,7 +233,7 @@ async def diagnose(req: schemas.DiagnoseRequest, db: Session = Depends(get_db)):
             partial(_diagnose_sync, req.store_name, req.place_url),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"진단 중 오류: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
     try:
         crud.save_diagnosis(db, result, req.place_url)
