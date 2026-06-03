@@ -2,12 +2,13 @@
 PlaceDoctor 핵심 엔진 — 네이버 플레이스 순위 검색 및 상세정보 수집
 
 참고: _reference/naver_tracker.py 에서 아래 함수들을 추출·정리했습니다.
-  - get_place_details_failsafe  → get_store_details
-  - _place_task (내부함수)       → check_place_rank
+  - get_place_details_failsafe  → get_store_details  (2단계: 리뷰·별점·사진수 추가)
+  - _place_task (내부함수)       → _fetch_place_ranking + check_place_rank
   - collect_blog_results        → 그대로
   - inspect_blog_post           → 그대로
   - check_blog_ranking_deep     → 그대로
-  + diagnose_store              (새로 추가한 진단 래퍼)
+  + find_competitor             (2단계 신규: 1위 경쟁사 자동 탐색)
+  + diagnose_store              (진단 래퍼, 2단계: 경쟁사·점수 포함)
 """
 
 import asyncio
@@ -19,6 +20,7 @@ import urllib.parse
 from playwright.async_api import async_playwright
 
 from .keywords import generate_keywords
+from .scoring import calculate_scores
 
 logger = logging.getLogger(__name__)
 
@@ -114,8 +116,12 @@ async def get_store_details(page, url):
                nearby_station, keyword_list}
         실패 시 place_id=None 인 dict 반환
     """
-    empty = dict(place_id=None, address="", category="",
-                 menu_items=[], official_keywords=[], nearby_station="", keyword_list=[])
+    empty = dict(
+        place_id=None, address="", category="",
+        menu_items=[], official_keywords=[], nearby_station="", keyword_list=[],
+        visitor_reviews=None, blog_reviews=None, star_score=None,
+        photo_count=None, latest_review_date=None,
+    )
     try:
         await page.goto(url, wait_until="domcontentloaded", timeout=20000)
         await page.wait_for_timeout(1000)
@@ -310,6 +316,72 @@ async def get_store_details(page, url):
         if nearby_dong and nearby_dong not in address_full:
             address_full = address_full + " " + nearby_dong
 
+        # ── 리뷰·별점·사진수 추출 ─────────────────────────────────────────────
+        review_data = await page.evaluate('''() => {
+            const html = document.documentElement.innerHTML;
+            function mNum(pats) {
+                for (const p of pats) {
+                    const m = html.match(p);
+                    if (m) { const n = parseInt((m[1] || "").replace(/[,\\s]/g, "")); if (!isNaN(n)) return n; }
+                }
+                return null;
+            }
+            function mFloat(pats) {
+                for (const p of pats) {
+                    const m = html.match(p);
+                    if (m) { const f = parseFloat(m[1]); if (!isNaN(f)) return f; }
+                }
+                return null;
+            }
+            function mStr(pats) {
+                for (const p of pats) {
+                    const m = html.match(p);
+                    if (m) return m[1];
+                }
+                return null;
+            }
+            return {
+                visitorReviews: mNum([
+                    /"visitorReviewCount"\\s*:\\s*(\\d+)/,
+                    /"visitor_review_count"\\s*:\\s*(\\d+)/,
+                    /visitorReview[^"]*"count"\\s*:\\s*(\\d+)/,
+                    /"reviewCount"\\s*:\\s*(\\d+)/
+                ]),
+                blogReviews: mNum([
+                    /"blogCafeReviewCount"\\s*:\\s*(\\d+)/,
+                    /"blog(?:Cafe)?ReviewCount"\\s*:\\s*(\\d+)/,
+                    /"blogReviewCount"\\s*:\\s*(\\d+)/
+                ]),
+                starScore: mFloat([
+                    /"starScoreAvg"\\s*:\\s*"?([\\d.]+)"?/,
+                    /"starScore"\\s*:\\s*"?([\\d.]+)"?/,
+                    /"ratingScore"\\s*:\\s*"?([\\d.]+)"?/,
+                    /"avgScore"\\s*:\\s*"?([\\d.]+)"?/
+                ]),
+                photoCount: mNum([
+                    /"representativePhotoCount"\\s*:\\s*(\\d+)/,
+                    /"photoCount"\\s*:\\s*(\\d+)/,
+                    /"totalPhotoCount"\\s*:\\s*(\\d+)/,
+                    /"imageCount"\\s*:\\s*(\\d+)/
+                ]),
+                latestReview: mStr([
+                    /"latestVisitorReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
+                    /"latestReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
+                    /"recentReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/
+                ])
+            };
+        }''')
+        visitor_reviews  = review_data.get("visitorReviews")
+        blog_reviews     = review_data.get("blogReviews")
+        star_score       = review_data.get("starScore")
+        photo_count      = review_data.get("photoCount")
+        latest_review_date = review_data.get("latestReview")
+
+        logger.info(
+            f"리뷰: 방문자 {visitor_reviews} / 블로그 {blog_reviews} | "
+            f"별점: {star_score} | 사진: {photo_count} | 최근리뷰: {latest_review_date}"
+        )
+
         return dict(
             place_id=p_id,
             address=address_full,
@@ -318,28 +390,87 @@ async def get_store_details(page, url):
             official_keywords=official_keywords,
             nearby_station=nearby_station,
             keyword_list=keyword_list,
+            visitor_reviews=visitor_reviews,
+            blog_reviews=blog_reviews,
+            star_score=star_score,
+            photo_count=photo_count,
+            latest_review_date=latest_review_date,
         )
     except Exception as e:
         logger.warning(f"정보 수집 실패: {e}")
         return empty
 
 
-# ── 플레이스 순위 검색 ────────────────────────────────────────────────────────
+# ── 플레이스 순위 검색 (내부 헬퍼) ──────────────────────────────────────────
 
-async def check_place_rank(page, keyword, place_id, safe_mode=True):
+_PLACE_RANK_JS = '''() => {
+    const ranked_ids = [], all_ids = [];
+    const seenR = new Set(), seenA = new Set();
+    const pats = [
+        /(?:place|restaurant|accommodation|hairshop|clinic|nail|gym|cafe|map|pcmap|store|outlink|entry\\/place|local\\/naver_place|pinId|beauty|spa|wellness)\\/(\\d{8,11})/i,
+        /[?&](?:id|pid|placeId|bizId)=(\\d{8,11})/i
+    ];
+    const adRe = /\\/\\/(?:ader|ad)\\.(?:search\\.)?naver\\.com/i;
+    const cardsInfo = new Map();
+    for (const li of document.querySelectorAll('li')) {
+        let pid = null, isAd = false;
+        for (const a of li.querySelectorAll('a[href]')) {
+            const h = a.getAttribute('href') || '';
+            if (adRe.test(h)) isAd = true;
+            if (!pid) {
+                let d=''; try{d=decodeURIComponent(h);}catch(e){d=h;}
+                for (const p of pats){const m=d.match(p);if(m){pid=m[1];break;}}
+            }
+        }
+        if (!pid) {
+            for (const el of li.querySelectorAll('[data-id],[data-place-id],[data-cid],[data-sid]')) {
+                const p=el.getAttribute('data-id')||el.getAttribute('data-place-id')||el.getAttribute('data-cid')||el.getAttribute('data-sid');
+                if(p&&/^\\d{8,11}$/.test(p)){pid=p;break;}
+            }
+        }
+        if (!pid) continue;
+        let parentReg=false; let anc=li.parentElement;
+        while(anc){if(anc.tagName==='LI'&&cardsInfo.has(anc)){parentReg=true;break;}anc=anc.parentElement;}
+        if (parentReg) continue;
+        cardsInfo.set(li, {pid, isAd});
+    }
+    const sortedCards = Array.from(cardsInfo.entries()).sort(([a],[b])=>{
+        const pos=a.compareDocumentPosition(b);
+        if(pos&0x04)return -1; if(pos&0x02)return 1; return 0;
+    });
+    for (const [li, info] of sortedCards) {
+        if (info.isAd) continue;
+        if (seenR.has(info.pid)) continue;
+        seenR.add(info.pid); ranked_ids.push(info.pid);
+    }
+    all_ids.push(...ranked_ids); seenR.forEach(x=>seenA.add(x));
+    for (const [li, info] of sortedCards) {
+        if (!seenA.has(info.pid)) { seenA.add(info.pid); all_ids.push(info.pid); }
+    }
+    try{const html=document.documentElement.innerHTML;const jp=/"(?:placeId|place_id|pid|sid|bizId)"\\s*:\\s*"?(\\d{8,11})"?/gi;let jm;
+        while((jm=jp.exec(html))!==null){if(!seenA.has(jm[1])){seenA.add(jm[1]);all_ids.push(jm[1]);}}}catch(e){}
+    return {ranked_ids, all_ids};
+}'''
+
+_SCROLL_JS = '''() => {
+    let scrolled = 0;
+    for (const c of document.querySelectorAll('ul, div')) {
+        if (c.scrollHeight > c.clientHeight + 50 && c.clientHeight > 200) {
+            const r = c.getBoundingClientRect();
+            if (r.left < 800) { c.scrollTop = c.scrollHeight; scrolled++; }
+        }
+    }
+    window.scrollTo(0, document.body.scrollHeight);
+    return scrolled;
+}'''
+
+
+async def _fetch_place_ranking(page, keyword, safe_mode=True):
     """
-    네이버 플레이스에서 keyword 검색 시 place_id 매장의 순위를 반환합니다.
-
-    Returns:
-        int | None: 순위 (1~30위), 30위 밖이거나 미발견이면 None
+    네이버 플레이스 검색 결과에서 ranked_ids 리스트를 반환합니다 (1페이지 기준).
+    check_place_rank / find_competitor 양쪽에서 공유하는 핵심 로직.
     """
-    if not place_id:
-        logger.warning(f"[{keyword}] place_id 없음")
-        return None
-
     encoded_kw = urllib.parse.quote(keyword)
-    logger.info(f"  검색: '{keyword}'")
-
     if safe_mode:
         await asyncio.sleep(random.uniform(0.05, 0.15))
 
@@ -365,86 +496,25 @@ async def check_place_rank(page, keyword, place_id, safe_mode=True):
     except Exception:
         pass
 
-    _scroll_js = '''() => {
-        let scrolled = 0;
-        for (const c of document.querySelectorAll('ul, div')) {
-            if (c.scrollHeight > c.clientHeight + 50 && c.clientHeight > 200) {
-                const r = c.getBoundingClientRect();
-                if (r.left < 800) { c.scrollTop = c.scrollHeight; scrolled++; }
-            }
-        }
-        window.scrollTo(0, document.body.scrollHeight);
-        return scrolled;
-    }'''
-
     for _ in range(12):
-        await page.evaluate(_scroll_js)
+        await page.evaluate(_SCROLL_JS)
         await page.wait_for_timeout(350)
 
-    _raw = await page.evaluate('''() => {
-        // 카드 단위 광고 필터 (광고+오가닉 동일 pid도 오가닉 정상 검출)
-        const ranked_ids = [], all_ids = [];
-        const seenR = new Set(), seenA = new Set();
-        const pats = [
-            /(?:place|restaurant|accommodation|hairshop|clinic|nail|gym|cafe|map|pcmap|store|outlink|entry\/place|local\/naver_place|pinId|beauty|spa|wellness)\\/(\\d{8,11})/i,
-            /[?&](?:id|pid|placeId|bizId)=(\\d{8,11})/i
-        ];
-        const adRe = /\\/\\/(?:ader|ad)\\.(?:search\\.)?naver\\.com/i;
-        const cardsInfo = new Map();
-        for (const li of document.querySelectorAll('li')) {
-            let pid = null, isAd = false;
-            for (const a of li.querySelectorAll('a[href]')) {
-                const h = a.getAttribute('href') || '';
-                if (adRe.test(h)) isAd = true;
-                if (!pid) {
-                    let d=''; try{d=decodeURIComponent(h);}catch(e){d=h;}
-                    for (const p of pats){const m=d.match(p);if(m){pid=m[1];break;}}
-                }
-            }
-            if (!pid) {
-                for (const el of li.querySelectorAll('[data-id],[data-place-id],[data-cid],[data-sid]')) {
-                    const p=el.getAttribute('data-id')||el.getAttribute('data-place-id')||el.getAttribute('data-cid')||el.getAttribute('data-sid');
-                    if(p&&/^\\d{8,11}$/.test(p)){pid=p;break;}
-                }
-            }
-            if (!pid) continue;
-            let parentReg=false; let anc=li.parentElement;
-            while(anc){if(anc.tagName==='LI'&&cardsInfo.has(anc)){parentReg=true;break;}anc=anc.parentElement;}
-            if (parentReg) continue;
-            cardsInfo.set(li, {pid, isAd});
-        }
-        const sortedCards = Array.from(cardsInfo.entries()).sort(([a],[b])=>{
-            const pos=a.compareDocumentPosition(b);
-            if(pos&0x04)return -1; if(pos&0x02)return 1; return 0;
-        });
-        for (const [li, info] of sortedCards) {
-            if (info.isAd) continue;
-            if (seenR.has(info.pid)) continue;
-            seenR.add(info.pid); ranked_ids.push(info.pid);
-        }
-        all_ids.push(...ranked_ids); seenR.forEach(x=>seenA.add(x));
-        for (const [li, info] of sortedCards) {
-            if (!seenA.has(info.pid)) { seenA.add(info.pid); all_ids.push(info.pid); }
-        }
-        try{const html=document.documentElement.innerHTML;const jp=/"(?:placeId|place_id|pid|sid|bizId)"\\s*:\\s*"?(\\d{8,11})"?/gi;let jm;
-            while((jm=jp.exec(html))!==null){if(!seenA.has(jm[1])){seenA.add(jm[1]);all_ids.push(jm[1]);}}}catch(e){}
-        return {ranked_ids, all_ids};
-    }''')
+    raw = await page.evaluate(_PLACE_RANK_JS)
+    ranked_ids = raw.get('ranked_ids', [])
 
-    p_ids = _raw.get('ranked_ids', [])
-
-    # 데스크탑 결과가 아예 없을 때만 모바일 재시도
-    if not p_ids:
+    # 데스크탑 결과 없을 때만 모바일 재시도
+    if not ranked_ids:
         p_url_m = f"https://m.search.naver.com/search.naver?query={encoded_kw}&where=m_place"
         await page.goto(p_url_m, wait_until="domcontentloaded", timeout=10000)
         await page.wait_for_timeout(600)
         for _ in range(8):
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             await page.wait_for_timeout(250)
-        m_ids = await page.evaluate('''() => {
+        ranked_ids = await page.evaluate('''() => {
             const ids = [], seen = new Set();
             const pats = [
-                /(?:place|restaurant|accommodation|hairshop|clinic|nail|gym|cafe|map|entry\/place|local\/naver_place)\\/(\\d{8,11})/i,
+                /(?:place|restaurant|accommodation|hairshop|clinic|nail|gym|cafe|map|entry\\/place|local\\/naver_place)\\/(\\d{8,11})/i,
                 /[?&](?:id|pid|placeId)=(\\d{8,11})/i
             ];
             for (const a of document.querySelectorAll("a[href]")) {
@@ -459,9 +529,23 @@ async def check_place_rank(page, keyword, place_id, safe_mode=True):
             }
             return ids;
         }''')
-        logger.debug(f"  [{keyword}] 모바일 p_ids={len(m_ids)}개, 감지={'O' if place_id in m_ids else 'X'}")
-        if m_ids:
-            p_ids = m_ids
+
+    return ranked_ids, p_url
+
+
+async def check_place_rank(page, keyword, place_id, safe_mode=True):
+    """
+    네이버 플레이스에서 keyword 검색 시 place_id 매장의 순위를 반환합니다.
+
+    Returns:
+        int | None: 순위 (1~30위), 30위 밖이거나 미발견이면 None
+    """
+    if not place_id:
+        logger.warning(f"[{keyword}] place_id 없음")
+        return None
+
+    logger.info(f"  검색: '{keyword}'")
+    p_ids, p_url = await _fetch_place_ranking(page, keyword, safe_mode)
 
     # 2페이지 폴백 (1페이지에 없을 때)
     if place_id and place_id not in p_ids:
@@ -470,35 +554,11 @@ async def check_place_rank(page, keyword, place_id, safe_mode=True):
             await page.goto(_p2_url, wait_until="domcontentloaded", timeout=12000)
             await page.wait_for_timeout(800)
             for _ in range(10):
-                await page.evaluate(_scroll_js)
+                await page.evaluate(_SCROLL_JS)
                 await page.wait_for_timeout(350)
-            _p2_ids = await page.evaluate('''() => {
-                const ids = [], seen = new Set();
-                const pats = [
-                    /(?:place|restaurant|accommodation|hairshop|clinic|nail|gym|cafe|map|pcmap|store|outlink|entry\\/place|local\\/naver_place|pinId|beauty|spa|wellness)\\/(\\d{8,11})/i,
-                    /[?&](?:id|pid|placeId|bizId)=(\\d{8,11})/i
-                ];
-                const adRe = /\\/\\/(?:ader|ad)\\.(?:search\\.)?naver\\.com/i;
-                const cardsInfo = new Map();
-                for (const li of document.querySelectorAll('li')) {
-                    let pid=null, isAd=false;
-                    for (const a of li.querySelectorAll('a[href]')) {
-                        const h=a.getAttribute('href')||'';
-                        if(adRe.test(h))isAd=true;
-                        if(!pid){let d='';try{d=decodeURIComponent(h);}catch(e){d=h;}for(const p of pats){const m=d.match(p);if(m){pid=m[1];break;}}}
-                    }
-                    if(!pid){for(const el of li.querySelectorAll('[data-id],[data-place-id],[data-cid],[data-sid]')){const p=el.getAttribute('data-id')||el.getAttribute('data-place-id')||el.getAttribute('data-cid')||el.getAttribute('data-sid');if(p&&/^\\d{8,11}$/.test(p)){pid=p;break;}}}
-                    if(!pid)continue;
-                    let parentReg=false;let anc=li.parentElement;
-                    while(anc){if(anc.tagName==='LI'&&cardsInfo.has(anc)){parentReg=true;break;}anc=anc.parentElement;}
-                    if(parentReg)continue;
-                    cardsInfo.set(li,{pid,isAd});
-                }
-                const sorted=Array.from(cardsInfo.entries()).sort(([a],[b])=>{const pos=a.compareDocumentPosition(b);if(pos&0x04)return -1;if(pos&0x02)return 1;return 0;});
-                for(const [li, info] of sorted){if(info.isAd)continue;if(seen.has(info.pid))continue;seen.add(info.pid);ids.push(info.pid);}
-                return ids;
-            }''')
-            logger.debug(f"  [{keyword}] 2페이지 p_ids={len(_p2_ids)}개, 감지={'O' if place_id in _p2_ids else 'X'}")
+            _p2_ids = await page.evaluate(_PLACE_RANK_JS)
+            _p2_ids = _p2_ids.get('ranked_ids', [])
+            logger.debug(f"  [{keyword}] 2페이지 {len(_p2_ids)}개, 감지={'O' if place_id in _p2_ids else 'X'}")
             if _p2_ids and place_id in _p2_ids:
                 r2 = _p2_ids.index(place_id) + 16
                 if r2 <= 30:
@@ -950,11 +1010,65 @@ async def check_blog_ranking_deep(page, inspect_page, keyword, store_name, place
         return [{"status": "추적오류", "rank": None, "title": "", "blog_link": "", "score": 0, "reasons": [str(e)[:80]]}]
 
 
+# ── 경쟁사 자동 탐색 ──────────────────────────────────────────────────────────
+
+async def find_competitor(page, detail_page, keyword, my_place_id) -> dict:
+    """
+    keyword 검색 결과 1위 매장을 찾아 상세정보 및 격차를 반환합니다.
+
+    Returns:
+        {
+          "competitor_id":    str | None,
+          "competitor_rank":  int,          # 보통 1
+          "my_rank":          int | None,
+          "details":          dict,         # get_store_details() 결과
+          "gap": {
+            "visitor_reviews": int | None,  # 경쟁사 - 우리 (양수면 뒤처짐)
+            "blog_reviews":    int | None,
+            "rank":            int | None,  # 우리순위 - 1 (양수면 뒤처짐)
+          }
+        }
+    """
+    ranked_ids, _ = await _fetch_place_ranking(page, keyword, safe_mode=True)
+    if not ranked_ids:
+        return {"competitor_id": None, "competitor_rank": None,
+                "my_rank": None, "details": {}, "gap": {}}
+
+    my_rank = (ranked_ids.index(my_place_id) + 1) if my_place_id in ranked_ids else None
+    competitor_id = ranked_ids[0] if ranked_ids[0] != my_place_id else (
+        ranked_ids[1] if len(ranked_ids) > 1 else None
+    )
+    competitor_rank = ranked_ids.index(competitor_id) + 1 if competitor_id else None
+
+    comp_details = {}
+    if competitor_id:
+        logger.info(f"  경쟁사 탐색: place_id={competitor_id}")
+        comp_url = f"https://map.naver.com/p/entry/place/{competitor_id}"
+        comp_details = await get_store_details(detail_page, comp_url)
+
+    def _gap(comp_val, my_val):
+        if comp_val is None or my_val is None:
+            return None
+        return comp_val - my_val
+
+    return {
+        "competitor_id":   competitor_id,
+        "competitor_rank": competitor_rank,
+        "my_rank":         my_rank,
+        "details":         comp_details,
+        "gap": {
+            "visitor_reviews": _gap(comp_details.get("visitor_reviews"), None),  # 우리 값은 호출측에서 채움
+            "blog_reviews":    _gap(comp_details.get("blog_reviews"), None),
+            "rank":            (my_rank - 1) if my_rank else None,
+        }
+    }
+
+
 # ── 통합 진단 래퍼 ────────────────────────────────────────────────────────────
 
 async def diagnose_store(store_name: str, place_url: str = None, keywords: list = None) -> dict:
     """
-    매장 정보를 받아 플레이스 순위 진단 결과를 한 덩어리로 반환합니다.
+    매장 정보를 받아 플레이스 순위 + 경쟁사 비교 + 4축 점수를 한 덩어리로 반환합니다.
 
     Args:
         store_name: 매장명
@@ -963,28 +1077,30 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
 
     Returns:
         {
-          "store_name": str,
-          "place_id": str | None,
-          "address": str,
-          "category": str,
-          "keywords_used": list[str],
-          "place_results": [{"keyword": str, "rank": int | None}],
+          "store_name", "place_id", "address", "category",
+          "visitor_reviews", "blog_reviews", "star_score", "photo_count", "latest_review_date",
+          "keywords_used", "place_results",
+          "competitor": { competitor_id, competitor_rank, my_rank, details, gap },
+          "scores":     { seo, content, activity, ad, total, detail },
         }
     """
     playwright, browser, context = await create_browser()
     try:
-        page = await context.new_page()
+        search_page = await context.new_page()
+        detail_page = await context.new_page()
+
+        # ── 우리 매장 상세정보 ──────────────────────────────────────────────
         details = {}
         if place_url:
-            details = await get_store_details(page, place_url)
+            details = await get_store_details(detail_page, place_url)
 
-        place_id = details.get("place_id")
-        address = details.get("address", "")
-        category = details.get("category", "")
-        menu_items = details.get("menu_items", [])
+        place_id          = details.get("place_id")
+        address           = details.get("address", "")
+        category          = details.get("category", "")
+        menu_items        = details.get("menu_items", [])
         official_keywords = details.get("official_keywords", [])
-        nearby_station = details.get("nearby_station", "")
-        keyword_list = details.get("keyword_list", [])
+        nearby_station    = details.get("nearby_station", "")
+        keyword_list      = details.get("keyword_list", [])
 
         if keywords:
             target_keywords = keywords
@@ -999,18 +1115,54 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
                 keyword_list=keyword_list,
             )[:20]
 
+        # ── 키워드별 순위 검색 ──────────────────────────────────────────────
         place_results = []
         for kw in target_keywords:
-            rank = await check_place_rank(page, kw, place_id)
+            rank = await check_place_rank(search_page, kw, place_id)
             place_results.append({"keyword": kw, "rank": rank})
 
-        return {
-            "store_name": store_name,
-            "place_id": place_id,
-            "address": address,
-            "category": category,
-            "keywords_used": target_keywords,
+        # ── 경쟁사 탐색 (가장 경쟁이 치열한 핵심 키워드 1개 사용) ──────────
+        competitor = {}
+        best_kw = next((r["keyword"] for r in place_results if r["rank"]), None)
+        if not best_kw:
+            best_kw = target_keywords[0] if target_keywords else None
+
+        if best_kw and place_id:
+            competitor = await find_competitor(search_page, detail_page, best_kw, place_id)
+            # gap에 우리 매장 리뷰 수 반영
+            my_visitor = details.get("visitor_reviews")
+            my_blog    = details.get("blog_reviews")
+            comp_d     = competitor.get("details", {})
+            competitor["gap"]["visitor_reviews"] = (
+                (comp_d.get("visitor_reviews") or 0) - (my_visitor or 0)
+                if (comp_d.get("visitor_reviews") is not None or my_visitor is not None) else None
+            )
+            competitor["gap"]["blog_reviews"] = (
+                (comp_d.get("blog_reviews") or 0) - (my_blog or 0)
+                if (comp_d.get("blog_reviews") is not None or my_blog is not None) else None
+            )
+
+        # ── 점수 계산 ───────────────────────────────────────────────────────
+        store_data_for_score = {
+            **details,
             "place_results": place_results,
+        }
+        scores = calculate_scores(store_data_for_score, competitor.get("details"))
+
+        return {
+            "store_name":         store_name,
+            "place_id":           place_id,
+            "address":            address,
+            "category":           category,
+            "visitor_reviews":    details.get("visitor_reviews"),
+            "blog_reviews":       details.get("blog_reviews"),
+            "star_score":         details.get("star_score"),
+            "photo_count":        details.get("photo_count"),
+            "latest_review_date": details.get("latest_review_date"),
+            "keywords_used":      target_keywords,
+            "place_results":      place_results,
+            "competitor":         competitor,
+            "scores":             scores,
         }
     finally:
         await close_browser(playwright, browser)
