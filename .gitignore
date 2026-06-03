@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+
+# 환경변수 / 비밀키 — 절대 커밋 금지
+.env
+.env.*
+
+# Playwright
+playwright/.auth/
+test-results/
+playwright-report/
+
+# 빌드 결과물
+dist/
+build/
+*.spec
+
+# node_modules
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 로그
+*.log
