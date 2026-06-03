@@ -164,7 +164,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* LOADING */
 #loading-section{display:none;}
-.l-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:32px 20px;text-align:center;}
+.l-card{background:#fff;border-radius:var(--radius);box-shadow:0 8px 32px rgba(3,199,90,.15),var(--shadow);padding:32px 20px;text-align:center;border-top:4px solid var(--green);}
 .l-pulse{font-size:3rem;display:block;margin-bottom:14px;animation:lpulse 1.4s ease-in-out infinite;}
 @keyframes lpulse{0%,100%{transform:scale(1);}50%{transform:scale(1.14);}}
 .l-title{font-size:1.15rem;font-weight:700;margin-bottom:4px;}
@@ -430,18 +430,24 @@ async function diagnose(){
   btn.disabled=true; btn.textContent='분석 중...';
   document.getElementById('errBox').innerHTML='';
 
-  // 즉시 로딩 화면으로 전환
+  // 즉시 로딩 화면으로 전환 (버튼 클릭 즉시 발생)
   document.getElementById('input-section').style.display='none';
   document.getElementById('loading-section').style.display='block';
   startLoading();
   window.scrollTo({top:0,behavior:'smooth'});
 
+  const _loadStart = Date.now();
+  const MIN_SHOW_MS = 1500; // 캐시 응답이 와도 최소 1.5초는 로딩 화면 유지
+
   try{
-    const res = await fetch('/diagnose',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({store_name:name,place_url:url,force_refresh:force})
-    });
+    const [res] = await Promise.all([
+      fetch('/diagnose',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({store_name:name,place_url:url,force_refresh:force})
+      }),
+      new Promise(r=>setTimeout(r, MIN_SHOW_MS))
+    ]);
     const text = await res.text();
     stopLoading();
     if(!res.ok){
