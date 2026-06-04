@@ -6,6 +6,11 @@ class DiagnoseRequest(BaseModel):
     store_name: str
     place_url: str
     force_refresh: bool = False
+    # 키워드광고 체크박스 (자동 감지 제거 → 업주 입력)
+    ad_place: bool = False       # 플레이스 광고
+    ad_powerlink: bool = False   # 파워링크
+    ad_local: bool = False       # 지역소상공인광고
+    ad_blog: bool = False        # 블로그 체험단
 
 
 class DiagnoseResponse(BaseModel):
@@ -19,10 +24,12 @@ class DiagnoseResponse(BaseModel):
     star_score: Optional[float] = None
     photo_count: Optional[int] = None
     latest_review_date: Optional[str] = None
+    recent_30d_reviews: Optional[int] = None
     keywords_used: List[str] = []
     place_results: List[Any] = []
     competitor: Any = {}
     scores: Any = {}
+    ad_flags: Any = {}
 
 
 class LeadRequest(BaseModel):

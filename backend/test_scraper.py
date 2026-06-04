@@ -60,6 +60,7 @@ async def main():
     print(f"  리뷰 수    : 방문자 {_fmt(r['visitor_reviews'])} / 블로그 {_fmt(r['blog_reviews'])}")
     print(f"  사진 수    : {_fmt(r['photo_count'])}")
     print(f"  최근 리뷰  : {_fmt(r['latest_review_date'])}")
+    print(f"  최근30일리뷰: {_fmt(r.get('recent_30d_reviews'), '개')}")
 
     # ── 키워드별 순위 ──────────────────────────────────────────────────────
     print(f"\n[키워드별 순위]")
@@ -95,11 +96,11 @@ async def main():
     sc = r.get("scores", {})
     if sc:
         print(f"\n[점수]")
-        print(f"  SEO      : {sc.get('seo', 0)}점")
-        print(f"  콘텐츠   : {sc.get('content', 0)}점")
-        print(f"  활성도   : {sc.get('activity', 0)}점")
-        print(f"  광고     : (미구현)")
-        print(f"  종합     : {sc.get('total', 0)}점")
+        print(f"  검색노출(SEO) : {sc.get('seo', 0)}점")
+        print(f"  리뷰관리      : {sc.get('content', 0)}점")
+        print(f"  최근활동      : {sc.get('activity', 0)}점")
+        print(f"  키워드광고    : {sc.get('ad', 0)}점 ({sc.get('ad_label', '-')})")
+        print(f"  종합          : {sc.get('total', 0)}점")
 
     print(f"\n{'='*55}")
     print("  진단 완료")

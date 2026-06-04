@@ -120,7 +120,7 @@ async def get_store_details(page, url):
         place_id=None, address="", category="",
         menu_items=[], official_keywords=[], nearby_station="", keyword_list=[],
         visitor_reviews=None, blog_reviews=None, star_score=None,
-        photo_count=None, latest_review_date=None,
+        photo_count=None, latest_review_date=None, recent_30d_reviews=None,
     )
     try:
         await page.goto(url, wait_until="domcontentloaded", timeout=20000)
@@ -429,42 +429,71 @@ async def get_store_details(page, url):
             except Exception:
                 pass
 
-        # 최근 리뷰 날짜 — 모바일 리뷰 탭에서 추출 (오늘·내일 날짜 제외, 상대날짜 변환)
-        if not latest_review_date and p_id:
+        # 방문자 리뷰 탭 1회 방문 — 최근 리뷰 날짜 + 최근 30일 방문자 리뷰수 동시 수집.
+        # (추가 네비게이션 없이 한 페이지에서 처리 → 차단 리스크 최소화. 실패 시 None 유지)
+        recent_30d_reviews = None
+        if p_id:
             from datetime import date as _date, timedelta as _td
-            _today     = _date.today()
-            today_str  = _today.strftime("%Y.%m.%d")
-            yest_str   = (_today - _td(days=1)).strftime("%Y.%m.%d")
+            _today    = _date.today()
             try:
-                mob_rev_url = f"https://m.place.naver.com/restaurant/{p_id}/review/visitor"
+                mob_rev_url = f"https://m.place.naver.com/place/{p_id}/review/visitor"
                 await page.goto(mob_rev_url, wait_until="domcontentloaded", timeout=12000)
-                await page.wait_for_timeout(2000)
-                latest_review_date = await page.evaluate(
-                    f'''() => {{
-                        const t = document.body ? document.body.innerText : "";
-                        // 절대 날짜 (리뷰 탭에서는 오늘 날짜도 유효한 리뷰 날짜)
-                        const dates = t.match(/20[12]\\d[.\\-\\/]\\d{{2}}[.\\-\\/]\\d{{2}}/g) || [];
-                        if (dates.length) return dates[0];
-                        // 상대 날짜: "오늘" / "어제" / "N일 전"
-                        if (/오늘|방금/.test(t)) return "{today_str}";
-                        if (/어제/.test(t))      return "{yest_str}";
-                        const relM = t.match(/(\\d{{1,3}})일\\s*전/);
-                        if (relM) {{
-                            const n = parseInt(relM[1]);
-                            const d = new Date(); d.setDate(d.getDate() - n);
-                            return d.getFullYear() + "." +
-                                String(d.getMonth()+1).padStart(2,"0") + "." +
-                                String(d.getDate()).padStart(2,"0");
-                        }}
+                await page.wait_for_timeout(1800)
+                # 최근 50개 정도만 확인하면 충분 → 가벼운 스크롤 3회
+                for _ in range(3):
+                    await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                    await page.wait_for_timeout(600)
+
+                # 리뷰 항목(li)별 작성일을 '며칠 전'(days-ago) 정수로 변환해 배열로 반환
+                review_days = await page.evaluate(r'''() => {
+                    function tokenDays(txt) {
+                        if (!txt) return null;
+                        if (/방금|오늘/.test(txt)) return 0;
+                        if (/어제/.test(txt)) return 1;
+                        let m;
+                        if (m = txt.match(/(\d{1,3})\s*일\s*전/))            return parseInt(m[1]);
+                        if (m = txt.match(/(\d{1,2})\s*주\s*전/))            return parseInt(m[1]) * 7;
+                        if (m = txt.match(/(\d{1,2})\s*(?:개월|달)\s*전/))   return parseInt(m[1]) * 30;
+                        if (m = txt.match(/(20\d{2})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/)) {
+                            const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+                            return Math.floor((Date.now() - d) / 86400000);
+                        }
+                        if (m = txt.match(/(?:^|\D)(\d{2})[.\-\/](\d{1,2})[.\-\/](\d{1,2})(?:\D|$)/)) {
+                            const yy = parseInt(m[1]);
+                            if (yy >= 20 && yy <= 40) {
+                                const d = new Date(2000 + yy, parseInt(m[2]) - 1, parseInt(m[3]));
+                                return Math.floor((Date.now() - d) / 86400000);
+                            }
+                        }
                         return null;
-                    }}'''
-                )
+                    }
+                    const out = [];
+                    const lis = Array.from(document.querySelectorAll('li'));
+                    for (const li of lis) {
+                        if (out.length >= 60) break;
+                        // 내부에 다른 리뷰 li가 있으면(래퍼) 건너뛰고 가장 안쪽 항목만 사용
+                        if (li.querySelector('li')) continue;
+                        const t = (li.innerText || "");
+                        if (t.length < 4 || t.length > 1500) continue;
+                        const dd = tokenDays(t);
+                        if (dd !== null && dd >= 0 && dd <= 4000) out.push(dd);
+                    }
+                    return out;
+                }''')
+
+                if review_days:
+                    recent_30d_reviews = sum(1 for d in review_days if d <= 30)
+                    if not latest_review_date:
+                        min_days = min(review_days)
+                        d = _today - _td(days=min_days)
+                        latest_review_date = d.strftime("%Y.%m.%d")
             except Exception:
                 pass
 
         logger.info(
             f"리뷰: 방문자 {visitor_reviews} / 블로그 {blog_reviews} | "
-            f"별점: {star_score} | 사진: {photo_count} | 최근리뷰: {latest_review_date}"
+            f"별점: {star_score} | 사진: {photo_count} | 최근리뷰: {latest_review_date} | "
+            f"최근30일: {recent_30d_reviews}"
         )
 
         return dict(
@@ -480,6 +509,7 @@ async def get_store_details(page, url):
             star_score=star_score,
             photo_count=photo_count,
             latest_review_date=latest_review_date,
+            recent_30d_reviews=recent_30d_reviews,
         )
     except Exception as e:
         logger.warning(f"정보 수집 실패: {e}")
@@ -1151,7 +1181,8 @@ async def find_competitor(page, detail_page, keyword, my_place_id) -> dict:
 
 # ── 통합 진단 래퍼 ────────────────────────────────────────────────────────────
 
-async def diagnose_store(store_name: str, place_url: str = None, keywords: list = None) -> dict:
+async def diagnose_store(store_name: str, place_url: str = None, keywords: list = None,
+                         ad_flags: dict = None) -> dict:
     """
     매장 정보를 받아 플레이스 순위 + 경쟁사 비교 + 4축 점수를 한 덩어리로 반환합니다.
 
@@ -1270,7 +1301,8 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
             **details,
             "place_results": place_results,
         }
-        scores = calculate_scores(store_data_for_score, competitor.get("details"))
+        scores = calculate_scores(store_data_for_score, competitor.get("details"),
+                                  ad_flags=ad_flags)
 
         return {
             "store_name":         store_name,
@@ -1282,10 +1314,12 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
             "star_score":         details.get("star_score"),
             "photo_count":        details.get("photo_count"),
             "latest_review_date": details.get("latest_review_date"),
+            "recent_30d_reviews": details.get("recent_30d_reviews"),
             "keywords_used":      target_keywords,
             "place_results":      place_results,
             "competitor":         competitor,
             "scores":             scores,
+            "ad_flags":           ad_flags or {},
         }
     finally:
         await close_browser(playwright, browser)

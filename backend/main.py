@@ -11,6 +11,7 @@ from .database import engine, get_db
 from .models import Base
 from . import crud, schemas
 from .core.scraper import diagnose_store
+from .core.scoring import apply_ad_flags
 
 # ── Windows ProactorEventLoop 전용 스레드 ────────────────────────────────────
 # uvicorn --reload 모드에서는 SelectorEventLoop를 강제하므로
@@ -116,6 +117,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .progress-fill{height:100%;border-radius:4px;transition:width 1s ease;}
 .detail-list{display:flex;flex-direction:column;gap:8px;}
 .detail-row{display:flex;justify-content:space-between;align-items:center;}
+.ad-check-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ad-check{display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--gray-800);background:var(--gray-50,#f9fafb);border:1px solid var(--gray-200);border-radius:8px;padding:9px 10px;cursor:pointer;}
+.ad-check input{accent-color:var(--green);}
 .detail-label{font-size:.78rem;color:var(--gray-600);}
 .detail-val{display:flex;align-items:center;gap:4px;}
 .detail-num{font-size:.8rem;font-weight:600;}
@@ -213,6 +217,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <p>네이버 플레이스 URL만 있으면 순위·리뷰·경쟁사까지 무료로 분석해드려요</p>
       <div class="field"><label>매장명</label><input type="text" id="storeName" placeholder="예: 감동식당"></div>
       <div class="field"><label>네이버 플레이스 URL</label><input type="text" id="placeUrl" placeholder="https://naver.me/... 또는 map.naver.com/..."></div>
+      <div class="field">
+        <label>현재 집행 중인 광고 (해당 항목 체크)</label>
+        <div class="ad-check-grid">
+          <label class="ad-check"><input type="checkbox" id="adPlace"> 플레이스 광고</label>
+          <label class="ad-check"><input type="checkbox" id="adPowerlink"> 파워링크</label>
+          <label class="ad-check"><input type="checkbox" id="adLocal"> 지역소상공인광고</label>
+          <label class="ad-check"><input type="checkbox" id="adBlog"> 블로그 체험단</label>
+        </div>
+      </div>
       <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--gray-600);margin-bottom:14px;cursor:pointer;">
         <input type="checkbox" id="forceRefresh"> 강제 재크롤링
       </label>
@@ -425,6 +438,12 @@ async function diagnose(){
   const name = document.getElementById('storeName').value.trim();
   const url  = document.getElementById('placeUrl').value.trim();
   const force= document.getElementById('forceRefresh').checked;
+  const adFlags = {
+    ad_place:     document.getElementById('adPlace').checked,
+    ad_powerlink: document.getElementById('adPowerlink').checked,
+    ad_local:     document.getElementById('adLocal').checked,
+    ad_blog:      document.getElementById('adBlog').checked,
+  };
   if(!name||!url){alert('매장명과 URL을 입력해주세요.');return;}
 
   const btn = document.getElementById('diagBtn');
@@ -445,7 +464,7 @@ async function diagnose(){
       fetch('/diagnose',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({store_name:name,place_url:url,force_refresh:force})
+        body: JSON.stringify({store_name:name,place_url:url,force_refresh:force,...adFlags})
       }),
       new Promise(r=>setTimeout(r, MIN_SHOW_MS))
     ]);
@@ -518,7 +537,7 @@ function renderAxisCards(d, sc){
     buildSeoCard(d, sc.seo??0),
     buildContentCard(d, sc.content??0),
     buildActivityCard(d, sc.activity??0),
-    buildAdCard(sc.ad??20),
+    buildAdCard(d, sc),
   ];
   grid.innerHTML = axes.join('');
   // 진행바 애니메이션
@@ -551,7 +570,7 @@ function buildSeoCard(d, score){
   const topRank = kws.reduce((best,k)=>k.rank&&k.rank<(best||999)?k.rank:best, null);
   const infoScore = (d.address?30:0)+(d.category?30:0)+((d.photo_count||0)>=10?40:(d.photo_count||0)>=3?20:0);
   const photoCount = d.photo_count??null;
-  return axisCard('📍','SEO·노출',score,[
+  return axisCard('📍','검색노출(SEO)',score,[
     detailRow('대표 키워드 순위', topRank?`${topRank}위`:'30위 밖', topRank?Math.max(0,100-topRank*3):5),
     detailRow('정보 완성도', infoScore+'%', infoScore),
     detailRow('사진 수', photoCount!=null?photoCount+'장':'-', photoCount!=null?Math.min(100,photoCount*8):null),
@@ -560,10 +579,10 @@ function buildSeoCard(d, score){
 
 function buildContentCard(d, score){
   const vr = d.visitor_reviews, br = d.blog_reviews, ss = d.star_score;
-  return axisCard('⭐','콘텐츠',score,[
+  return axisCard('⭐','리뷰관리',score,[
     detailRow('방문자 리뷰', vr!=null?fmt(vr)+'개':'-', vr!=null?Math.min(100,vr/5):null),
     detailRow('블로그 리뷰', br!=null?fmt(br)+'개':'-', br!=null?Math.min(100,br/3):null),
-    detailRow('별점', ss!=null?ss+'점':'-', ss!=null?(ss>=4.5?90:ss>=4.0?65:ss>=3.5?40:20):null),
+    detailRow('별점', ss!=null?ss+'점':'별점 없음', ss!=null?(ss>=4.5?90:ss>=4.0?65:ss>=3.5?40:20):null),
   ].join(''));
 }
 
@@ -575,23 +594,28 @@ function buildActivityCard(d, score){
     dayStr=diff<=0?'오늘':`${diff}일 전`;
     dayScore=diff<=7?100:diff<=30?80:diff<=90?55:diff<=180?30:10;
   }
-  const vr=d.visitor_reviews;
-  return axisCard('🔥','활성도',score,[
+  const r30=d.recent_30d_reviews;
+  const r30Score=r30==null?null:(r30>=30?100:r30>=15?80:r30>=8?60:r30>=4?40:r30>=1?20:0);
+  return axisCard('🔥','최근활동',score,[
     detailRow('최근 리뷰', dayStr, dayScore),
-    detailRow('방문자 리뷰 수', vr!=null?fmt(vr)+'개':'-', vr!=null?Math.min(100,vr/5):null),
+    detailRow('최근 30일 리뷰', r30!=null?fmt(r30)+'개':'-', r30Score),
     detailRow('정보 최신성', d.address?'최신':'미확인', d.address?80:30),
   ].join(''));
 }
 
-function buildAdCard(score){
+function buildAdCard(d, sc){
+  const score = sc.ad??20;
+  const f = d.ad_flags||{};
   const adItems = [
-    {name:'플레이스광고', on:false},
-    {name:'파워링크', on:false},
-    {name:'지역소상공인광고', on:false},
+    {name:'플레이스 광고',     on:!!f.place},
+    {name:'파워링크',          on:!!f.powerlink},
+    {name:'지역소상공인광고',  on:!!f.local},
+    {name:'블로그 체험단',     on:!!f.blog},
   ];
-  const rows = adItems.map(a=>`<div class="detail-row"><span class="detail-label">${a.name}</span><div class="detail-val"><span class="chip chip-bad">${a.on?'✓집행':'✗미집행'}</span></div></div>`).join('');
-  const note = '<p style="font-size:.72rem;color:var(--gray-600);margin-top:10px;line-height:1.5;">광고가 켜져 있어도 키워드·소재 최적화로 효율을 더 올릴 수 있어요</p>';
-  return axisCard('📣','광고',score, rows + note);
+  const rows = adItems.map(a=>`<div class="detail-row"><span class="detail-label">${a.name}</span><div class="detail-val"><span class="chip ${a.on?'chip-good':'chip-bad'}">${a.on?'✓ 집행':'✗ 미집행'}</span></div></div>`).join('');
+  const label = sc.ad_label?`<p style="font-size:.78rem;font-weight:700;color:var(--gray-700);margin-top:8px;">${esc(sc.ad_label)}</p>`:'';
+  const note = '<p style="font-size:.72rem;color:var(--gray-600);margin-top:6px;line-height:1.5;">광고가 켜져 있어도 키워드·소재 최적화로 효율을 더 올릴 수 있어요</p>';
+  return axisCard('📣','키워드광고',score, rows + label + note);
 }
 
 // ── 경쟁사 비교 ───────────────────────────────────────────────────────────────
@@ -645,11 +669,20 @@ function kwTag(rank, hasComp){
     : {label:'놓침', color:'#ef4444', priority:2};
 }
 
-// ── 키워드별 규칙 기반 멘트 ──────────────────────────────────────────────────
-const KW_COMMENTS = {
-  '아깝다!': (r) => `첫 화면(1~5위)까지 ${r-5}계단 남았어요. 지금 이 키워드로 검색하는 손님은 대부분 경쟁사로 가고 있어요.`,
-  '놓침':    ()  => `노출이 안 되고 있어요. 이 키워드를 검색하는 신규 고객이 매장을 못 찾습니다.`,
-  '경쟁사 우위': () => `같은 동네 경쟁사는 이 키워드를 잡고 있어요. 그만큼 손님을 뺏기는 중이에요.`,
+// ── 순위 구간별 규칙 기반 멘트 (한 곳에 모아 수정 쉽게) ──────────────────────
+function rankBand(rank){
+  if(rank==null)  return 'none';
+  if(rank<=5)     return 'top5';
+  if(rank<=10)    return 'top10';
+  if(rank<=15)    return 'top15';
+  return 'page2';  // 16~30위
+}
+const RANK_MENTS = {
+  top5:  '첫 화면 노출 중! 이 순위 유지가 관건이에요',
+  top10: '첫 화면이 코앞이에요. 조금만 더 올리면 1페이지 진입',
+  top15: '3~4계단만 올리면 첫 화면! 가장 아까운 구간이에요',
+  page2: '2페이지예요. 손님 대부분이 여기까진 안 봐요',
+  none:  '이 키워드로는 안 보여요. 노려야 할 기회예요',
 };
 
 // ── 키워드 렌더링 ─────────────────────────────────────────────────────────────
@@ -666,13 +699,12 @@ function renderKeywords(expanded){
     return ta.priority - tb.priority;
   });
 
-  const SHOW_COMMENTS_FOR = ['아깝다!','놓침','경쟁사 우위'];
   const show = expanded ? sorted : sorted.slice(0,8);
 
   list.innerHTML=show.map(k=>{
     const tag=kwTag(k.rank, hasComp);
-    const isOpportunity=SHOW_COMMENTS_FOR.includes(tag.label);
-    const comment=KW_COMMENTS[tag.label]?.(k.rank);
+    const isOpportunity=tag.priority<=2;  // 아깝다/놓침/경쟁사우위 강조
+    const comment=RANK_MENTS[rankBand(k.rank)];
     return `<div class="kw-item${isOpportunity?' kw-opp':''}">
       <div class="kw-row">
         <span class="kw-text">${esc(k.keyword)}</span>
@@ -692,30 +724,57 @@ function toggleKw(){ renderKeywords(!_kwExpanded); }
 
 // ── 닥터 코멘트 ───────────────────────────────────────────────────────────────
 function renderComment(d, sc){
+  // 데이터 종합 → 강점 인정 → 핵심 약점 → 가장 아까운 기회 키워드 → 해결 방향 (3~4문장)
   const lines=[];
-  const tot=sc.total??0, seo=sc.seo??0, con=sc.content??0, act=sc.activity??0;
+  const seo=sc.seo??0, con=sc.content??0, act=sc.activity??0;
   const vr=d.visitor_reviews, ss=d.star_score;
-  const kws=d.place_results||[];
-  const hitKws=kws.filter(k=>k.rank);
+  const kws=(d.place_results||[]).filter(k=>k.rank);
+  const AX={seo:'검색노출',content:'리뷰관리',activity:'최근활동'};
 
-  // 잘하는 점
-  if(ss!=null&&ss>=4.5) lines.push(`✅ 별점 ${ss}점으로 고객 신뢰도가 높아요. 이건 큰 강점입니다.`);
-  if(hitKws.length>=5) lines.push(`✅ ${hitKws.length}개 키워드에서 30위 이내에 노출되고 있어요.`);
-  if(vr!=null&&vr>=100) lines.push(`✅ 방문자 리뷰 ${fmt(vr)}개로 콘텐츠 기반이 탄탄해요.`);
-
-  // 개선 필요
-  if(seo<50) lines.push(`🔸 주요 키워드에서 노출이 부족해요. 정보 완성도와 키워드 일치도를 높여보세요.`);
-  if(con<50){
-    if(vr!=null&&vr<20) lines.push(`🔸 방문자 리뷰가 ${vr}개로 적어요. 리뷰 유도 캠페인이 효과적이에요.`);
-    else lines.push(`🔸 콘텐츠(리뷰·별점) 관리를 강화하면 순위 상승에 도움이 돼요.`);
+  // 1) 강점 인정
+  let strength;
+  if(ss!=null&&ss>=4.5)            strength=`별점 ${ss}점으로 고객 만족도가 높아요.`;
+  else if(vr!=null&&vr>=100)       strength=`방문자 리뷰 ${fmt(vr)}개로 콘텐츠 기반이 탄탄해요.`;
+  else if(kws.length>=5)           strength=`${kws.length}개 키워드에서 노출되고 있어 기본기는 갖춰져 있어요.`;
+  else{
+    const best=Math.max(seo,con,act);
+    const k=seo===best?'seo':con===best?'content':'activity';
+    strength = best>=50 ? `${AX[k]} 쪽은 비교적 잘 관리되고 있어요.`
+                        : `아직 시작 단계지만, 손볼 곳이 명확해 개선 여지가 큰 매장이에요.`;
   }
-  if(act<50) lines.push(`🔸 최근 리뷰 활성도가 낮아요. 꾸준한 리뷰 관리가 필요해요.`);
+  lines.push('✅ '+strength);
 
-  // 희망 메시지
-  if(tot<70) lines.push(`💡 현재 점수에서 꾸준히 관리하면 충분히 상위권 진입이 가능한 구간이에요.`);
+  // 2) 핵심 약점 (가장 낮은 축)
+  const weak=[['seo',seo],['content',con],['activity',act]].sort((a,b)=>a[1]-b[1])[0];
+  const weakKey=weak[0], weakVal=weak[1];
+  const weakReason={
+    seo:'주요 키워드 노출이 부족해요',
+    content:'리뷰·별점 관리가 경쟁사 대비 약해요',
+    activity:'최근 리뷰 활동이 뜸해 신선도가 떨어져요',
+  }[weakKey];
+  lines.push(`🔸 다만 ${AX[weakKey]}이(가) ${weakVal}점으로, ${weakReason}.`);
+
+  // 3) 가장 아까운 기회 키워드 (11~15위 우선, 없으면 첫 화면에 가장 가까운 키워드)
+  const oppKw = kws.filter(k=>k.rank>=11&&k.rank<=15).sort((a,b)=>a.rank-b.rank)[0]
+             || kws.filter(k=>k.rank>5).sort((a,b)=>a.rank-b.rank)[0];
+  if(oppKw){
+    const gap=Math.max(1,oppKw.rank-5);
+    lines.push(`💡 특히 '${esc(oppKw.keyword)}' 키워드가 ${oppKw.rank}위라, ${gap}계단만 올리면 첫 화면이에요.`);
+  } else if(kws.length===0){
+    const miss=(d.place_results||[])[0];
+    if(miss) lines.push(`💡 '${esc(miss.keyword)}' 같은 핵심 키워드에서 노출이 안 돼, 검색 손님을 놓치고 있어요.`);
+  }
+
+  // 4) 해결 방향
+  const fix={
+    seo:'매장 정보·사진을 채우고 키워드 일치도를 높이면 노출이 올라가요.',
+    content:'리뷰와 블로그를 꾸준히 보완하면 충분히 상위권으로 올라갈 수 있어요.',
+    activity:'최근 리뷰를 꾸준히 쌓으면 신선도 점수가 빠르게 회복돼요.',
+  }[weakKey];
+  lines.push('🚀 '+fix);
 
   const box=document.getElementById('commentBox');
-  box.innerHTML=lines.map(l=>`<p class="comment-line">${esc(l)}</p>`).join('');
+  box.innerHTML=lines.map(l=>`<p class="comment-line">${l}</p>`).join('');
 }
 
 // ── 버튼 액션 (자리 확보, 동작은 추후) ──────────────────────────────────────
@@ -770,16 +829,26 @@ async def diagnose(req: schemas.DiagnoseRequest, db: Session = Depends(get_db)):
     """
     place_id = _extract_place_id(req.place_url)
 
+    # 키워드광고 체크박스 입력 (크롤링 대상 아님 → 캐시에 굳히지 않고 응답 시 점수 반영)
+    ad_flags = {
+        "place":     req.ad_place,
+        "powerlink": req.ad_powerlink,
+        "local":     req.ad_local,
+        "blog":      req.ad_blog,
+    }
+
     if place_id and not req.force_refresh:
         cached = crud.get_cached_result(db, place_id)
         if cached:
             cached["cached"] = True
+            cached["ad_flags"] = ad_flags
+            apply_ad_flags(cached.get("scores", {}), ad_flags)  # 체크박스 반영해 ad·total 재계산
             return cached
 
     try:
         # ProactorEventLoop 전용 스레드에서 실행 (--reload 모드의 SelectorEventLoop 우회)
         future = asyncio.run_coroutine_threadsafe(
-            diagnose_store(req.store_name, req.place_url),
+            diagnose_store(req.store_name, req.place_url, ad_flags=ad_flags),
             _proactor_loop,
         )
         result = await asyncio.get_running_loop().run_in_executor(
