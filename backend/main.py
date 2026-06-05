@@ -260,13 +260,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="card">
       <div class="card-title">종합 플레이스 점수</div>
       <div class="gauge-wrap">
+        <span class="grade-badge" id="gradeBadge">-</span>
         <svg class="gauge-svg" width="160" height="160" viewBox="0 0 160 160">
           <circle class="gauge-track" cx="80" cy="80" r="66"/>
           <circle class="gauge-fill" id="gaugeFill" cx="80" cy="80" r="66" stroke-dasharray="0 415" stroke="#22c55e"/>
           <text class="gauge-text" id="gaugeNum" x="80" y="76" fill="#111827">0</text>
           <text class="gauge-sub" x="80" y="98">/100점</text>
         </svg>
-        <span class="grade-badge" id="gradeBadge">-</span>
         <p class="gauge-summary" id="gaugeSummary"></p>
       </div>
     </div>
@@ -332,11 +332,11 @@ function scoreChip(s, low='부족', mid='보통', high='좋음'){
   return `<span class="chip ${c}">${l}</span>`;
 }
 function grade(s){
-  if(s>=90)return{text:'A등급 · 최우수',bg:'#22c55e'};
-  if(s>=70)return{text:'B등급 · 우수',bg:'#22c55e'};
-  if(s>=50)return{text:'C등급 · 보통',bg:'#f97316'};
-  if(s>=30)return{text:'D등급 · 미흡',bg:'#f97316'};
-  return{text:'F등급 · 위험',bg:'#ef4444'};
+  if(s>=90)return{text:'A등급 · 최우수',bg:'#16a34a'};
+  if(s>=70)return{text:'B등급 · 우수',  bg:'#22c55e'};
+  if(s>=50)return{text:'C등급 · 보통',  bg:'#f97316'};
+  if(s>=30)return{text:'D등급 · 미흡',  bg:'#ef4444'};
+  return          {text:'F등급 · 위험',  bg:'#dc2626'};
 }
 
 // ── 게이지 애니메이션 ──────────────────────────────────────────────────────────
@@ -621,97 +621,125 @@ function buildAdCard(d, sc){
 
 // ── 경쟁사 비교 ───────────────────────────────────────────────────────────────
 function renderCompetitor(d){
-  const comp=d.competitor||{}, compD=comp.details||{}, gap=comp.gap||{};
+  const comp=d.competitor||{}, compD=comp.details||{};
   if(!comp.competitor_id){document.getElementById('compCard').style.display='none';return;}
   document.getElementById('compCard').style.display='block';
 
+  const baseKw=(d.keywords_used||[])[0]||'';
+  const myBestRank=(d.place_results||[]).reduce((b,k)=>k.rank&&k.rank<(b||999)?k.rank:b,null);
+  const compRank=comp.competitor_rank||1;
+
   const myVr=d.visitor_reviews??0, cVr=compD.visitor_reviews??0;
-  const maxVr=Math.max(myVr,cVr,1);
-  const myBr=d.blog_reviews??0, cBr=compD.blog_reviews??0;
-  const maxBr=Math.max(myBr,cBr,1);
+  const myBr=d.blog_reviews??0,    cBr=compD.blog_reviews??0;
 
-  const vrGap=gap.visitor_reviews, brGap=gap.blog_reviews;
-  const rankGap=comp.my_rank?comp.my_rank-1:null;
+  // 순위 점수: 1위=100, 계단당 -10 (10위 초과=0)
+  const rankScore=r=>r?Math.max(0,110-r*10):0;
+  const myRS=rankScore(myBestRank), cRS=rankScore(compRank);
 
-  let rows='';
+  // 간이 리뷰파워 점수 (visitor 60% + blog 40%)
+  function revPow(vr,br){
+    return Math.round(Math.min(vr,500)/500*60+Math.min(br,300)/300*40);
+  }
+  const myRP=revPow(myVr,myBr), cRP=revPow(cVr,cBr);
 
-  // 방문자 리뷰 막대
-  rows+=`<div>
-    <div class="comp-label">방문자 리뷰</div>
-    <div class="comp-bar-wrap">
-      <div class="comp-tag" style="color:var(--green);font-size:.7rem;">우리</div>
-      <div class="comp-bar-bg"><div class="comp-bar" style="width:${(myVr/maxVr*100).toFixed(0)}%;background:var(--green);">${fmt(myVr)}</div></div>
-    </div>
-    <div class="comp-bar-wrap" style="margin-top:6px;">
-      <div class="comp-tag" style="color:var(--gray-600);font-size:.7rem;">1위</div>
-      <div class="comp-bar-bg"><div class="comp-bar" style="width:${(cVr/maxVr*100).toFixed(0)}%;background:var(--gray-400);">${fmt(cVr)}</div></div>
-    </div>
-    ${vrGap!=null&&vrGap>0?`<p class="comp-gap">▼ ${fmt(vrGap)}개 뒤처져 있어요</p>`:''}
-  </div>`;
-
-  // 순위 격차
-  if(rankGap!=null&&rankGap>0){
-    rows+=`<div class="comp-gap" style="border-top:1px solid var(--gray-100);padding-top:10px;">
-      현재 ${comp.my_rank}위 · 1위와 ${rankGap}계단 차이
+  function compRow(label,myVal,cVal,maxVal,myTxt,cTxt){
+    const mp=(myVal/Math.max(maxVal,1)*100).toFixed(0);
+    const cp=(cVal/Math.max(maxVal,1)*100).toFixed(0);
+    return `<div>
+      <div class="comp-label">${label}</div>
+      <div class="comp-bar-wrap">
+        <div class="comp-tag" style="color:var(--green)">우리</div>
+        <div class="comp-bar-bg"><div class="comp-bar" style="width:${mp}%;background:var(--green)">${myTxt}</div></div>
+      </div>
+      <div class="comp-bar-wrap" style="margin-top:4px">
+        <div class="comp-tag" style="color:var(--gray-600)">1위</div>
+        <div class="comp-bar-bg"><div class="comp-bar" style="width:${cp}%;background:var(--gray-400)">${cTxt}</div></div>
+      </div>
     </div>`;
   }
+
+  let rows='';
+  if(baseKw) rows+=`<p style="font-size:.8rem;color:var(--gray-600);margin:0 0 12px;">'${esc(baseKw)}' 검색 1위 매장과 비교</p>`;
+
+  rows+=compRow('플레이스 순위', myRS, cRS, 100,
+    myBestRank?myBestRank+'위':'미노출', compRank+'위');
+
+  const brGap=cBr-myBr;
+  rows+=compRow('블로그 리뷰', myBr, cBr, Math.max(myBr,cBr,1),
+    fmt(myBr)+'개', fmt(cBr)+'개');
+  if(brGap>0) rows+=`<p class="comp-gap">▼ 블로그 리뷰 ${fmt(brGap)}개 뒤처져 있어요</p>`;
+
+  const vrGap=cVr-myVr;
+  rows+=compRow('방문자 리뷰', myVr, cVr, Math.max(myVr,cVr,1),
+    fmt(myVr)+'개', fmt(cVr)+'개');
+  if(vrGap>0) rows+=`<p class="comp-gap">▼ 방문자 리뷰 ${fmt(vrGap)}개 뒤처져 있어요</p>`;
+
+  rows+=compRow('리뷰 파워', myRP, cRP, Math.max(myRP,cRP,1),
+    myRP+'점', cRP+'점');
 
   document.getElementById('compRows').innerHTML=rows;
 }
 
 // ── 키워드 기회 태그 ──────────────────────────────────────────────────────────
-function kwTag(rank, hasComp){
-  if(rank!=null && rank<=5)  return {label:'노출 중', color:'#22c55e', priority:4};
-  if(rank!=null && rank<=10) return {label:`${rank}위`, color:'#86efac', priority:3};
-  if(rank!=null && rank<=15) return {label:'아깝다!', color:'#f97316', priority:1};
-  if(rank!=null && rank<=30) return {label:`${rank}위`, color:'#9ca3af', priority:3};
-  return hasComp
-    ? {label:'경쟁사 우위', color:'#ef4444', priority:0}
-    : {label:'놓침', color:'#ef4444', priority:2};
+function kwTag(rank){
+  // 라벨+순위숫자 둘 다 표시. bg=배경색, color=글자색.
+  if(rank===1)             return {label:'최상위 1위',        bg:'#d1fae5',color:'#3B6D11',priority:6};
+  if(rank!=null&&rank<=5)  return {label:`상위권 ${rank}위`,  bg:'#22c55e',color:'#fff',   priority:5};
+  if(rank!=null&&rank<=10) return {label:`노출중 ${rank}위`,  bg:'#3b82f6',color:'#fff',   priority:4};
+  if(rank!=null&&rank<=15) return {label:`아깝다 ${rank}위`,  bg:'#f97316',color:'#fff',   priority:2};
+  if(rank!=null&&rank<=20) return {label:`2페이지 ${rank}위`, bg:'#9ca3af',color:'#fff',   priority:3};
+  if(rank!=null&&rank<=30) return {label:`뒤편 ${rank}위`,    bg:'#d1d5db',color:'#374151',priority:3};
+  return                          {label:'놓침',               bg:'#ef4444',color:'#fff',   priority:1};
 }
 
-// ── 순위 구간별 규칙 기반 멘트 (한 곳에 모아 수정 쉽게) ──────────────────────
+// ── 순위 구간별 규칙 기반 멘트 — 구간×4개 풀, {rank} 치환, 인덱스 순환 ─────────
 function rankBand(rank){
   if(rank==null)  return 'none';
+  if(rank===1)    return 'top1';
   if(rank<=5)     return 'top5';
   if(rank<=10)    return 'top10';
   if(rank<=15)    return 'top15';
-  return 'page2';  // 16~30위
+  if(rank<=20)    return 'top20';
+  return 'top30';
 }
-const RANK_MENTS = {
-  top5:  '첫 화면 노출 중! 이 순위 유지가 관건이에요',
-  top10: '첫 화면이 코앞이에요. 조금만 더 올리면 1페이지 진입',
-  top15: '3~4계단만 올리면 첫 화면! 가장 아까운 구간이에요',
-  page2: '2페이지예요. 손님 대부분이 여기까진 안 봐요',
-  none:  '이 키워드로는 안 보여요. 노려야 할 기회예요',
+const RANK_MENTS_POOL = {
+  top1:  ["1위! 이 키워드는 완벽해요. 지금처럼 유지하세요","최상단 고정! 손님이 가장 먼저 보는 자리예요","1위 — 이 키워드로는 더 바랄 게 없어요","검색하면 맨 위. 이 키워드는 효자 키워드예요"],
+  top5:  ["{rank}위 — 첫 화면 안에 잘 들어와 있어요","{rank}위, 상위권이에요. 1~2위까지 노려볼 만해요","{rank}위 — 손님 눈에 잘 띄는 좋은 자리예요","{rank}위로 안정적. 조금만 더 올리면 최상단이에요"],
+  top10: ["{rank}위 — 첫 화면이 코앞! 조금만 더 올리면 돼요","{rank}위, 1페이지 끝자락이에요. 한 끗만 더!","{rank}위 — 상위권까지 멀지 않아요. 밀어줄 타이밍","{rank}위. 첫 화면 상단으로 올릴 여지가 충분해요"],
+  top15: ["{rank}위 — 3~4계단만 올리면 첫 화면! 가장 아까워요","{rank}위, 1페이지가 손에 잡힐 듯! 마지막 한 끗이에요","{rank}위 — 여기서 조금만 올리면 노출이 확 늘어요","{rank}위. 첫 화면 문턱이에요. 제일 효율 좋은 구간"],
+  top20: ["{rank}위 — 2페이지예요. 대부분 여기까진 안 봐요","{rank}위, 첫 화면 밖이에요. 끌어올릴 필요가 있어요","{rank}위 — 노출은 되지만 손님이 닿기 어려운 자리예요","{rank}위. 1페이지로 올리면 방문이 크게 늘어요"],
+  top30: ["{rank}위 — 많이 뒤예요. 본격적인 관리가 필요해요","{rank}위, 검색 손님 대부분을 놓치고 있어요","{rank}위 — 노출은 되지만 사실상 안 보이는 위치예요","{rank}위. 상위로 올릴 여지가 큰 키워드예요"],
+  none:  ["아직 안 보여요 — 노려볼 만한 기회 키워드예요","이 키워드론 검색에 안 잡혀요. 새로 공략할 자리예요","미노출 상태 — 경쟁이 덜할 수 있는 기회예요","아직 순위권 밖. 잡으면 신규 손님이 늘어요"],
 };
+function getRankMent(rank, idx){
+  const pool=RANK_MENTS_POOL[rankBand(rank)];
+  return pool[idx%pool.length].replace(/\{rank\}/g, rank??'');
+}
 
 // ── 키워드 렌더링 ─────────────────────────────────────────────────────────────
 function renderKeywords(expanded){
   _kwExpanded=expanded;
   const list=document.getElementById('kwList');
   const more=document.getElementById('kwMore');
-  const comp = (window._diagData||{}).competitor||{};
-  const hasComp = !!(comp.competitor_id);
 
-  // 기회 우선 정렬
-  const sorted = [..._allKw].sort((a,b)=>{
-    const ta=kwTag(a.rank, hasComp), tb=kwTag(b.rank, hasComp);
-    return ta.priority - tb.priority;
-  });
+  // 기회 우선 정렬 (priority 낮을수록 먼저)
+  const sorted=[..._allKw].sort((a,b)=>kwTag(a.rank).priority-kwTag(b.rank).priority);
+  const show=expanded?sorted:sorted.slice(0,8);
 
-  const show = expanded ? sorted : sorted.slice(0,8);
-
+  // 같은 구간 내 멘트 순환 카운터
+  const bandIdx={};
   list.innerHTML=show.map(k=>{
-    const tag=kwTag(k.rank, hasComp);
-    const isOpportunity=tag.priority<=2;  // 아깝다/놓침/경쟁사우위 강조
-    const comment=RANK_MENTS[rankBand(k.rank)];
+    const tag=kwTag(k.rank);
+    const isOpportunity=tag.priority<=2;  // 아깝다/놓침 강조
+    const band=rankBand(k.rank);
+    if(bandIdx[band]==null) bandIdx[band]=0;
+    const comment=getRankMent(k.rank, bandIdx[band]++);
     return `<div class="kw-item${isOpportunity?' kw-opp':''}">
       <div class="kw-row">
         <span class="kw-text">${esc(k.keyword)}</span>
-        <span class="kw-rank" style="background:${tag.color}">${tag.label}</span>
+        <span class="kw-rank" style="background:${tag.bg};color:${tag.color}">${tag.label}</span>
       </div>
-      ${comment?`<div class="kw-comment">${esc(comment)}</div>`:''}
+      <div class="kw-comment">${esc(comment)}</div>
     </div>`;
   }).join('');
 
