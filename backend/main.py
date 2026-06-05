@@ -595,10 +595,11 @@ function buildActivityCard(d, score){
     dayScore=diff<=7?100:diff<=30?80:diff<=90?55:diff<=180?30:10;
   }
   const r30=d.recent_30d_reviews;
-  const r30Score=r30==null?null:(r30>=30?100:r30>=15?80:r30>=8?60:r30>=4?40:r30>=1?20:0);
+  const r30Label=r30==null?'-':r30>=20?'매우 활발':r30>=15?'활발':r30>=10?'보통':r30>=5?'한산':'거의 없음';
+  const r30Score=r30==null?null:r30>=20?100:r30>=15?85:r30>=10?70:r30>=5?50:30;
   return axisCard('🔥','최근활동',score,[
     detailRow('최근 리뷰', dayStr, dayScore),
-    detailRow('최근 30일 리뷰', r30!=null?fmt(r30)+'개':'-', r30Score),
+    detailRow('리뷰 활동', r30Label, r30Score),
     detailRow('정보 최신성', d.address?'최신':'미확인', d.address?80:30),
   ].join(''));
 }
