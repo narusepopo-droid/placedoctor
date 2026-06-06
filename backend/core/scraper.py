@@ -632,6 +632,33 @@ _PLACE_RANK_JS = '''() => {
     return {ranked_ids, all_ids};
 }'''
 
+_BUSINESSES_TOTAL_JS = '''() => {
+    try {
+        const st = window.__APOLLO_STATE__;
+        if (!st) return null;
+        const rq = st['ROOT_QUERY'];
+        if (rq) {
+            for (const k of Object.keys(rq)) {
+                if (!k.startsWith('placeList')) continue;
+                let pl = rq[k];
+                if (pl && pl.__ref) pl = st[pl.__ref];
+                if (!pl) continue;
+                let biz = pl.businesses;
+                if (biz && biz.__ref) biz = st[biz.__ref];
+                if (biz && typeof biz.total === 'number') return biz.total;
+            }
+        }
+        for (const v of Object.values(st)) {
+            if (!v || typeof v !== 'object') continue;
+            let biz = v.businesses;
+            if (!biz) continue;
+            if (biz.__ref) biz = st[biz.__ref];
+            if (biz && typeof biz.total === 'number') return biz.total;
+        }
+    } catch(e) {}
+    return null;
+}'''
+
 _SCROLL_JS = '''() => {
     let scrolled = 0;
     for (const c of document.querySelectorAll('ul, div')) {
@@ -683,6 +710,15 @@ async def _fetch_place_ranking(page, keyword, safe_mode=True):
     raw = await page.evaluate(_PLACE_RANK_JS)
     ranked_ids = raw.get('ranked_ids', [])
 
+    # 등록업체 총수 수집 (Apollo state, 데스크탑 페이지에서만 유효)
+    businesses_total = None
+    try:
+        businesses_total = await page.evaluate(_BUSINESSES_TOTAL_JS)
+        if businesses_total:
+            logger.debug(f"  [{keyword}] businesses.total={businesses_total}")
+    except Exception:
+        pass
+
     # 데스크탑 결과 없을 때만 모바일 재시도
     if not ranked_ids:
         p_url_m = f"https://m.search.naver.com/search.naver?query={encoded_kw}&where=m_place"
@@ -710,7 +746,7 @@ async def _fetch_place_ranking(page, keyword, safe_mode=True):
             return ids;
         }''')
 
-    return ranked_ids, p_url
+    return ranked_ids, p_url, businesses_total
 
 
 async def check_place_rank(page, keyword, place_id, safe_mode=True):
@@ -718,14 +754,14 @@ async def check_place_rank(page, keyword, place_id, safe_mode=True):
     네이버 플레이스에서 keyword 검색 시 place_id 매장의 순위를 반환합니다.
 
     Returns:
-        int | None: 순위 (1~30위), 30위 밖이거나 미발견이면 None
+        (int | None, int | None): (순위 1~30위, 경쟁업체 총수). 30위 밖/미발견이면 순위 None.
     """
     if not place_id:
         logger.warning(f"[{keyword}] place_id 없음")
-        return None
+        return None, None
 
     logger.info(f"  검색: '{keyword}'")
-    p_ids, p_url = await _fetch_place_ranking(page, keyword, safe_mode)
+    p_ids, p_url, bt = await _fetch_place_ranking(page, keyword, safe_mode)
 
     # 2페이지 폴백 (1페이지에 없을 때)
     if place_id and place_id not in p_ids:
@@ -743,7 +779,7 @@ async def check_place_rank(page, keyword, place_id, safe_mode=True):
                 r2 = _p2_ids.index(place_id) + 16
                 if r2 <= 30:
                     logger.info(f"  [{keyword}] 2페이지 {r2}위 검출")
-                    return r2
+                    return r2, bt
         except Exception as fe:
             logger.warning(f"  [{keyword}] 2페이지 폴백 오류: {fe}")
 
@@ -752,8 +788,8 @@ async def check_place_rank(page, keyword, place_id, safe_mode=True):
         rank_num = p_ids.index(place_id) + 1
         if rank_num <= 30:
             logger.info(f"  [{keyword}] → {rank_num}위")
-            return rank_num
-    return None
+            return rank_num, bt
+    return None, bt
 
 
 # ── 블로그 순위 수집 (플마에서 검증된 로직 그대로) ────────────────────────────
@@ -1209,7 +1245,7 @@ async def find_competitor(page, detail_page, keyword, my_place_id) -> dict:
           }
         }
     """
-    ranked_ids, _ = await _fetch_place_ranking(page, keyword, safe_mode=True)
+    ranked_ids, _, _bt = await _fetch_place_ranking(page, keyword, safe_mode=True)
     if not ranked_ids:
         return {"competitor_id": None, "competitor_rank": None,
                 "my_rank": None, "details": {}, "gap": {}}
@@ -1310,8 +1346,8 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
         async def _rank_task(kw: str) -> dict:
             pg = await page_pool.get()
             try:
-                r = await check_place_rank(pg, kw, place_id)
-                return {"keyword": kw, "rank": r}
+                r, bt = await check_place_rank(pg, kw, place_id)
+                return {"keyword": kw, "rank": r, "businesses_total": bt}
             finally:
                 await page_pool.put(pg)
 

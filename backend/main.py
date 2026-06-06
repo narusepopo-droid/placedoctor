@@ -144,6 +144,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .kw-row{display:flex;align-items:center;gap:6px;}
 .kw-text{font-size:.82rem;font-weight:600;flex:1;}
 .kw-rank{font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:6px;color:#fff;white-space:nowrap;}
+.kw-total{font-size:.68rem;color:var(--gray-400);white-space:nowrap;margin-left:auto;}
 .kw-comment{font-size:.75rem;color:var(--gray-600);margin-top:5px;line-height:1.5;}
 .kw-more{margin-top:10px;font-size:.82rem;color:var(--green-d);font-weight:600;cursor:pointer;}
 
@@ -734,10 +735,12 @@ function renderKeywords(expanded){
     const band=rankBand(k.rank);
     if(bandIdx[band]==null) bandIdx[band]=0;
     const comment=getRankMent(k.rank, bandIdx[band]++);
+    const totalStr=k.businesses_total?`<span class="kw-total">${k.businesses_total.toLocaleString()}개 업체</span>`:'';
     return `<div class="kw-item${isOpportunity?' kw-opp':''}">
       <div class="kw-row">
         <span class="kw-text">${esc(k.keyword)}</span>
         <span class="kw-rank" style="background:${tag.bg};color:${tag.color}">${tag.label}</span>
+        ${totalStr}
       </div>
       <div class="kw-comment">${esc(comment)}</div>
     </div>`;
