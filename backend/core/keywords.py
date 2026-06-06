@@ -161,10 +161,18 @@ def _find_tokens_in_kw(kw, locations):
     if len(remaining) < 2:
         return []
     remaining_lower = remaining.lower()
-    found = [t for t in _INTENT_TOKENS if len(t) >= 2 and t.lower() in remaining_lower]
-    found = [t for t in found if not any(t != o and o.endswith(t) for o in found)]
-    if not found and len(remaining) <= 5:
-        found = [remaining]
+    found = []
+
+    # 1) 사전 매칭 (기존 로직 유지 - 회귀 방지)
+    dict_found = [t for t in _INTENT_TOKENS if len(t) >= 2 and t.lower() in remaining_lower]
+    dict_found = [t for t in dict_found if not any(t != o and o.endswith(t) for o in dict_found)]
+    found.extend(dict_found)
+
+    # 2) 지역 제거 후 남은 전체 문자열도 토큰으로 추가 (대형베이커리카페 같은 복합어 지원)
+    # 단, 8글자 이상 긴 복합어는 제외 (과학영재고입시사고력유아수학 같은 SEO 합성어)
+    if re.match(r'^[가-힣]+$', remaining) and remaining not in found and 3 <= len(remaining) <= 7:
+        found.append(remaining)
+
     return list(dict.fromkeys(found))
 
 
@@ -242,7 +250,9 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
     _BAD_PATTERNS = re.compile(r'영업중|영업종료|영업시간|\d{3,}|에영업|시에|분에|\d+시\d*분|휴무|정기휴무|임시휴무|특가|이벤트|한정|첫방문|할인쿠폰|프로모션|레귤러|수퍼스페셜|디럭스|스탠다드|스위트룸|싱글룸|더블룸|트윈룸|\d+만원(?!대)|지인소개|기간증정|\d+회(?:추가|증정)|뭉칠수록|혜택최대')
     _bone_kw_pat = re.compile(r'뼈국밥|뼈해장국|뼈다귀|돼지뼈')
     clean_official = [tag for tag in official_keywords
-                      if not _BAD_PATTERNS.search(tag) and not _bone_kw_pat.search(tag) and len(tag) <= 15]
+                      if not _BAD_PATTERNS.search(tag) and not _bone_kw_pat.search(tag)
+                      and len(tag) <= 15
+                      and not (len(tag) >= 8 and ' ' not in tag)]
     kw_list = [k.strip() for k in (keyword_list or []) if k and len(k.strip()) >= 2 and not _BAD_PATTERNS.search(k)]
 
     # ── keywordList에서 추가 지역 토큰 추출 ──
@@ -310,13 +320,25 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                 break
         _LOC_SFXS = {'역', '동', '구', '산', '강', '천', '호', '읍', '면', '리'}
         _LOC_SFXS2 = {'공원', '호수', '댐', '계곡'}
-        for chunk in re.findall(r'[가-힣]{2,4}', remaining4):
+        for chunk in re.findall(r'[가-힣]{2,5}', remaining4):
             loc_suffix_ok = (chunk[-1] in _LOC_SFXS or chunk[-2:] in _LOC_SFXS2)
             is_superset = any(loc in chunk and loc != chunk for loc in locations if len(loc) >= 2)
             if (chunk not in locations and chunk not in _INTENT_TOKENS
                     and not any(chunk == loc + "동" for loc in locations if loc.endswith("구"))
                     and loc_suffix_ok and not is_superset):
                 locations.append(chunk)
+
+        # 방식 5: keywordList 앞 3~5글자가 지명 suffix로 끝나면 추출 (화담공원, 팔공산, 용오름 등)
+        # 기존 방식들로 못 잡는 신규 지명용
+        for plen in [4, 5, 3]:  # 4글자 우선 (화담공원), 5글자, 3글자 순
+            if len(kw) >= plen + 2:
+                prefix = kw[:plen]
+                if re.match(r'^[가-힣]+$', prefix) and prefix not in locations:
+                    has_loc_suffix = (prefix[-1] in _LOC_SFXS or prefix[-2:] in _LOC_SFXS2)
+                    is_intent = prefix in _INTENT_TOKENS
+                    if has_loc_suffix and not is_intent:
+                        locations.append(prefix)
+                        break
 
     locations = list(dict.fromkeys([l for l in locations if l and len(l) >= 2]))
     for skip in ["서울", "경기"]:

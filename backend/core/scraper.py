@@ -357,12 +357,26 @@ async def get_store_details(page, url):
                 return null;
             }
 
-            // 방문자 리뷰: JSON "reviewCount" 우선
-            const visitorReviews = mNum([
+            // 방문자 리뷰: JSON 우선, DOM 텍스트·Apollo state 폴백
+            let visitorReviews = mNum([
                 /"visitorReviewCount"\\s*:\\s*(\\d+)/,
                 /"reviewCount"\\s*:\\s*(\\d+)/,
-                /"visitor_review_count"\\s*:\\s*(\\d+)/
-            ]);
+                /"visitor_review_count"\\s*:\\s*(\\d+)/,
+                /"totalReviewCount"\\s*:\\s*(\\d+)/,
+                /"placeReviewCount"\\s*:\\s*(\\d+)/
+            ]) ?? domNum([/방문자\\s*리뷰\\s*([\\d,]+)/, /방문자\\s*([\\d,]+)\\s*개/]);
+            if (visitorReviews === null || visitorReviews === undefined) {
+                try {
+                    const _st = window.__APOLLO_STATE__;
+                    if (_st) {
+                        for (const _v of Object.values(_st)) {
+                            if (_v && typeof _v === 'object' && typeof _v.visitorReviewCount === 'number' && _v.visitorReviewCount > 0) {
+                                visitorReviews = _v.visitorReviewCount; break;
+                            }
+                        }
+                    }
+                } catch(e) {}
+            }
 
             // 블로그 리뷰: DOM 텍스트 우선 (JSON에 키 없음)
             const blogReviews =
@@ -398,7 +412,7 @@ async def get_store_details(page, url):
         # 블로그리뷰·사진수·별점이 없으면 모바일 페이지에서 보완
         if (blog_reviews is None or photo_count is None or star_score is None) and p_id:
             try:
-                mob_url = f"https://m.place.naver.com/restaurant/{p_id}/home"
+                mob_url = f"https://m.place.naver.com/place/{p_id}/home"
                 await page.goto(mob_url, wait_until="domcontentloaded", timeout=15000)
                 await page.wait_for_timeout(2000)
                 mob_data = await page.evaluate(r'''() => {
@@ -496,54 +510,31 @@ async def get_store_details(page, url):
                 review_days = await page.evaluate(_JS_DAYS)
                 _fetch_note = "초기만"
 
-                # 방법1: URL &page=2 페이지네이션 시도 (클릭 없이 안전)
-                _url_paged = False
-                try:
-                    await page.goto(mob_rev_url + "&page=2", wait_until="domcontentloaded", timeout=8000)
-                    await page.wait_for_timeout(1000)
-                    p2_days = await page.evaluate(_JS_DAYS)
-                    # 앞 5개 날짜값이 달라야 실제 2페이지 (같으면 페이지네이션 미지원)
-                    if p2_days and p2_days[:5] != (review_days or [])[:5]:
-                        review_days = review_days + p2_days
-                        _url_paged = True
-                        _fetch_note = "URL페이지네이션"
-                        logger.debug(f"  URL 페이지네이션 → {len(review_days)}개")
-                except Exception:
-                    # 로드 실패 시 원래 URL로 복귀
-                    try:
-                        await page.goto(mob_rev_url, wait_until="domcontentloaded", timeout=8000)
-                        await page.wait_for_timeout(1200)
-                        review_days = await page.evaluate(_JS_DAYS)
-                    except Exception:
-                        pass
-
-                # 방법2: 더보기 1회 클릭 (차단 최소화)
-                # URL 페이지네이션이 없을 때. &page=2가 같은 내용이면 현재 DOM도 1페이지 내용이라 바로 클릭 가능.
-                if not _url_paged:
-                    body_len_before = await page.evaluate("() => document.body.innerText.length")
-                    clicked = await page.evaluate(r'''() => {
-                        window.scrollTo(0, document.body.scrollHeight);
-                        const sels = 'a, button, span[role="button"], div[role="button"]';
-                        for (const el of document.querySelectorAll(sels)) {
-                            const txt = (el.innerText || el.textContent || "").trim();
-                            if (/펼쳐서\s*더보기|더보기/.test(txt) && el.offsetParent !== null) {
-                                el.click();
-                                return true;
-                            }
+                # 더보기 1회 클릭 → 약 20개 리뷰 확보 (차단 최소화)
+                body_len_before = await page.evaluate("() => document.body.innerText.length")
+                clicked = await page.evaluate(r'''() => {
+                    window.scrollTo(0, document.body.scrollHeight);
+                    const sels = 'a, button, span[role="button"], div[role="button"]';
+                    for (const el of document.querySelectorAll(sels)) {
+                        const txt = (el.innerText || el.textContent || "").trim();
+                        if (/펼쳐서\s*더보기|더보기/.test(txt) && el.offsetParent !== null) {
+                            el.click();
+                            return true;
                         }
-                        return false;
-                    }''')
-                    if clicked:
-                        await page.wait_for_timeout(int(random.uniform(1500, 2500)))
-                        body_len_after = await page.evaluate("() => document.body.innerText.length")
-                        if body_len_after >= body_len_before * 0.5:
-                            new_days = await page.evaluate(_JS_DAYS)
-                            if len(new_days) > len(review_days):
-                                review_days = new_days
-                            _fetch_note = "더보기1회"
-                        else:
-                            logger.warning("30일리뷰 더보기 후 차단 감지 — 직전 값 사용")
-                            _fetch_note = "더보기1회(차단)"
+                    }
+                    return false;
+                }''')
+                if clicked:
+                    await page.wait_for_timeout(int(random.uniform(1500, 2500)))
+                    body_len_after = await page.evaluate("() => document.body.innerText.length")
+                    if body_len_after >= body_len_before * 0.5:
+                        new_days = await page.evaluate(_JS_DAYS)
+                        if len(new_days) > len(review_days):
+                            review_days = new_days
+                        _fetch_note = "더보기1회"
+                    else:
+                        logger.warning("30일리뷰 더보기 후 차단 감지 — 직전 값 사용")
+                        _fetch_note = "더보기1회(차단)"
 
                 if review_days:
                     recent_30d_reviews = sum(1 for d in review_days if d <= 30)

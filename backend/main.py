@@ -809,18 +809,37 @@ function toggleKw(){ renderKeywords(!_kwExpanded); }
 
 // ── 닥터 코멘트 ───────────────────────────────────────────────────────────────
 function renderComment(d, sc){
-  // 데이터 종합 → 강점 인정 → 핵심 약점 → 가장 아까운 기회 키워드 → 해결 방향 (3~4문장)
   const lines=[];
   const seo=sc.seo??0, con=sc.content??0, act=sc.activity??0;
   const vr=d.visitor_reviews, ss=d.star_score;
-  const kws=(d.place_results||[]).filter(k=>k.rank);
+  const allKws=d.place_results||[];
+  const rankedKws=allKws.filter(k=>k.rank);
   const AX={seo:'검색노출',content:'리뷰관리',activity:'최근활동'};
 
-  // 1) 강점 인정
+  // 1) 키워드 성과 — 첫화면 칭찬 + 아쉬운 키워드 (규칙 기반, 멘트 한 곳에 모음)
+  const firstPage=rankedKws.filter(k=>k.rank<=10);
+  const oppKw=rankedKws.filter(k=>k.rank>=11&&k.rank<=15).sort((a,b)=>a.rank-b.rank)[0]
+            ||rankedKws.filter(k=>k.rank>5).sort((a,b)=>a.rank-b.rank)[0];
+
+  if(allKws.length>0){
+    if(firstPage.length>0)
+      lines.push(`📊 검색한 키워드 ${allKws.length}개 중 ${firstPage.length}개가 첫 화면(1~10위)에 노출 중이에요.`);
+    else
+      lines.push(`📊 검색한 키워드 ${allKws.length}개 중 아직 첫 화면에 든 키워드가 없어요.`);
+  }
+
+  if(oppKw){
+    const gap=Math.max(1,oppKw.rank-5);
+    lines.push(`💡 다만 '${esc(oppKw.keyword)}'이(가) ${oppKw.rank}위라, ${gap}계단만 올리면 첫 화면이에요.`);
+  } else if(rankedKws.length===0&&allKws.length>0){
+    lines.push(`💡 '${esc(allKws[0].keyword)}' 같은 핵심 키워드에서 노출이 안 돼, 검색 손님을 놓치고 있어요.`);
+  }
+
+  // 2) 리뷰/별점 강점
   let strength;
   if(ss!=null&&ss>=4.5)            strength=`별점 ${ss}점으로 고객 만족도가 높아요.`;
   else if(vr!=null&&vr>=100)       strength=`방문자 리뷰 ${fmt(vr)}개로 콘텐츠 기반이 탄탄해요.`;
-  else if(kws.length>=5)           strength=`${kws.length}개 키워드에서 노출되고 있어 기본기는 갖춰져 있어요.`;
+  else if(rankedKws.length>=5)     strength=`${rankedKws.length}개 키워드에서 노출되고 있어 기본기는 갖춰져 있어요.`;
   else{
     const best=Math.max(seo,con,act);
     const k=seo===best?'seo':con===best?'content':'activity';
@@ -829,7 +848,7 @@ function renderComment(d, sc){
   }
   lines.push('✅ '+strength);
 
-  // 2) 핵심 약점 (가장 낮은 축)
+  // 3) 핵심 약점 (가장 낮은 축)
   const weak=[['seo',seo],['content',con],['activity',act]].sort((a,b)=>a[1]-b[1])[0];
   const weakKey=weak[0], weakVal=weak[1];
   const weakReason={
@@ -837,18 +856,7 @@ function renderComment(d, sc){
     content:'리뷰·별점 관리가 경쟁사 대비 약해요',
     activity:'최근 리뷰 활동이 뜸해 신선도가 떨어져요',
   }[weakKey];
-  lines.push(`🔸 다만 ${AX[weakKey]}이(가) ${weakVal}점으로, ${weakReason}.`);
-
-  // 3) 가장 아까운 기회 키워드 (11~15위 우선, 없으면 첫 화면에 가장 가까운 키워드)
-  const oppKw = kws.filter(k=>k.rank>=11&&k.rank<=15).sort((a,b)=>a.rank-b.rank)[0]
-             || kws.filter(k=>k.rank>5).sort((a,b)=>a.rank-b.rank)[0];
-  if(oppKw){
-    const gap=Math.max(1,oppKw.rank-5);
-    lines.push(`💡 특히 '${esc(oppKw.keyword)}' 키워드가 ${oppKw.rank}위라, ${gap}계단만 올리면 첫 화면이에요.`);
-  } else if(kws.length===0){
-    const miss=(d.place_results||[])[0];
-    if(miss) lines.push(`💡 '${esc(miss.keyword)}' 같은 핵심 키워드에서 노출이 안 돼, 검색 손님을 놓치고 있어요.`);
-  }
+  lines.push(`🔸 ${AX[weakKey]}이(가) ${weakVal}점으로, ${weakReason}.`);
 
   // 4) 해결 방향
   const fix={
@@ -881,6 +889,12 @@ window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window._pwa
 function resetForm(){
   document.getElementById('result').style.display='none';
   document.getElementById('input-section').style.display='block';
+  document.getElementById('storeName').value='';
+  document.getElementById('placeUrl').value='';
+  ['adPlace','adPowerlink','adLocal','adBlog'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.checked=false;
+  });
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
