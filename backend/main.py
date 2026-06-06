@@ -138,14 +138,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .comp-gap{margin-top:8px;font-size:.82rem;color:var(--red);font-weight:600;}
 
 /* KEYWORDS */
-.kw-list{display:flex;flex-wrap:wrap;gap:8px;}
-.kw-item{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:8px 12px;}
-.kw-item.kw-opp{background:#fff;border-color:transparent;box-shadow:0 1px 8px rgba(0,0,0,.09);}
-.kw-row{display:flex;align-items:center;gap:6px;}
-.kw-text{font-size:.82rem;font-weight:600;flex:1;}
-.kw-rank{font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:6px;color:#fff;white-space:nowrap;}
-.kw-total{font-size:.68rem;color:var(--gray-400);white-space:nowrap;margin-left:auto;}
-.kw-comment{font-size:.75rem;color:var(--gray-600);margin-top:5px;line-height:1.5;}
+.kw-list{display:flex;flex-direction:column;gap:8px;}
+.kw-item{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:10px 12px;}
+.kw-main{display:flex;align-items:center;gap:10px;}
+.kw-rank-col{font-size:1.5rem;font-weight:800;min-width:46px;text-align:center;line-height:1.1;flex-shrink:0;}
+.kw-divider{width:1px;background:var(--gray-200);align-self:stretch;flex-shrink:0;}
+.kw-info{flex:1;min-width:0;}
+.kw-title-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.kw-text{font-size:.82rem;font-weight:600;flex:1;min-width:0;}
+.kw-grade-badge{font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0;}
+.kw-sub{font-size:.73rem;color:var(--gray-500);margin-top:3px;line-height:1.5;}
 .kw-more{margin-top:10px;font-size:.82rem;color:var(--green-d);font-weight:600;cursor:pointer;}
 
 /* DOCTOR COMMENT */
@@ -643,6 +645,9 @@ function renderCompetitor(d){
   }
   const myRP=revPow(myVr,myBr), cRP=revPow(cVr,cBr);
 
+  const isUs1st = comp.my_rank === 1;
+  const compLabel = compRank + '위';
+
   function compRow(label,myVal,cVal,maxVal,myTxt,cTxt){
     const mp=(myVal/Math.max(maxVal,1)*100).toFixed(0);
     const cp=(cVal/Math.max(maxVal,1)*100).toFixed(0);
@@ -653,14 +658,19 @@ function renderCompetitor(d){
         <div class="comp-bar-bg"><div class="comp-bar" style="width:${mp}%;background:var(--green)">${myTxt}</div></div>
       </div>
       <div class="comp-bar-wrap" style="margin-top:4px">
-        <div class="comp-tag" style="color:var(--gray-600)">1위</div>
+        <div class="comp-tag" style="color:var(--gray-600)">${compLabel}</div>
         <div class="comp-bar-bg"><div class="comp-bar" style="width:${cp}%;background:var(--gray-400)">${cTxt}</div></div>
       </div>
     </div>`;
   }
 
   let rows='';
-  if(baseKw) rows+=`<p style="font-size:.8rem;color:var(--gray-600);margin:0 0 12px;">'${esc(baseKw)}' 검색 1위 매장과 비교</p>`;
+  if(baseKw){
+    const headerTxt = isUs1st
+      ? `🥇 당신은 1위! '${esc(baseKw)}' 검색 2위 매장과 비교`
+      : `'${esc(baseKw)}' 검색 1위 매장과 비교`;
+    rows+=`<p style="font-size:.8rem;color:var(--gray-600);margin:0 0 12px;">${headerTxt}</p>`;
+  }
 
   rows+=compRow('플레이스 순위', myRS, cRS, 100,
     myBestRank?myBestRank+'위':'미노출', compRank+'위');
@@ -681,16 +691,39 @@ function renderCompetitor(d){
   document.getElementById('compRows').innerHTML=rows;
 }
 
-// ── 키워드 기회 태그 ──────────────────────────────────────────────────────────
-function kwTag(rank){
-  // 라벨+순위숫자 둘 다 표시. bg=배경색, color=글자색.
-  if(rank===1)             return {label:'최상위 1위',        bg:'#d1fae5',color:'#3B6D11',priority:6};
-  if(rank!=null&&rank<=5)  return {label:`상위권 ${rank}위`,  bg:'#22c55e',color:'#fff',   priority:5};
-  if(rank!=null&&rank<=10) return {label:`노출중 ${rank}위`,  bg:'#3b82f6',color:'#fff',   priority:4};
-  if(rank!=null&&rank<=15) return {label:`아깝다 ${rank}위`,  bg:'#f97316',color:'#fff',   priority:2};
-  if(rank!=null&&rank<=20) return {label:`2페이지 ${rank}위`, bg:'#9ca3af',color:'#fff',   priority:3};
-  if(rank!=null&&rank<=30) return {label:`뒤편 ${rank}위`,    bg:'#d1d5db',color:'#374151',priority:3};
-  return                          {label:'놓침',               bg:'#ef4444',color:'#fff',   priority:1};
+// ── 순위 숫자 색 ──────────────────────────────────────────────────────────────
+function rankColor(rank){
+  if(rank===1)             return '#16a34a';
+  if(rank!=null&&rank<=5)  return '#22c55e';
+  if(rank!=null&&rank<=10) return '#3b82f6';
+  if(rank!=null&&rank<=15) return '#f97316';
+  if(rank!=null)           return '#9ca3af';
+  return '#ef4444';
+}
+
+// ── 등급(S/A/B/C) 계산 — businesses_total 상대 백분율 ────────────────────────
+const GRADE_STYLE={
+  S:'background:#22c55e;color:#fff',
+  A:'background:#3b82f6;color:#fff',
+  B:'background:#9ca3af;color:#fff',
+  C:'background:#e5e7eb;color:#6b7280'
+};
+function calcGrades(kwList){
+  const valid=kwList.filter(k=>k.businesses_total!=null);
+  if(!valid.length) return {};
+  const sorted=[...valid].sort((a,b)=>b.businesses_total-a.businesses_total);
+  const n=sorted.length;
+  const grades={};
+  sorted.forEach((k,i)=>{
+    const pct=i/(n>1?n-1:1);
+    let g;
+    if(i===0||pct<0.10) g='S';
+    else if(pct<0.35)   g='A';
+    else if(pct<0.70)   g='B';
+    else                g='C';
+    grades[k.keyword]=g;
+  });
+  return grades;
 }
 
 // ── 순위 구간별 규칙 기반 멘트 — 구간×4개 풀, {rank} 치환, 인덱스 순환 ─────────
@@ -723,26 +756,46 @@ function renderKeywords(expanded){
   const list=document.getElementById('kwList');
   const more=document.getElementById('kwMore');
 
-  // 기회 우선 정렬 (priority 낮을수록 먼저)
-  const sorted=[..._allKw].sort((a,b)=>kwTag(a.rank).priority-kwTag(b.rank).priority);
+  // 등급 계산 (businesses_total 상대 백분율)
+  const grades=calcGrades(_allKw);
+
+  // 업체수 많은 순 정렬 (없으면 뒤로, 업체수 같으면 순위 좋은 순)
+  const sorted=[..._allKw].sort((a,b)=>{
+    const at=a.businesses_total??-1, bt=b.businesses_total??-1;
+    if(at!==bt) return bt-at;
+    if(a.rank&&b.rank) return a.rank-b.rank;
+    if(a.rank) return -1;
+    if(b.rank) return 1;
+    return 0;
+  });
   const show=expanded?sorted:sorted.slice(0,8);
 
   // 같은 구간 내 멘트 순환 카운터
   const bandIdx={};
   list.innerHTML=show.map(k=>{
-    const tag=kwTag(k.rank);
-    const isOpportunity=tag.priority<=2;  // 아깝다/놓침 강조
     const band=rankBand(k.rank);
     if(bandIdx[band]==null) bandIdx[band]=0;
     const comment=getRankMent(k.rank, bandIdx[band]++);
-    const totalStr=k.businesses_total?`<span class="kw-total">${k.businesses_total.toLocaleString()}개 업체</span>`:'';
-    return `<div class="kw-item${isOpportunity?' kw-opp':''}">
-      <div class="kw-row">
-        <span class="kw-text">${esc(k.keyword)}</span>
-        <span class="kw-rank" style="background:${tag.bg};color:${tag.color}">${tag.label}</span>
-        ${totalStr}
+    const grade=grades[k.keyword]||'C';
+    const rc=rankColor(k.rank);
+    const rankDisplay=k.rank
+      ?`${k.rank}<span style="font-size:.6em;font-weight:600">위</span>`
+      :`<span style="font-size:.85rem;font-weight:700;color:#ef4444">놓침</span>`;
+    const subParts=[];
+    if(k.businesses_total) subParts.push(`등록업체 ${k.businesses_total.toLocaleString()}개`);
+    subParts.push(comment);
+    return `<div class="kw-item">
+      <div class="kw-main">
+        <div class="kw-rank-col" style="color:${rc}">${rankDisplay}</div>
+        <div class="kw-divider"></div>
+        <div class="kw-info">
+          <div class="kw-title-row">
+            <span class="kw-text">${esc(k.keyword)}</span>
+            <span class="kw-grade-badge" style="${GRADE_STYLE[grade]}">${grade}급</span>
+          </div>
+          <div class="kw-sub">${subParts.join(' · ')}</div>
+        </div>
       </div>
-      <div class="kw-comment">${esc(comment)}</div>
     </div>`;
   }).join('');
 
