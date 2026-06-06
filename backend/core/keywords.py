@@ -253,7 +253,11 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                       if not _BAD_PATTERNS.search(tag) and not _bone_kw_pat.search(tag)
                       and len(tag) <= 15
                       and not (len(tag) >= 8 and ' ' not in tag)]
-    kw_list = [k.strip() for k in (keyword_list or []) if k and len(k.strip()) >= 2 and not _BAD_PATTERNS.search(k)]
+    # 10글자 이상 붙임말(공백없는) keywordList 항목은 SEO 합성어 오염 제거
+    kw_list = [k.strip() for k in (keyword_list or [])
+               if k and len(k.strip()) >= 2
+               and not _BAD_PATTERNS.search(k)
+               and not (len(k.strip()) >= 10 and ' ' not in k.strip())]
 
     # ── keywordList에서 추가 지역 토큰 추출 ──
     for kw in kw_list:

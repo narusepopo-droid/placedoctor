@@ -624,27 +624,48 @@ _PLACE_RANK_JS = '''() => {
 }'''
 
 _BUSINESSES_TOTAL_JS = '''() => {
-    try {
-        const st = window.__APOLLO_STATE__;
-        if (!st) return null;
-        const rq = st['ROOT_QUERY'];
-        if (rq) {
+    function scanState(st) {
+        if (!st || typeof st !== 'object') return null;
+        // ROOT_QUERY 기반 탐색 (placeList / nluPlace / searchPlace 등 다양한 키)
+        const rq = st['ROOT_QUERY'] || st;
+        try {
             for (const k of Object.keys(rq)) {
-                if (!k.startsWith('placeList')) continue;
                 let pl = rq[k];
                 if (pl && pl.__ref) pl = st[pl.__ref];
-                if (!pl) continue;
+                if (!pl || typeof pl !== 'object') continue;
                 let biz = pl.businesses;
                 if (biz && biz.__ref) biz = st[biz.__ref];
                 if (biz && typeof biz.total === 'number') return biz.total;
             }
-        }
-        for (const v of Object.values(st)) {
-            if (!v || typeof v !== 'object') continue;
-            let biz = v.businesses;
-            if (!biz) continue;
-            if (biz.__ref) biz = st[biz.__ref];
-            if (biz && typeof biz.total === 'number') return biz.total;
+        } catch(e) {}
+        // 전체 값 순회 폴백
+        try {
+            for (const v of Object.values(st)) {
+                if (!v || typeof v !== 'object') continue;
+                if (typeof v.total === 'number' && v.total > 5 &&
+                    String(v.__typename||'').toLowerCase().includes('list')) return v.total;
+                let biz = v.businesses;
+                if (!biz) continue;
+                if (biz.__ref) biz = st[biz.__ref];
+                if (biz && typeof biz.total === 'number') return biz.total;
+            }
+        } catch(e) {}
+        return null;
+    }
+    // 주요 전역 상태 컨테이너 시도
+    for (const key of ['__APOLLO_STATE__','__PLACE_STATE__','__INITIAL_STATE__']) {
+        try { const r = scanState(window[key]); if (r) return r; } catch(e) {}
+    }
+    // 인라인 스크립트 태그에서 직접 패턴 추출
+    try {
+        for (const s of document.querySelectorAll('script:not([src])')) {
+            const t = s.textContent || '';
+            if (!t.includes('total') || !t.match(/[Bb]usiness/)) continue;
+            let m;
+            m = t.match(/"total"\\s*:\\s*(\\d{3,6})\\s*,\\s*"__typename"\\s*:\\s*"[A-Z][A-Za-z]*List"/);
+            if (m) return parseInt(m[1]);
+            m = t.match(/"__typename"\\s*:\\s*"[A-Z][A-Za-z]*List"[^}]{0,60}"total"\\s*:\\s*(\\d{3,6})/);
+            if (m) return parseInt(m[1]);
         }
     } catch(e) {}
     return null;
@@ -701,7 +722,7 @@ async def _fetch_place_ranking(page, keyword, safe_mode=True):
     raw = await page.evaluate(_PLACE_RANK_JS)
     ranked_ids = raw.get('ranked_ids', [])
 
-    # 등록업체 총수 수집 (Apollo state, 데스크탑 페이지에서만 유효)
+    # 등록업체 총수 수집 — 메인 페이지 → iframe 프레임 순으로 시도
     businesses_total = None
     try:
         businesses_total = await page.evaluate(_BUSINESSES_TOTAL_JS)
@@ -709,6 +730,20 @@ async def _fetch_place_ranking(page, keyword, safe_mode=True):
             logger.debug(f"  [{keyword}] businesses.total={businesses_total}")
     except Exception:
         pass
+    if not businesses_total:
+        try:
+            for frame in page.frames:
+                if businesses_total:
+                    break
+                try:
+                    bt = await asyncio.wait_for(frame.evaluate(_BUSINESSES_TOTAL_JS), timeout=1.5)
+                    if bt:
+                        businesses_total = bt
+                        logger.debug(f"  [{keyword}] frame businesses.total={bt}")
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     # 데스크탑 결과 없을 때만 모바일 재시도
     if not ranked_ids:
@@ -1293,7 +1328,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
         }
     """
     N_WORKERS  = 4   # 동시 검색 페이지 수 (네이버 차단 방지: 3~4 이하 유지)
-    MAX_KW     = 10  # 상위 우선순위 키워드만 검색 (1분 이내 목표)
+    MAX_KW     = 20  # 상위 우선순위 키워드 (플마 동등 범위, N_WORKERS=4 기준 +25초)
 
     playwright, browser, context = await create_browser()
     try:
