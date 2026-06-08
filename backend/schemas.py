@@ -38,6 +38,7 @@ class BlogAnalyzeRequest(BaseModel):
     store_name: str
     place_id: str
     address: str = ""
+    category: str = ""
     keywords: List[str] = []
 
 

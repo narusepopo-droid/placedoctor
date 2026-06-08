@@ -1213,6 +1213,12 @@ async def check_blog_ranking_deep(page, inspect_page, keyword, store_name, place
     pid_str = str(place_id) if place_id else ""
     if url_cache is None:
         url_cache = {}
+    # 레이트리밋 방어: 워커별 딥스캔(inspect_blog_post) 사이 지터 딜레이.
+    # 카드 즉시감지·url_cache 히트(네트워크 없음)에는 걸지 않고,
+    # 실제 블로그 본문 요청(딥스캔)에만 첫 건 제외 후 적용한다.
+    # N_BLOG=3 워커 × 키워드 폭 확대(최대 15) 환경에서 동시 요청 폭주를 완화.
+    INSPECT_DELAY = (0.5, 1.2)  # (min, max) 초 — random.uniform
+    did_inspect = False
     try:
         results = await collect_blog_results(page, keyword, limit=10, log_func=log_func)
         if not results:
@@ -1241,6 +1247,9 @@ async def check_blog_ranking_deep(page, inspect_page, keyword, store_name, place
                 checked = url_cache[item_url]
                 _log(f"      ↳ {item['rank']}위 캐시({item.get('title','')[:15]}) 점수={checked['score']}")
             else:
+                if did_inspect:
+                    await asyncio.sleep(random.uniform(*INSPECT_DELAY))
+                did_inspect = True
                 _log(f"      ↳ {item['rank']}위 딥스캔 중... ({item.get('title','')[:20]})")
                 checked = await inspect_blog_post(
                     page=inspect_page,
@@ -1527,97 +1536,89 @@ async def analyze_blog_ranking(
     place_id: str,
     address: str,
     keywords: list[str],
-    max_keywords: int = 5,
+    max_keywords: int = 15,
 ) -> list[dict]:
     """
     블로그 순위 분석을 별도로 실행합니다.
     플레이스 진단 완료 후 사용자가 요청할 때만 호출.
 
+    플마(naver_tracker.py) blog 모드와 동일하게 **병렬**로 처리한다:
+      - N_BLOG=3 워커 풀(검색 페이지 3 + 딥스캔 페이지 3)
+      - 키워드 사이 순차 딜레이 제거(플마도 없음) → 폭(키워드 수) 확보
+      - url_cache 공유로 동일 블로그 중복 딥스캔 방지
+      - check_blog_ranking_deep 내부에서 collect_blog_results를 호출하므로
+        여기서 사전 collect는 하지 않음(중복 요청 제거 = 차단 위험↓)
+
     Args:
         store_name: 매장명
-        place_id: 네이버 플레이스 ID
-        address: 매장 주소
-        keywords: 분석할 키워드 목록
-        max_keywords: 최대 분석 키워드 수 (기본 5)
+        place_id:   네이버 플레이스 ID
+        address:    매장 주소
+        keywords:   분석할 키워드 목록(대표키워드 우선)
+        max_keywords: 최대 분석 키워드 수
 
     Returns:
-        [{"keyword": str, "hits": [{"rank", "title", "blog_link", ...}]}]
+        [{"keyword": str, "hits": [{"rank", "title", "blog_link", ...}]}]  (입력 순서 유지)
     """
-    BLOG_DELAY = 8  # 키워드 사이 딜레이 (초) — 12→8로 단축
+    N_BLOG = 3  # 동시 블로그 처리 워커 수 (플마와 동일)
 
     if not place_id or not keywords:
         logger.warning("[블로그 분석] place_id 또는 keywords 없음")
         return []
 
     blog_keywords = keywords[:max_keywords]
-    blog_results = []
 
     playwright, browser, context = await create_browser()
     try:
-        blog_search_page = await create_stealth_page(context)
-        blog_inspect_page = await create_stealth_page(context)
-        url_cache = {}
+        url_cache: dict = {}
+        search_pool: asyncio.Queue = asyncio.Queue()
+        insp_pool: asyncio.Queue = asyncio.Queue()
+        for _ in range(N_BLOG):
+            search_pool.put_nowait(await create_stealth_page(context))
+            insp_pool.put_nowait(await create_stealth_page(context))
 
         logger.info("=" * 60)
-        logger.info(f"[블로그 분석 시작] {len(blog_keywords)}개 키워드")
+        logger.info(f"[블로그 분석 시작] {len(blog_keywords)}개 키워드 (병렬 {N_BLOG})")
         logger.info(f"  매장: {store_name} (place_id={place_id})")
         logger.info(f"  주소: {address}")
         logger.info(f"  키워드: {blog_keywords}")
         logger.info("=" * 60)
 
-        for i, kw in enumerate(blog_keywords):
-            if i > 0:
-                logger.info(f"  (딜레이 {BLOG_DELAY}초...)")
-                await asyncio.sleep(BLOG_DELAY)
-
+        async def _blog_task(idx: int, kw: str) -> tuple:
+            pg = await search_pool.get()
+            ip = await insp_pool.get()
             try:
-                logger.info(f"  [{i+1}/{len(blog_keywords)}] 블로그 검색: '{kw}'")
-
-                # 1. 블로그 검색 결과 수집
-                raw_results = await collect_blog_results(blog_search_page, kw, limit=10)
-                logger.info(f"    → 검색결과 {len(raw_results)}개 수집")
-
-                if not raw_results:
-                    logger.info(f"    → 검색결과 0개 (검색결과없음)")
-                    blog_results.append({
-                        "keyword": kw,
-                        "hits": [{"status": "검색결과없음", "rank": None, "title": "", "blog_link": "", "score": 0, "reasons": []}]
-                    })
-                    continue
-
-                # 2. 각 블로그 딥스캔
+                logger.info(f"  [{idx+1}/{len(blog_keywords)}] 블로그 검색: '{kw}'")
                 hits = await check_blog_ranking_deep(
-                    page=blog_search_page,
-                    inspect_page=blog_inspect_page,
+                    page=pg,
+                    inspect_page=ip,
                     keyword=kw,
                     store_name=store_name,
                     place_id=place_id,
                     address=address,
                     url_cache=url_cache,
-                    max_hits=3,
+                    max_hits=5,   # 플마 blog 모드와 동일
                 )
-
-                matched_count = len([h for h in hits if h.get("rank")])
-                logger.info(f"    → 매칭 {matched_count}개")
+                matched = len([h for h in hits if h.get("rank")])
+                logger.info(f"    → '{kw}' 매칭 {matched}개")
                 for h in hits:
                     if h.get("rank"):
-                        logger.info(f"       {h['rank']}위: {h.get('title', '')[:30]} | {h.get('blog_link', '')[:50]}")
-
-                blog_results.append({"keyword": kw, "hits": hits})
-
+                        logger.info(f"       {h['rank']}위: {h.get('title','')[:30]} | {h.get('blog_link','')[:50]}")
+                return (idx, kw, hits)
             except Exception as e:
-                import traceback
                 logger.error(f"  블로그 분석 오류({kw}): {e}")
-                logger.error(traceback.format_exc())
-                blog_results.append({
-                    "keyword": kw,
-                    "hits": [{"status": f"오류: {str(e)[:40]}", "rank": None, "title": "", "blog_link": "", "score": 0, "reasons": [str(e)[:80]]}]
-                })
+                return (idx, kw, [{"status": f"오류: {str(e)[:40]}", "rank": None,
+                                   "title": "", "blog_link": "", "score": 0, "reasons": [str(e)[:80]]}])
+            finally:
+                search_pool.put_nowait(pg)
+                insp_pool.put_nowait(ip)
 
+        raw = await asyncio.gather(*[_blog_task(i, kw) for i, kw in enumerate(blog_keywords)])
+        raw_sorted = sorted(raw, key=lambda x: x[0])   # 입력 순서 유지
+        blog_results = [{"keyword": kw, "hits": hits} for _, kw, hits in raw_sorted]
+
+        total_matched = sum(len([h for h in r["hits"] if h.get("rank")]) for r in blog_results)
         logger.info("=" * 60)
-        logger.info(f"[블로그 분석 완료] {len(blog_results)}개 키워드 처리")
-        total_matched = sum(len([h for h in r.get("hits", []) if h.get("rank")]) for r in blog_results)
-        logger.info(f"  총 매칭 블로그: {total_matched}개")
+        logger.info(f"[블로그 분석 완료] {len(blog_results)}개 키워드 / 총 매칭 {total_matched}개")
         logger.info("=" * 60)
 
         return blog_results

@@ -1399,9 +1399,9 @@ async function startBlogAnalysis(){
   document.getElementById('blogLoading').style.display = 'block';
   document.getElementById('blogResultCard').style.display = 'none';
 
-  // 키워드 상위 5개
-  const keywords = (d.keywords_used || []).slice(0, 5);
-  const total = keywords.length;
+  // 백엔드가 대표키워드 그대로 + 폭 확대(최대 15개)로 분석하므로 후보 전체를 넘김
+  const keywords = (d.keywords_used || []);
+  const total = Math.min(keywords.length, 15) || 15;
 
   try {
     const res = await fetch('/analyze-blog', {
@@ -1411,6 +1411,7 @@ async function startBlogAnalysis(){
         store_name: d.store_name,
         place_id: d.place_id,
         address: d.address || '',
+        category: d.category || '',
         keywords: keywords
       })
     });
@@ -1584,8 +1585,23 @@ async def analyze_blog(req: schemas.BlogAnalyzeRequest):
     블로그 순위 분석을 별도로 실행합니다.
     플레이스 진단 완료 후 사용자가 요청할 때만 호출됩니다.
     """
-    if not req.place_id or not req.keywords:
-        raise HTTPException(status_code=400, detail="place_id와 keywords가 필요합니다")
+    if not req.place_id:
+        raise HTTPException(status_code=400, detail="place_id가 필요합니다")
+
+    # 플마 블로그 모드와 동일하게 키워드 구성:
+    #   - place 대표키워드(keywordList 기반, keywords_used)를 "그대로" 사용
+    #   - 브랜드 단독 키워드만 제거 (브랜드명만으론 블로그 매칭 의미 없음)
+    # ※ 메뉴 재조합(generate_blog_keywords)은 플마에 없는 로직 → 사용 안 함.
+    #   플마는 대표키워드(예: '오산피부관리')를 그대로 검색해 우리 블로그를 잡아냄.
+    #   핵심은 키워드 "폭" — 히트가 여러 키워드에 흩어져 있어 충분히 많이 돌려야 함.
+    import re as _re
+
+    _brand_base = _re.sub(r"(본점|직영점|지점|점)$", "", req.store_name.strip()).strip()
+    _brand_only = {req.store_name.strip(), _brand_base}
+    keywords = [k for k in (req.keywords or []) if k and k not in _brand_only]
+
+    if not keywords:
+        raise HTTPException(status_code=400, detail="분석할 키워드가 없습니다")
 
     try:
         future = asyncio.run_coroutine_threadsafe(
@@ -1593,8 +1609,8 @@ async def analyze_blog(req: schemas.BlogAnalyzeRequest):
                 store_name=req.store_name,
                 place_id=req.place_id,
                 address=req.address,
-                keywords=req.keywords,
-                max_keywords=5,
+                keywords=keywords,
+                max_keywords=15,
             ),
             _proactor_loop,
         )
