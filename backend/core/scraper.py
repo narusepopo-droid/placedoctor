@@ -1350,6 +1350,18 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
         nearby_station    = details.get("nearby_station", "")
         keyword_list      = details.get("keyword_list", [])
 
+        # ── 키워드 생성 입력값 로그 (디버깅용) ──────────────────────────────
+        logger.info("=" * 60)
+        logger.info("[키워드 생성 입력값]")
+        logger.info(f"  store_name: {store_name}")
+        logger.info(f"  category: {category}")
+        logger.info(f"  address: {address}")
+        logger.info(f"  official_keywords: {official_keywords}")
+        logger.info(f"  menu_items: {menu_items}")
+        logger.info(f"  nearby_station: {nearby_station}")
+        logger.info(f"  keyword_list: {keyword_list}")
+        logger.info("=" * 60)
+
         if keywords:
             target_keywords = keywords[:MAX_KW]
         else:
@@ -1363,6 +1375,12 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
                 nearby_station=nearby_station,
                 keyword_list=keyword_list,
             )[:MAX_KW]
+
+        # ── 생성된 키워드 목록 로그 ──────────────────────────────────────────
+        logger.info(f"[생성된 키워드 목록] ({len(target_keywords)}개)")
+        for i, kw in enumerate(target_keywords, 1):
+            logger.info(f"  {i:2d}. {kw}")
+        logger.info("=" * 60)
 
         # ── 병렬 키워드 순위 검색 + 경쟁사 탐색 동시 실행 ─────────────────
         # 페이지 풀: N_WORKERS개 (키워드 검색) + 1개 (경쟁사 상세정보 전용)
