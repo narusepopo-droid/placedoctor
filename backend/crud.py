@@ -144,3 +144,56 @@ def create_lead(
     db.commit()
     db.refresh(lead)
     return lead
+
+
+def save_analysis_history(
+    db: Session,
+    place_id: str,
+    store_name: str,
+    analysis_type: str,
+    total_score: float | None,
+    result_json: str,
+) -> models.AnalysisHistory:
+    """분석 결과를 히스토리에 누적 저장 (덮어쓰기 X)"""
+    history = models.AnalysisHistory(
+        place_id=place_id,
+        store_name=store_name,
+        analysis_type=analysis_type,
+        total_score=total_score,
+        result_json=result_json,
+    )
+    db.add(history)
+    db.commit()
+    db.refresh(history)
+    return history
+
+
+def get_previous_analysis(
+    db: Session, place_id: str, analysis_type: str
+) -> models.AnalysisHistory | None:
+    """해당 매장의 직전 분석 기록 조회 (현재 분석 제외)"""
+    return (
+        db.query(models.AnalysisHistory)
+        .filter(
+            models.AnalysisHistory.place_id == place_id,
+            models.AnalysisHistory.analysis_type == analysis_type,
+        )
+        .order_by(models.AnalysisHistory.analyzed_at.desc())
+        .first()
+    )
+
+
+def get_analysis_history_list(
+    db: Session, place_id: str, analysis_type: str, limit: int = 10
+) -> list[models.AnalysisHistory]:
+    """해당 매장의 분석 히스토리 목록 (최근순)"""
+    return (
+        db.query(models.AnalysisHistory)
+        .filter(
+            models.AnalysisHistory.place_id == place_id,
+            models.AnalysisHistory.analysis_type == analysis_type,
+        )
+        .order_by(models.AnalysisHistory.analyzed_at.desc())
+        .limit(limit)
+        .all()
+    )

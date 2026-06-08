@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from .database import engine, get_db
 from .models import Base
 from . import crud, schemas
-from .core.scraper import diagnose_store
+from .core.scraper import diagnose_store, analyze_blog_ranking
 from .core.scoring import apply_ad_flags
 
 # ── Windows ProactorEventLoop 전용 스레드 ────────────────────────────────────
@@ -151,6 +151,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .kw-sub{font-size:.73rem;color:var(--gray-500);margin-top:3px;line-height:1.5;}
 .kw-more{margin-top:10px;font-size:.82rem;color:var(--green-d);font-weight:600;cursor:pointer;}
 
+/* BLOG ANALYSIS */
+.blog-list{display:flex;flex-direction:column;gap:10px;}
+.blog-kw-group{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:12px;}
+.blog-kw-title{font-size:.85rem;font-weight:700;color:var(--gray-800);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.blog-kw-title .blog-kw-badge{font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:5px;background:var(--green);color:#fff;}
+.blog-hits{display:flex;flex-direction:column;gap:6px;}
+.blog-hit{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#fff;border-radius:6px;border:1px solid var(--gray-200);}
+.blog-rank{font-size:1.1rem;font-weight:800;min-width:36px;text-align:center;flex-shrink:0;}
+.blog-info{flex:1;min-width:0;}
+.blog-title{font-size:.78rem;font-weight:600;color:var(--gray-800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.blog-link{font-size:.68rem;color:var(--gray-400);text-decoration:none;}
+.blog-link:hover{color:var(--green);text-decoration:underline;}
+.blog-none{font-size:.78rem;color:var(--gray-400);padding:6px 0;text-align:center;}
+.blog-summary{margin-top:12px;padding:10px;background:var(--green-bg);border-radius:8px;}
+.blog-summary-text{font-size:.82rem;color:var(--gray-700);line-height:1.5;}
+
 /* DOCTOR COMMENT */
 .comment-box{background:var(--green-bg);border-left:4px solid var(--green);border-radius:0 var(--radius) var(--radius) 0;padding:16px;margin-top:6px;}
 .comment-line{font-size:.88rem;color:var(--gray-800);line-height:1.65;margin-bottom:6px;}
@@ -200,6 +216,50 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 @keyframes db{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
 .l-tip{background:var(--green-bg);border-radius:10px;padding:12px 14px;font-size:.8rem;color:#374151;line-height:1.6;text-align:left;}
 
+/* TABS */
+.tabs{display:flex;gap:0;margin-top:14px;background:#fff;border-radius:var(--radius) var(--radius) 0 0;box-shadow:var(--shadow);overflow:hidden;}
+.tab-btn{flex:1;padding:14px 10px;background:#fff;border:none;font-size:.9rem;font-weight:600;color:var(--gray-600);cursor:pointer;transition:all .2s;border-bottom:3px solid transparent;}
+.tab-btn.active{color:var(--green);border-bottom-color:var(--green);background:var(--green-bg);}
+.tab-btn:hover:not(.active){background:var(--gray-50);}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* BLOG TAB */
+.blog-start-card{background:#fff;border-radius:0 0 var(--radius) var(--radius);box-shadow:var(--shadow);padding:32px 20px;text-align:center;}
+.blog-start-icon{font-size:3rem;margin-bottom:12px;}
+.blog-start-title{font-size:1.1rem;font-weight:700;margin-bottom:8px;}
+.blog-start-desc{font-size:.85rem;color:var(--gray-600);margin-bottom:20px;line-height:1.5;}
+.btn-blog-analyze{padding:14px 28px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;transition:background .2s;}
+.btn-blog-analyze:hover{background:var(--green-d);}
+.btn-blog-analyze:disabled{background:var(--gray-400);cursor:not-allowed;}
+.blog-loading{padding:24px;text-align:center;}
+.blog-loading-text{font-size:.9rem;color:var(--gray-600);margin-top:12px;}
+.blog-empty{background:var(--gray-50);border:1px dashed var(--gray-200);border-radius:10px;padding:24px;text-align:center;margin-top:14px;}
+.blog-empty-icon{font-size:2rem;margin-bottom:8px;}
+.blog-empty-text{font-size:.88rem;color:var(--gray-600);}
+
+/* ANALYSIS TYPE SELECTOR */
+.analysis-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.analysis-type-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 10px;background:#fff;border:2px solid var(--gray-200);border-radius:12px;cursor:pointer;transition:all .2s;}
+.analysis-type-btn:hover{border-color:var(--green);background:var(--green-bg);}
+.analysis-type-btn.selected{border-color:var(--green);background:var(--green-bg);}
+.analysis-type-btn input{display:none;}
+.type-icon{font-size:1.5rem;}
+.type-label{font-size:.9rem;font-weight:700;color:var(--gray-800);}
+.type-desc{font-size:.72rem;color:var(--gray-500);}
+
+/* RANK CHANGE INDICATOR */
+.rank-change{font-size:.68rem;font-weight:600;margin-left:4px;}
+.rank-change.up{color:var(--green);}
+.rank-change.down{color:var(--red);}
+.rank-change.same{color:var(--gray-400);}
+.prev-rank{font-size:.68rem;color:var(--gray-400);margin-left:4px;}
+
+/* SCORE CHANGE INDICATOR */
+.score-change{font-size:.72rem;font-weight:600;margin-left:6px;}
+.score-change.up{color:var(--green);}
+.score-change.down{color:var(--red);}
+
 /* DESKTOP */
 @media(min-width:640px){
   .main{padding:28px 24px 80px;}
@@ -222,6 +282,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="field"><label>매장명</label><input type="text" id="storeName" placeholder="예: 감동식당"></div>
       <div class="field"><label>네이버 플레이스 URL</label><input type="text" id="placeUrl" placeholder="https://naver.me/... 또는 map.naver.com/..."></div>
       <div class="field">
+        <label>분석 유형</label>
+        <div class="analysis-type-grid">
+          <label class="analysis-type-btn selected" data-type="place">
+            <input type="radio" name="analysisType" value="place" checked>
+            <span class="type-icon">📍</span>
+            <span class="type-label">플레이스</span>
+            <span class="type-desc">순위·리뷰·경쟁사</span>
+          </label>
+          <label class="analysis-type-btn" data-type="blog">
+            <input type="radio" name="analysisType" value="blog">
+            <span class="type-icon">📝</span>
+            <span class="type-label">블로그</span>
+            <span class="type-desc">블로그 노출 순위</span>
+          </label>
+        </div>
+      </div>
+      <div id="adFieldsWrap" class="field">
         <label>현재 집행 중인 광고 (해당 항목 체크)</label>
         <div class="ad-check-grid">
           <label class="ad-check"><input type="checkbox" id="adPlace"> 플레이스 광고</label>
@@ -233,7 +310,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--gray-600);margin-bottom:14px;cursor:pointer;">
         <input type="checkbox" id="forceRefresh"> 강제 재크롤링
       </label>
-      <button class="btn-diagnose" id="diagBtn" onclick="diagnose()">🔍 진단하기</button>
+      <button class="btn-diagnose" id="diagBtn" onclick="startAnalysis()">🔍 진단하기</button>
       <div class="status-msg" id="statusMsg"></div>
     </div>
     <div id="errBox"></div>
@@ -242,9 +319,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <!-- LOADING -->
   <div id="loading-section">
     <div class="l-card">
-      <span class="l-pulse">🩺</span>
-      <div class="l-title">플레이스 진단 중이에요</div>
-      <div class="l-sub">키워드를 하나씩 검색하고 있어요 · 1~3분 소요</div>
+      <span class="l-pulse" id="lIcon">🩺</span>
+      <div class="l-title" id="lTitle">플레이스 진단 중이에요</div>
+      <div class="l-sub" id="lSub">키워드를 하나씩 검색하고 있어요 · 1~3분 소요</div>
       <div class="l-bar-wrap"><div class="l-bar" id="lBar"></div></div>
       <div class="l-pct" id="lPct">0%</div>
       <div class="l-steps" id="lSteps"></div>
@@ -254,13 +331,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
   <!-- RESULT -->
   <div id="result">
+    <!-- 공통 헤더: 매장명 + 종합점수 (탭 위에 항상 표시) -->
     <div class="result-header">
       <div class="store-badge">📍 <span id="rCategory"></span></div>
       <div class="store-name" id="rStoreName"></div>
       <div class="store-meta" id="rMeta"></div>
     </div>
 
-    <!-- GAUGE -->
+    <!-- GAUGE (공통) -->
     <div class="card">
       <div class="card-title">종합 플레이스 점수</div>
       <div class="gauge-wrap">
@@ -275,39 +353,78 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
     </div>
 
-    <!-- 4-AXIS -->
-    <div style="margin-top:6px;font-size:.82rem;font-weight:700;color:var(--gray-600);padding:12px 0 0;">진단 상세</div>
-    <div class="axis-grid" id="axisGrid"></div>
-
-    <!-- COMPETITOR -->
-    <div class="card" id="compCard" style="display:none;">
-      <div class="card-title">🏆 경쟁사 비교</div>
-      <div class="comp-rows" id="compRows"></div>
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="place" onclick="switchTab('place')">📍 플레이스 분석</button>
+      <button class="tab-btn" data-tab="blog" onclick="switchTab('blog')">📝 블로그 분석</button>
     </div>
 
-    <!-- KEYWORDS -->
-    <div class="card">
-      <div class="card-title">🔑 키워드 순위</div>
-      <div class="kw-list" id="kwList"></div>
-      <div class="kw-more" id="kwMore" onclick="toggleKw()"></div>
+    <!-- TAB: 플레이스 분석 -->
+    <div id="tab-place" class="tab-content active">
+      <!-- 4-AXIS -->
+      <div style="font-size:.82rem;font-weight:700;color:var(--gray-600);padding:12px 0 0;">진단 상세</div>
+      <div class="axis-grid" id="axisGrid"></div>
+
+      <!-- COMPETITOR -->
+      <div class="card" id="compCard" style="display:none;">
+        <div class="card-title">🏆 경쟁사 비교</div>
+        <div class="comp-rows" id="compRows"></div>
+      </div>
+
+      <!-- KEYWORDS -->
+      <div class="card">
+        <div class="card-title">🔑 키워드 순위</div>
+        <div class="kw-list" id="kwList"></div>
+        <div class="kw-more" id="kwMore" onclick="toggleKw()"></div>
+      </div>
+
+      <!-- DOCTOR COMMENT -->
+      <div class="card">
+        <div class="card-title">💬 닥터 코멘트</div>
+        <div class="comment-box" id="commentBox"></div>
+      </div>
+
+      <!-- BUTTONS -->
+      <div class="card">
+        <div class="btn-area">
+          <button class="btn-main" onclick="handleLead()">📋 상세 리포트 카톡으로 받기</button>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="handlePwa()">📱 홈 화면 추가</button>
+            <button class="btn-secondary" onclick="handleShare()">💬 카톡 공유</button>
+          </div>
+        </div>
+        <p class="bottom-note">개선 로드맵 + 키워드별 분석 무료 발송 · 운영 <strong>광고토대왕</strong></p>
+      </div>
     </div>
 
-    <!-- DOCTOR COMMENT -->
-    <div class="card">
-      <div class="card-title">💬 닥터 코멘트</div>
-      <div class="comment-box" id="commentBox"></div>
-    </div>
+    <!-- TAB: 블로그 분석 -->
+    <div id="tab-blog" class="tab-content">
+      <!-- 분석 전: 시작 버튼 -->
+      <div id="blogStartCard" class="blog-start-card">
+        <div class="blog-start-icon">📝</div>
+        <div class="blog-start-title">블로그 노출 분석</div>
+        <div class="blog-start-desc">
+          우리 가게를 태그한 블로그가 검색 몇 위에 노출되는지 분석해요.<br>
+          상위 5개 키워드 기준 · 약 60초 소요
+        </div>
+        <button class="btn-blog-analyze" id="btnBlogAnalyze" onclick="startBlogAnalysis()">🔍 블로그 노출 분석하기</button>
+      </div>
 
-    <!-- BUTTONS -->
-    <div class="card">
-      <div class="btn-area">
-        <button class="btn-main" onclick="handleLead()">📋 상세 리포트 카톡으로 받기</button>
-        <div class="btn-row">
-          <button class="btn-secondary" onclick="handlePwa()">📱 홈 화면 추가</button>
-          <button class="btn-secondary" onclick="handleShare()">💬 카톡 공유</button>
+      <!-- 분석 중: 로딩 -->
+      <div id="blogLoading" class="card" style="display:none;">
+        <div class="blog-loading">
+          <span class="l-pulse" style="font-size:2.5rem;">📝</span>
+          <div class="blog-loading-text">블로그 분석 중... <span id="blogProgress">0/5</span></div>
+          <div class="l-bar-wrap" style="margin-top:12px;"><div class="l-bar" id="blogBar" style="width:0%"></div></div>
         </div>
       </div>
-      <p class="bottom-note">개선 로드맵 + 키워드별 분석 무료 발송 · 운영 <strong>광고토대왕</strong></p>
+
+      <!-- 분석 완료: 결과 -->
+      <div id="blogResultCard" class="card" style="display:none;">
+        <div class="card-title">📝 블로그 노출 분석 결과</div>
+        <div class="blog-list" id="blogList"></div>
+        <div class="blog-summary" id="blogSummary"></div>
+      </div>
     </div>
 
     <div class="btn-redo"><button onclick="resetForm()">← 다시 진단하기</button></div>
@@ -318,6 +435,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 // ── 상태 ──────────────────────────────────────────────────────────────────────
 const CIRC = 2 * Math.PI * 66; // ≈ 414.7
 let _allKw = [], _kwExpanded = false;
+let _blogAnalyzed = false;
+let _analysisType = 'place';  // 'place' | 'blog'
+let _prevAnalysis = null;     // 직전 분석 결과 (비교용)
+
+// ── 분석 유형 선택 ───────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.analysis-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.analysis-type-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      _analysisType = btn.dataset.type;
+      // 플레이스 분석 시에만 광고 체크박스 표시
+      document.getElementById('adFieldsWrap').style.display = _analysisType === 'place' ? 'block' : 'none';
+    });
+  });
+});
 
 // ── 유틸 ──────────────────────────────────────────────────────────────────────
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -364,10 +497,11 @@ function animateGauge(target){
 // ── 로딩 애니메이션 ───────────────────────────────────────────────────────────
 const L_STEPS = [
   { label:'매장 정보 수집 중',    icon:'🔍', desc:'네이버 플레이스에서 매장 정보를 읽어오고 있어요',       ms:12000 },
-  { label:'키워드 순위 분석 중',  icon:'📊', desc:'검색 키워드 20개를 하나씩 확인하고 있어요 (가장 오래 걸려요)', ms:80000 },
-  { label:'리뷰·별점 수집 중',   icon:'⭐', desc:'방문자 리뷰, 블로그 리뷰, 별점 데이터를 모으고 있어요', ms:20000 },
-  { label:'경쟁사 비교 중',      icon:'🏆', desc:'같은 키워드 1위 매장 정보를 분석하고 있어요',         ms:20000 },
-  { label:'점수 계산 중',        icon:'📝', desc:'4축 진단 점수를 계산하고 있어요 — 거의 다 됐어요!',    ms:999999 },
+  { label:'키워드 순위 분석 중',  icon:'📊', desc:'검색 키워드 30개를 하나씩 확인하고 있어요 (가장 오래 걸려요)', ms:80000 },
+  { label:'리뷰·별점 수집 중',   icon:'⭐', desc:'방문자 리뷰, 블로그 리뷰, 별점 데이터를 모으고 있어요', ms:15000 },
+  { label:'경쟁사 비교 중',      icon:'🏆', desc:'같은 키워드 1위 매장 정보를 분석하고 있어요',         ms:15000 },
+  { label:'블로그 분석 중',      icon:'📝', desc:'우리 가게 태그한 블로그 순위를 확인하고 있어요',       ms:70000 },
+  { label:'점수 계산 중',        icon:'✅', desc:'4축 진단 점수를 계산하고 있어요 — 거의 다 됐어요!',    ms:999999 },
 ];
 const L_TIPS = [
   '💡 방문자 리뷰 50개 이상이면 검색 노출에 유리해요',
@@ -379,14 +513,35 @@ const L_TIPS = [
 
 let _lStart=0, _lTimer=null, _lStepIdx=0, _lRafId=null, _lProg=0;
 
-function startLoading(){
+// 블로그 분석용 로딩 스텝
+const L_STEPS_BLOG = [
+  { label:'매장 정보 수집 중',    icon:'🔍', desc:'네이버 플레이스에서 매장 정보를 읽어오고 있어요',       ms:15000 },
+  { label:'키워드 추출 중',       icon:'📝', desc:'블로그 검색에 사용할 키워드를 생성하고 있어요',        ms:5000 },
+  { label:'블로그 순위 분석 중',  icon:'📊', desc:'키워드별 블로그 검색 순위를 확인하고 있어요',         ms:60000 },
+  { label:'결과 정리 중',         icon:'✅', desc:'분석 결과를 정리하고 있어요 — 거의 다 됐어요!',       ms:999999 },
+];
+
+function startLoading(type){
   _lStart=Date.now(); _lStepIdx=0; _lProg=0;
   document.getElementById('lBar').style.width='0%';
   document.getElementById('lPct').textContent='0%';
   document.getElementById('lTip').textContent=L_TIPS[Math.floor(Math.random()*L_TIPS.length)];
-  _renderLSteps(0);
+
+  // 분석 유형에 따라 로딩 화면 텍스트 변경
+  if(type === 'blog'){
+    document.getElementById('lIcon').textContent = '📝';
+    document.getElementById('lTitle').textContent = '블로그 분석 중이에요';
+    document.getElementById('lSub').textContent = '블로그 노출 순위를 확인하고 있어요 · 약 1분 소요';
+    _renderLSteps(0, L_STEPS_BLOG);
+  } else {
+    document.getElementById('lIcon').textContent = '🩺';
+    document.getElementById('lTitle').textContent = '플레이스 진단 중이에요';
+    document.getElementById('lSub').textContent = '키워드를 하나씩 검색하고 있어요 · 1~3분 소요';
+    _renderLSteps(0, L_STEPS);
+  }
+
   _animateLBar();
-  _lTimer=setInterval(_advanceLStep,1000);
+  _lTimer=setInterval(()=>_advanceLStep(type==='blog'?L_STEPS_BLOG:L_STEPS),1000);
 }
 
 function stopLoading(){
@@ -395,18 +550,19 @@ function stopLoading(){
   document.getElementById('lPct').textContent='100%';
 }
 
-function _advanceLStep(){
+function _advanceLStep(steps){
   const elapsed=Date.now()-_lStart;
   let cum=0, idx=0;
-  for(let i=0;i<L_STEPS.length;i++){cum+=L_STEPS[i].ms;if(elapsed<cum){idx=i;break;}idx=L_STEPS.length-1;}
-  if(idx!==_lStepIdx){_lStepIdx=idx;_renderLSteps(idx);}
+  for(let i=0;i<steps.length;i++){cum+=steps[i].ms;if(elapsed<cum){idx=i;break;}idx=steps.length-1;}
+  if(idx!==_lStepIdx){_lStepIdx=idx;_renderLSteps(idx,steps);}
   // rotate tip every 20s
   const tipIdx=Math.floor(elapsed/20000)%L_TIPS.length;
   document.getElementById('lTip').textContent=L_TIPS[tipIdx];
 }
 
-function _renderLSteps(active){
-  document.getElementById('lSteps').innerHTML=L_STEPS.map((s,i)=>{
+function _renderLSteps(active,steps){
+  const stepsArr = steps || L_STEPS;
+  document.getElementById('lSteps').innerHTML=stepsArr.map((s,i)=>{
     const state=i<active?'done':i===active?'active':'pending';
     const ic=state==='done'?'✓':s.icon;
     const dots=state==='active'?'<span class="dots"><span></span><span></span><span></span></span>':'';
@@ -437,8 +593,17 @@ function _animateLBar(){
   _lRafId=requestAnimationFrame(update);
 }
 
-// ── 메인 진단 요청 ────────────────────────────────────────────────────────────
-async function diagnose(){
+// ── 메인 분석 시작 (유형에 따라 분기) ──────────────────────────────────────────
+async function startAnalysis(){
+  if(_analysisType === 'place'){
+    await analyzePlaceOnly();
+  } else {
+    await analyzeBlogOnly();
+  }
+}
+
+// ── 플레이스 분석 ─────────────────────────────────────────────────────────────
+async function analyzePlaceOnly(){
   const name = document.getElementById('storeName').value.trim();
   const url  = document.getElementById('placeUrl').value.trim();
   const force= document.getElementById('forceRefresh').checked;
@@ -454,14 +619,12 @@ async function diagnose(){
   btn.disabled=true; btn.textContent='분석 중...';
   document.getElementById('errBox').innerHTML='';
 
-  // 즉시 로딩 화면으로 전환 (버튼 클릭 즉시 발생)
   document.getElementById('input-section').style.display='none';
   document.getElementById('loading-section').style.display='block';
-  startLoading();
+  startLoading('place');
   window.scrollTo({top:0,behavior:'smooth'});
 
-  const _loadStart = Date.now();
-  const MIN_SHOW_MS = 1500; // 캐시 응답이 와도 최소 1.5초는 로딩 화면 유지
+  const MIN_SHOW_MS = 1500;
 
   try{
     const [res] = await Promise.all([
@@ -481,10 +644,63 @@ async function diagnose(){
       btn.disabled=false; btn.textContent='🔍 진단하기';
       return;
     }
-    // 결과 화면으로 자연스럽게 전환
     document.getElementById('loading-section').style.display='none';
-    renderResult(JSON.parse(text));
+    const data = JSON.parse(text);
+    _prevAnalysis = data.prev_analysis || null;  // 직전 분석 결과
+    renderResult(data);
     document.getElementById('result').style.display='block';
+    switchTab('place');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){
+    stopLoading();
+    document.getElementById('loading-section').style.display='none';
+    document.getElementById('input-section').style.display='block';
+    document.getElementById('errBox').innerHTML=`<div class="err-box">요청 실패: ${esc(e.message)}</div>`;
+    btn.disabled=false; btn.textContent='🔍 진단하기';
+  }
+}
+
+// ── 블로그 분석 (단독) ────────────────────────────────────────────────────────
+async function analyzeBlogOnly(){
+  const name = document.getElementById('storeName').value.trim();
+  const url  = document.getElementById('placeUrl').value.trim();
+  if(!name||!url){alert('매장명과 URL을 입력해주세요.');return;}
+
+  const btn = document.getElementById('diagBtn');
+  btn.disabled=true; btn.textContent='분석 중...';
+  document.getElementById('errBox').innerHTML='';
+
+  document.getElementById('input-section').style.display='none';
+  document.getElementById('loading-section').style.display='block';
+  startLoading('blog');
+  window.scrollTo({top:0,behavior:'smooth'});
+
+  const MIN_SHOW_MS = 1500;
+
+  try{
+    const [res] = await Promise.all([
+      fetch('/analyze-blog-standalone',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({store_name:name,place_url:url})
+      }),
+      new Promise(r=>setTimeout(r, MIN_SHOW_MS))
+    ]);
+    const text = await res.text();
+    stopLoading();
+    if(!res.ok){
+      document.getElementById('loading-section').style.display='none';
+      document.getElementById('input-section').style.display='block';
+      document.getElementById('errBox').innerHTML=`<div class="err-box">오류 (${res.status})<br><small>${esc(text.slice(0,400))}</small></div>`;
+      btn.disabled=false; btn.textContent='🔍 진단하기';
+      return;
+    }
+    document.getElementById('loading-section').style.display='none';
+    const data = JSON.parse(text);
+    _prevAnalysis = data.prev_analysis || null;
+    renderBlogOnlyResult(data);
+    document.getElementById('result').style.display='block';
+    switchTab('blog');
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(e){
     stopLoading();
@@ -497,20 +713,34 @@ async function diagnose(){
 
 // ── 결과 렌더링 ───────────────────────────────────────────────────────────────
 function renderResult(d){
-  window._diagData = d;  // 키워드 태그에서 competitor 접근용
+  window._diagData = d;
   const sc = d.scores||{};
+  const prev = _prevAnalysis;
+
   // 매장 정보
   document.getElementById('rStoreName').textContent = d.store_name||'-';
   document.getElementById('rCategory').textContent  = d.category||'매장';
   document.getElementById('rMeta').textContent      = d.address||'';
 
-  // 종합 게이지
+  // 종합 게이지 + 변동 표시
   const tot = sc.total??0;
   animateGauge(tot);
   const g = grade(tot);
   const badge = document.getElementById('gradeBadge');
   badge.textContent=g.text; badge.style.background=g.bg;
-  document.getElementById('gaugeSummary').textContent = buildSummary(d,sc);
+
+  let summaryHtml = buildSummary(d,sc);
+  if(prev && prev.total_score != null){
+    const diff = Math.round(tot - prev.total_score);
+    if(diff !== 0){
+      const cls = diff > 0 ? 'up' : 'down';
+      const arrow = diff > 0 ? '▲' : '▼';
+      summaryHtml += ` <span class="score-change ${cls}">(지난번 ${Math.round(prev.total_score)}점 → ${arrow}${Math.abs(diff)})</span>`;
+    } else {
+      summaryHtml += ` <span class="score-change same">(지난번과 동일)</span>`;
+    }
+  }
+  document.getElementById('gaugeSummary').innerHTML = summaryHtml;
 
   // 4축 카드
   renderAxisCards(d, sc);
@@ -518,12 +748,78 @@ function renderResult(d){
   // 경쟁사
   renderCompetitor(d);
 
-  // 키워드
+  // 키워드 (직전 순위 맵 전달)
   _allKw = d.place_results||[];
-  renderKeywords(false);
+  const prevRankMap = buildPrevRankMap(prev);
+  renderKeywords(false, prevRankMap);
+
+  // 블로그 분석
+  renderBlogResults(d.blog_results||[]);
 
   // 닥터 코멘트
   renderComment(d, sc);
+}
+
+// 직전 분석에서 키워드별 순위 맵 생성
+function buildPrevRankMap(prev){
+  const map = {};
+  if(!prev || !prev.result_json) return map;
+  try{
+    const data = JSON.parse(prev.result_json);
+    for(const pr of (data.place_results||[])){
+      if(pr.keyword && pr.rank != null) map[pr.keyword] = pr.rank;
+    }
+  }catch(e){}
+  return map;
+}
+
+// 블로그 단독 결과 렌더링
+function renderBlogOnlyResult(d){
+  window._diagData = d;
+  const prev = _prevAnalysis;
+
+  document.getElementById('rStoreName').textContent = d.store_name||'-';
+  document.getElementById('rCategory').textContent  = d.category||'매장';
+  document.getElementById('rMeta').textContent      = d.address||'';
+
+  // 게이지 숨기기 (플레이스 분석 결과가 아님)
+  document.getElementById('gradeBadge').textContent = '블로그';
+  document.getElementById('gradeBadge').style.background = '#3b82f6';
+  document.getElementById('gaugeFill').setAttribute('stroke-dasharray', '0 415');
+  document.getElementById('gaugeNum').textContent = '-';
+  document.getElementById('gaugeSummary').innerHTML = '블로그 노출 분석 결과입니다.';
+
+  // 탭 숨기기 (블로그 결과만 표시)
+  document.querySelector('.tabs').style.display = 'none';
+  document.getElementById('tab-place').style.display = 'none';
+  document.getElementById('tab-blog').classList.add('active');
+  document.getElementById('tab-blog').style.display = 'block';
+
+  // 블로그 시작 카드 숨기고 결과 표시
+  document.getElementById('blogStartCard').style.display = 'none';
+  document.getElementById('blogResultCard').style.display = 'block';
+
+  // 직전 블로그 순위 맵
+  const prevBlogMap = buildPrevBlogRankMap(prev);
+  renderBlogResultsWithComparison(d.blog_results||[], prevBlogMap);
+}
+
+function buildPrevBlogRankMap(prev){
+  const map = {};
+  if(!prev || !prev.result_json) return map;
+  try{
+    const data = JSON.parse(prev.result_json);
+    for(const br of (data.blog_results||[])){
+      const kw = br.keyword;
+      for(const h of (br.hits||[])){
+        if(h.rank != null){
+          const key = `${kw}|${h.blog_link||h.title}`;
+          map[key] = h.rank;
+        }
+      }
+    }
+  }catch(e){}
+  return map;
 }
 
 function buildSummary(d, sc){
@@ -752,8 +1048,10 @@ function getRankMent(rank, idx){
 }
 
 // ── 키워드 렌더링 ─────────────────────────────────────────────────────────────
-function renderKeywords(expanded){
+let _lastPrevRankMap = {};
+function renderKeywords(expanded, prevRankMap){
   _kwExpanded=expanded;
+  if(prevRankMap) _lastPrevRankMap = prevRankMap;
   const list=document.getElementById('kwList');
   const more=document.getElementById('kwMore');
 
@@ -777,16 +1075,35 @@ function renderKeywords(expanded){
     const band=rankBand(k.rank);
     if(bandIdx[band]==null) bandIdx[band]=0;
     const comment=getRankMent(k.rank, bandIdx[band]++);
-    const grade=grades[k.keyword];  // businesses_total 없으면 undefined → 등급 미표시(잘못된 C 방지)
+    const grade=grades[k.keyword];
     const gradeBadge=grade?`<span class="kw-grade-badge" style="${GRADE_STYLE[grade]}">${grade}급</span>`:'';
     const rc=rankColor(k.rank);
     const rankDisplay=k.rank
       ?`${k.rank}<span style="font-size:.6em;font-weight:600">위</span>`
       :`<span style="font-size:.85rem;font-weight:700;color:#ef4444">놓침</span>`;
     const countHtml=k.businesses_total?`<span class="kw-count">등록업체 ${k.businesses_total.toLocaleString()}개</span>`:'';
+
+    // 직전 순위 비교
+    let changeHtml = '';
+    const prevRank = _lastPrevRankMap[k.keyword];
+    if(prevRank != null && k.rank != null){
+      const diff = prevRank - k.rank;  // 양수면 상승
+      if(diff > 0){
+        changeHtml = `<span class="rank-change up">▲${diff}</span><span class="prev-rank">(전: ${prevRank}위)</span>`;
+      } else if(diff < 0){
+        changeHtml = `<span class="rank-change down">▼${Math.abs(diff)}</span><span class="prev-rank">(전: ${prevRank}위)</span>`;
+      } else {
+        changeHtml = `<span class="rank-change same">-</span><span class="prev-rank">(전: ${prevRank}위)</span>`;
+      }
+    } else if(prevRank != null && k.rank == null){
+      changeHtml = `<span class="rank-change down">▼</span><span class="prev-rank">(전: ${prevRank}위)</span>`;
+    } else if(prevRank == null && k.rank != null && Object.keys(_lastPrevRankMap).length > 0){
+      changeHtml = `<span class="rank-change up">NEW</span>`;
+    }
+
     return `<div class="kw-item">
       <div class="kw-main">
-        <div class="kw-rank-col" style="color:${rc}">${rankDisplay}</div>
+        <div class="kw-rank-col" style="color:${rc}">${rankDisplay}${changeHtml}</div>
         <div class="kw-divider"></div>
         <div class="kw-info">
           <div class="kw-title-row">
@@ -807,6 +1124,176 @@ function renderKeywords(expanded){
   }
 }
 function toggleKw(){ renderKeywords(!_kwExpanded); }
+
+// ── 블로그 분석 렌더링 ───────────────────────────────────────────────────────
+function renderBlogResults(blogResults){
+  const list = document.getElementById('blogList');
+  const summary = document.getElementById('blogSummary');
+
+  // 빈 결과도 명확히 표시 (카드가 안 보이는 문제 해결)
+  if(!blogResults || blogResults.length===0){
+    list.innerHTML = `<div class="blog-empty">
+      <div class="blog-empty-icon">📭</div>
+      <div class="blog-empty-text">분석할 키워드가 없어요. 먼저 플레이스 진단을 완료해주세요.</div>
+    </div>`;
+    summary.innerHTML = '';
+    return;
+  }
+
+  // 총 매칭 블로그 수 계산
+  let totalMatched = 0;
+  let bestRank = null;
+  let bestKw = '';
+
+  let html = '';
+  for(const br of blogResults){
+    const kw = br.keyword;
+    const hits = br.hits || [];
+    const matchedHits = hits.filter(h => h.rank != null);
+    totalMatched += matchedHits.length;
+
+    // 최고 순위 추적
+    for(const h of matchedHits){
+      if(bestRank===null || h.rank < bestRank){
+        bestRank = h.rank;
+        bestKw = kw;
+      }
+    }
+
+    const badge = matchedHits.length > 0
+      ? `<span class="blog-kw-badge">${matchedHits.length}개 매칭</span>`
+      : '<span class="blog-kw-badge" style="background:var(--gray-400)">0개</span>';
+
+    html += `<div class="blog-kw-group">
+      <div class="blog-kw-title">${esc(kw)} ${badge}</div>
+      <div class="blog-hits">`;
+
+    if(matchedHits.length > 0){
+      for(const h of matchedHits){
+        const rc = h.rank<=5 ? '#22c55e' : h.rank<=10 ? '#84cc16' : '#f97316';
+        const linkUrl = h.blog_link || '#';
+        html += `<div class="blog-hit">
+          <div class="blog-rank" style="color:${rc}">${h.rank}<span style="font-size:.6em">위</span></div>
+          <div class="blog-info">
+            <div class="blog-title">${esc(h.title || '(제목 없음)')}</div>
+            <a class="blog-link" href="${esc(linkUrl)}" target="_blank" rel="noopener">${esc(linkUrl.replace(/^https?:\\/\\/m?\\.?/,'').slice(0,40))}...</a>
+          </div>
+        </div>`;
+      }
+    } else {
+      // 매칭 없는 경우도 명확히 표시
+      const status = hits[0]?.status || '순위권 밖 (10위 이내 없음)';
+      html += `<div class="blog-none">😶 ${esc(status)}</div>`;
+    }
+
+    html += `</div></div>`;
+  }
+
+  list.innerHTML = html;
+
+  // 요약
+  let summaryText = '';
+  if(totalMatched > 0){
+    summaryText = `✅ ${blogResults.length}개 키워드 중 총 ${totalMatched}개 블로그가 우리 가게를 태그했어요.`;
+    if(bestRank !== null){
+      summaryText += ` 최고 순위는 '${bestKw}'에서 ${bestRank}위예요.`;
+    }
+  } else {
+    summaryText = `📋 ${blogResults.length}개 키워드 모두 우리 가게를 태그한 블로그가 10위 안에 없어요.<br>블로그 마케팅(체험단, 협찬)을 시작하면 노출이 늘어나요.`;
+  }
+  summary.innerHTML = `<p class="blog-summary-text">${summaryText}</p>`;
+}
+
+// 블로그 분석 결과 (직전 비교 포함)
+function renderBlogResultsWithComparison(blogResults, prevBlogMap){
+  const list = document.getElementById('blogList');
+  const summary = document.getElementById('blogSummary');
+
+  if(!blogResults || blogResults.length===0){
+    list.innerHTML = `<div class="blog-empty">
+      <div class="blog-empty-icon">📭</div>
+      <div class="blog-empty-text">블로그 노출 결과가 없어요.</div>
+    </div>`;
+    summary.innerHTML = '';
+    return;
+  }
+
+  let totalMatched = 0;
+  let bestRank = null;
+  let bestKw = '';
+
+  let html = '';
+  for(const br of blogResults){
+    const kw = br.keyword;
+    const hits = br.hits || [];
+    const matchedHits = hits.filter(h => h.rank != null);
+    totalMatched += matchedHits.length;
+
+    for(const h of matchedHits){
+      if(bestRank===null || h.rank < bestRank){
+        bestRank = h.rank;
+        bestKw = kw;
+      }
+    }
+
+    const badge = matchedHits.length > 0
+      ? `<span class="blog-kw-badge">${matchedHits.length}개 매칭</span>`
+      : '<span class="blog-kw-badge" style="background:var(--gray-400)">0개</span>';
+
+    html += `<div class="blog-kw-group">
+      <div class="blog-kw-title">${esc(kw)} ${badge}</div>
+      <div class="blog-hits">`;
+
+    if(matchedHits.length > 0){
+      for(const h of matchedHits){
+        const rc = h.rank<=5 ? '#22c55e' : h.rank<=10 ? '#84cc16' : '#f97316';
+        const linkUrl = h.blog_link || '#';
+        const key = `${kw}|${h.blog_link||h.title}`;
+        const prevRank = prevBlogMap[key];
+
+        let changeHtml = '';
+        if(prevRank != null){
+          const diff = prevRank - h.rank;
+          if(diff > 0){
+            changeHtml = `<span class="rank-change up">▲${diff}</span><span class="prev-rank">(전: ${prevRank}위)</span>`;
+          } else if(diff < 0){
+            changeHtml = `<span class="rank-change down">▼${Math.abs(diff)}</span><span class="prev-rank">(전: ${prevRank}위)</span>`;
+          } else {
+            changeHtml = `<span class="rank-change same">-</span>`;
+          }
+        } else if(Object.keys(prevBlogMap).length > 0){
+          changeHtml = `<span class="rank-change up">NEW</span>`;
+        }
+
+        html += `<div class="blog-hit">
+          <div class="blog-rank" style="color:${rc}">${h.rank}<span style="font-size:.6em">위</span>${changeHtml}</div>
+          <div class="blog-info">
+            <div class="blog-title">${esc(h.title || '(제목 없음)')}</div>
+            <a class="blog-link" href="${esc(linkUrl)}" target="_blank" rel="noopener">${esc(linkUrl.replace(/^https?:\\/\\/m?\\.?/,'').slice(0,40))}...</a>
+          </div>
+        </div>`;
+      }
+    } else {
+      const status = hits[0]?.status || '순위권 밖 (10위 이내 없음)';
+      html += `<div class="blog-none">😶 ${esc(status)}</div>`;
+    }
+
+    html += `</div></div>`;
+  }
+
+  list.innerHTML = html;
+
+  let summaryText = '';
+  if(totalMatched > 0){
+    summaryText = `✅ ${blogResults.length}개 키워드 중 총 ${totalMatched}개 블로그가 우리 가게를 태그했어요.`;
+    if(bestRank !== null){
+      summaryText += ` 최고 순위는 '${bestKw}'에서 ${bestRank}위예요.`;
+    }
+  } else {
+    summaryText = `📋 ${blogResults.length}개 키워드 모두 우리 가게를 태그한 블로그가 10위 안에 없어요.<br>블로그 마케팅(체험단, 협찬)을 시작하면 노출이 늘어나요.`;
+  }
+  summary.innerHTML = `<p class="blog-summary-text">${summaryText}</p>`;
+}
 
 // ── 닥터 코멘트 ───────────────────────────────────────────────────────────────
 function renderComment(d, sc){
@@ -886,6 +1373,73 @@ function handleShare(){
 }
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window._pwaPrompt=e;});
 
+// ── 탭 전환 ──────────────────────────────────────────────────────────────────
+function switchTab(tabId){
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.tab===tabId);
+  });
+  document.querySelectorAll('.tab-content').forEach(content=>{
+    content.classList.toggle('active', content.id===`tab-${tabId}`);
+  });
+}
+
+// ── 블로그 분석 ──────────────────────────────────────────────────────────────
+async function startBlogAnalysis(){
+  const d = window._diagData;
+  if(!d || !d.place_id){
+    alert('먼저 플레이스 진단을 완료해주세요.');
+    return;
+  }
+
+  const btn = document.getElementById('btnBlogAnalyze');
+  btn.disabled = true;
+  btn.textContent = '분석 중...';
+
+  document.getElementById('blogStartCard').style.display = 'none';
+  document.getElementById('blogLoading').style.display = 'block';
+  document.getElementById('blogResultCard').style.display = 'none';
+
+  // 키워드 상위 5개
+  const keywords = (d.keywords_used || []).slice(0, 5);
+  const total = keywords.length;
+
+  try {
+    const res = await fetch('/analyze-blog', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        store_name: d.store_name,
+        place_id: d.place_id,
+        address: d.address || '',
+        keywords: keywords
+      })
+    });
+
+    document.getElementById('blogBar').style.width = '100%';
+    document.getElementById('blogProgress').textContent = `${total}/${total}`;
+
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(errText.slice(0, 200));
+    }
+
+    const result = await res.json();
+    _blogAnalyzed = true;
+
+    document.getElementById('blogLoading').style.display = 'none';
+    document.getElementById('blogResultCard').style.display = 'block';
+
+    renderBlogResults(result.blog_results || []);
+
+  } catch(e) {
+    document.getElementById('blogLoading').style.display = 'none';
+    document.getElementById('blogStartCard').style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '🔍 블로그 노출 분석하기';
+    alert('블로그 분석 실패: ' + e.message);
+  }
+}
+
 // ── 폼 리셋 ──────────────────────────────────────────────────────────────────
 function resetForm(){
   document.getElementById('result').style.display='none';
@@ -896,10 +1450,27 @@ function resetForm(){
     const el=document.getElementById(id);
     if(el) el.checked=false;
   });
+  // 진단 버튼 초기화
+  const btn = document.getElementById('diagBtn');
+  btn.disabled = false;
+  btn.textContent = '🔍 진단하기';
+  // 블로그 분석 상태 초기화
+  _blogAnalyzed = false;
+  _prevAnalysis = null;
+  _lastPrevRankMap = {};
+  document.getElementById('blogStartCard').style.display = 'block';
+  document.getElementById('blogLoading').style.display = 'none';
+  document.getElementById('blogResultCard').style.display = 'none';
+  document.getElementById('btnBlogAnalyze').disabled = false;
+  document.getElementById('btnBlogAnalyze').textContent = '🔍 블로그 노출 분석하기';
+  // 탭 표시 복구 및 초기화
+  document.querySelector('.tabs').style.display = 'flex';
+  document.getElementById('tab-place').style.display = '';
+  switchTab('place');
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-document.getElementById('placeUrl').addEventListener('keydown',e=>{if(e.key==='Enter')diagnose();});
+document.getElementById('placeUrl').addEventListener('keydown',e=>{if(e.key==='Enter')startAnalysis();});
 </script>
 </body>
 </html>"""
@@ -920,16 +1491,18 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/diagnose", response_model=schemas.DiagnoseResponse, tags=["진단"])
-async def diagnose(req: schemas.DiagnoseRequest, db: Session = Depends(get_db)):
+@app.post("/diagnose", tags=["진단"])
+async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(get_db)):
     """
     매장명과 네이버 플레이스 URL을 받아 진단 결과를 반환합니다.
     24시간 이내 동일 매장 결과가 있으면 DB 캐시를 반환합니다.
     force_refresh=true 로 강제 재크롤링 가능합니다.
+    직전 분석 기록(prev_analysis)도 함께 반환합니다.
     """
+    import json as json_module
     place_id = _extract_place_id(req.place_url)
 
-    # 키워드광고 체크박스 입력 (크롤링 대상 아님 → 캐시에 굳히지 않고 응답 시 점수 반영)
+    # 키워드광고 체크박스 입력
     ad_flags = {
         "place":     req.ad_place,
         "powerlink": req.ad_powerlink,
@@ -937,22 +1510,33 @@ async def diagnose(req: schemas.DiagnoseRequest, db: Session = Depends(get_db)):
         "blog":      req.ad_blog,
     }
 
+    # 직전 분석 기록 조회
+    prev_analysis = None
+    if place_id:
+        prev_record = crud.get_previous_analysis(db, place_id, "place")
+        if prev_record:
+            prev_analysis = {
+                "total_score": prev_record.total_score,
+                "analyzed_at": prev_record.analyzed_at.isoformat() if prev_record.analyzed_at else None,
+                "result_json": prev_record.result_json,
+            }
+
     if place_id and not req.force_refresh:
         cached = crud.get_cached_result(db, place_id)
         if cached:
             cached["cached"] = True
             cached["ad_flags"] = ad_flags
-            apply_ad_flags(cached.get("scores", {}), ad_flags)  # 체크박스 반영해 ad·total 재계산
+            cached["prev_analysis"] = prev_analysis
+            apply_ad_flags(cached.get("scores", {}), ad_flags)
             return cached
 
     try:
-        # ProactorEventLoop 전용 스레드에서 실행 (--reload 모드의 SelectorEventLoop 우회)
         future = asyncio.run_coroutine_threadsafe(
             diagnose_store(req.store_name, req.place_url, ad_flags=ad_flags),
             _proactor_loop,
         )
         result = await asyncio.get_running_loop().run_in_executor(
-            None, future.result, 600  # 최대 10분
+            None, future.result, 600
         )
     except Exception as e:
         import traceback
@@ -961,11 +1545,27 @@ async def diagnose(req: schemas.DiagnoseRequest, db: Session = Depends(get_db)):
     try:
         crud.save_diagnosis(db, result, req.place_url)
     except Exception as e:
-        # DB 저장 실패해도 결과는 반환
         import logging
         logging.getLogger(__name__).warning(f"DB 저장 실패: {e}")
 
+    # 히스토리에 누적 저장
+    result_place_id = result.get("place_id") or place_id
+    if result_place_id:
+        try:
+            crud.save_analysis_history(
+                db,
+                place_id=result_place_id,
+                store_name=result.get("store_name", req.store_name),
+                analysis_type="place",
+                total_score=result.get("scores", {}).get("total"),
+                result_json=json_module.dumps(result, ensure_ascii=False),
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"히스토리 저장 실패: {e}")
+
     result["cached"] = False
+    result["prev_analysis"] = prev_analysis
     return result
 
 
@@ -976,6 +1576,171 @@ def get_history(place_id: str, db: Session = Depends(get_db)):
     if not history:
         raise HTTPException(status_code=404, detail="매장을 찾을 수 없습니다")
     return history
+
+
+@app.post("/analyze-blog", response_model=schemas.BlogAnalyzeResponse, tags=["진단"])
+async def analyze_blog(req: schemas.BlogAnalyzeRequest):
+    """
+    블로그 순위 분석을 별도로 실행합니다.
+    플레이스 진단 완료 후 사용자가 요청할 때만 호출됩니다.
+    """
+    if not req.place_id or not req.keywords:
+        raise HTTPException(status_code=400, detail="place_id와 keywords가 필요합니다")
+
+    try:
+        future = asyncio.run_coroutine_threadsafe(
+            analyze_blog_ranking(
+                store_name=req.store_name,
+                place_id=req.place_id,
+                address=req.address,
+                keywords=req.keywords,
+                max_keywords=5,
+            ),
+            _proactor_loop,
+        )
+        blog_results = await asyncio.get_running_loop().run_in_executor(
+            None, future.result, 300  # 최대 5분
+        )
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=traceback.format_exc())
+
+    total_matched = sum(
+        len([h for h in r.get("hits", []) if h.get("rank")])
+        for r in blog_results
+    )
+
+    return {
+        "blog_results": blog_results,
+        "total_matched": total_matched,
+        "analyzed_keywords": len(blog_results),
+    }
+
+
+@app.post("/analyze-blog-standalone", tags=["진단"])
+async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Session = Depends(get_db)):
+    """
+    블로그 순위 분석만 단독으로 실행합니다.
+    1. 기존 플레이스 분석이 있으면 → 그 때 추출한 키워드 그대로 사용
+    2. 없으면 → 매장 정보 크롤링 후 키워드 추출
+    """
+    import json as json_module
+    from .core.keywords import generate_keywords, generate_blog_keywords
+
+    place_id = _extract_place_id(req.place_url)
+    keywords = []
+    address = ""
+    category = ""
+
+    # 직전 블로그 분석 기록 조회
+    prev_analysis = None
+    if place_id:
+        prev_record = crud.get_previous_analysis(db, place_id, "blog")
+        if prev_record:
+            prev_analysis = {
+                "total_score": prev_record.total_score,
+                "analyzed_at": prev_record.analyzed_at.isoformat() if prev_record.analyzed_at else None,
+                "result_json": prev_record.result_json,
+            }
+
+    # 1. 기존 플레이스 분석 결과에서 정보 가져오기
+    if place_id:
+        prev_place_record = crud.get_previous_analysis(db, place_id, "place")
+        if prev_place_record and prev_place_record.result_json:
+            try:
+                prev_data = json_module.loads(prev_place_record.result_json)
+                keywords = prev_data.get("keywords_used", [])
+                address = prev_data.get("address", "")
+                category = prev_data.get("category", "")
+            except Exception:
+                pass
+
+    try:
+        # 2. 주소가 없으면 매장 정보 크롤링
+        if not address:
+            from .core.scraper import fetch_store_info_only
+
+            future = asyncio.run_coroutine_threadsafe(
+                fetch_store_info_only(req.place_url),
+                _proactor_loop,
+            )
+            store_info = await asyncio.get_running_loop().run_in_executor(
+                None, future.result, 120
+            )
+
+            address = store_info.get("address", "")
+            category = store_info.get("category", "")
+
+            if not keywords:
+                keywords = generate_keywords(
+                    store_name=req.store_name,
+                    category=category,
+                    address=address,
+                    menu_items=store_info.get("menu_items", []),
+                    official_keywords=store_info.get("official_keywords", []),
+                    nearby_station=store_info.get("nearby_station", ""),
+                    keyword_list=store_info.get("keyword_list", []),
+                )
+
+        # 3. 블로그 분석용 키워드 생성 (지역+업종 조합)
+        # 기존 키워드가 일반적인 것만 있으면 블로그용 키워드 추가
+        blog_keywords = generate_blog_keywords(req.store_name, address, category)
+        if blog_keywords:
+            # 블로그용 키워드를 앞에 배치
+            combined = blog_keywords + [k for k in keywords if k not in blog_keywords]
+            keywords = combined
+
+        # 블로그 분석 (상위 10개 키워드)
+        future2 = asyncio.run_coroutine_threadsafe(
+            analyze_blog_ranking(
+                store_name=req.store_name,
+                place_id=place_id or "",
+                address=address,
+                keywords=keywords[:10],
+                max_keywords=10,
+            ),
+            _proactor_loop,
+        )
+        blog_results = await asyncio.get_running_loop().run_in_executor(
+            None, future2.result, 300
+        )
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=traceback.format_exc())
+
+    total_matched = sum(
+        len([h for h in r.get("hits", []) if h.get("rank")])
+        for r in blog_results
+    )
+
+    result = {
+        "store_name": req.store_name,
+        "place_id": place_id,
+        "address": address,
+        "category": category,
+        "blog_results": blog_results,
+        "total_matched": total_matched,
+        "analyzed_keywords": len(blog_results),
+        "prev_analysis": prev_analysis,
+        "keywords_used": keywords[:10],
+    }
+
+    # 히스토리에 누적 저장
+    if place_id:
+        try:
+            crud.save_analysis_history(
+                db,
+                place_id=place_id,
+                store_name=req.store_name,
+                analysis_type="blog",
+                total_score=None,
+                result_json=json_module.dumps(result, ensure_ascii=False),
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"블로그 히스토리 저장 실패: {e}")
+
+    return result
 
 
 @app.post("/lead", response_model=schemas.LeadResponse, tags=["리드"])

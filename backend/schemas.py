@@ -31,6 +31,25 @@ class DiagnoseResponse(BaseModel):
     competitor: Any = {}
     scores: Any = {}
     ad_flags: Any = {}
+    prev_analysis: Any = None  # 직전 분석 결과 (비교용)
+
+
+class BlogAnalyzeRequest(BaseModel):
+    store_name: str
+    place_id: str
+    address: str = ""
+    keywords: List[str] = []
+
+
+class BlogStandaloneRequest(BaseModel):
+    store_name: str
+    place_url: str
+
+
+class BlogAnalyzeResponse(BaseModel):
+    blog_results: List[Any] = []
+    total_matched: int = 0
+    analyzed_keywords: int = 0
 
 
 class LeadRequest(BaseModel):

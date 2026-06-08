@@ -82,22 +82,45 @@ def clean_blog_url(url):
 # ── 브라우저 관리 ──────────────────────────────────────────────────────────────
 
 async def create_browser():
-    """헤드리스 Chromium 브라우저와 컨텍스트를 시작합니다."""
+    """
+    헤드리스 Chromium 브라우저와 컨텍스트를 시작합니다.
+    차단 우회 로직 포함 (플마에서 이식):
+      - launch args: AutomationControlled 비활성화
+      - context: 진짜 크롬 user_agent
+      - 이미지 로딩 끔 (속도↑, 요청 부하↓)
+    """
     playwright = await async_playwright().start()
     browser = await playwright.chromium.launch(
         headless=True,
-        args=["--no-sandbox", "--disable-dev-shm-usage", "--lang=ko-KR"]
+        args=[
+            "--disable-blink-features=AutomationControlled",  # 자동화 탐지 끄기 (핵심)
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--blink-settings=imagesEnabled=false",  # 이미지 로딩 끔
+            "--lang=ko-KR",
+        ],
     )
     context = await browser.new_context(
         locale="ko-KR",
-        viewport={"width": 1280, "height": 900},
+        viewport={"width": 1280, "height": 800},
         user_agent=(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36"
-        )
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
     )
     return playwright, browser, context
+
+
+async def create_stealth_page(context):
+    """
+    새 페이지를 만들고 navigator.webdriver를 삭제합니다.
+    네이버는 navigator.webdriver=true이면 봇으로 판단 → 차단.
+    모든 새 페이지에 반드시 이 함수를 사용할 것.
+    """
+    page = await context.new_page()
+    await page.add_init_script("delete navigator.__proto__.webdriver;")
+    return page
 
 
 async def close_browser(playwright, browser):
@@ -1309,6 +1332,22 @@ async def find_competitor(page, detail_page, keyword, my_place_id) -> dict:
     }
 
 
+# ── 매장 정보만 간단히 가져오기 (블로그 단독 분석용) ─────────────────────────────
+
+async def fetch_store_info_only(place_url: str) -> dict:
+    """
+    매장 기본 정보만 크롤링하여 반환합니다 (블로그 단독 분석용).
+    """
+    playwright, browser, context = await create_browser()
+    try:
+        page = await create_stealth_page(context)
+        details = await get_store_details(page, place_url)
+        return details
+    finally:
+        await browser.close()
+        await playwright.stop()
+
+
 # ── 통합 진단 래퍼 ────────────────────────────────────────────────────────────
 
 async def diagnose_store(store_name: str, place_url: str = None, keywords: list = None,
@@ -1335,7 +1374,8 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
 
     playwright, browser, context = await create_browser()
     try:
-        detail_page = await context.new_page()
+        # 모든 페이지에 navigator.webdriver 삭제 적용 (차단 우회 핵심)
+        detail_page = await create_stealth_page(context)
 
         # ── 우리 매장 상세정보 ──────────────────────────────────────────────
         details = {}
@@ -1384,8 +1424,9 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
 
         # ── 병렬 키워드 순위 검색 + 경쟁사 탐색 동시 실행 ─────────────────
         # 페이지 풀: N_WORKERS개 (키워드 검색) + 1개 (경쟁사 상세정보 전용)
-        comp_detail_page = await context.new_page()
-        search_pages = [await context.new_page() for _ in range(N_WORKERS)]
+        # 모든 페이지에 navigator.webdriver 삭제 적용 (차단 우회 핵심)
+        comp_detail_page = await create_stealth_page(context)
+        search_pages = [await create_stealth_page(context) for _ in range(N_WORKERS)]
         page_pool: asyncio.Queue = asyncio.Queue()
         for p in search_pages:
             await page_pool.put(p)
@@ -1444,6 +1485,10 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
                 if (comp_d.get("blog_reviews") is not None or my_blog is not None) else None
             )
 
+        # ── 블로그 분석은 별도 API로 분리 (diagnose_store에서 제거) ─────────
+        # analyze_blog_ranking() 함수를 별도 호출해야 함
+        blog_results = []
+
         # ── 점수 계산 ───────────────────────────────────────────────────────
         store_data_for_score = {
             **details,
@@ -1466,9 +1511,116 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
             "recent_30d_reviews": details.get("recent_30d_reviews"),
             "keywords_used":      target_keywords,
             "place_results":      place_results,
+            "blog_results":       blog_results,  # 블로그 분석 결과 (키워드별 우리 블로그 순위)
             "competitor":         competitor,
             "scores":             scores,
             "ad_flags":           ad_flags or {},
         }
+    finally:
+        await close_browser(playwright, browser)
+
+
+# ── 블로그 분석 전용 함수 (별도 호출) ────────────────────────────────────────
+
+async def analyze_blog_ranking(
+    store_name: str,
+    place_id: str,
+    address: str,
+    keywords: list[str],
+    max_keywords: int = 5,
+) -> list[dict]:
+    """
+    블로그 순위 분석을 별도로 실행합니다.
+    플레이스 진단 완료 후 사용자가 요청할 때만 호출.
+
+    Args:
+        store_name: 매장명
+        place_id: 네이버 플레이스 ID
+        address: 매장 주소
+        keywords: 분석할 키워드 목록
+        max_keywords: 최대 분석 키워드 수 (기본 5)
+
+    Returns:
+        [{"keyword": str, "hits": [{"rank", "title", "blog_link", ...}]}]
+    """
+    BLOG_DELAY = 8  # 키워드 사이 딜레이 (초) — 12→8로 단축
+
+    if not place_id or not keywords:
+        logger.warning("[블로그 분석] place_id 또는 keywords 없음")
+        return []
+
+    blog_keywords = keywords[:max_keywords]
+    blog_results = []
+
+    playwright, browser, context = await create_browser()
+    try:
+        blog_search_page = await create_stealth_page(context)
+        blog_inspect_page = await create_stealth_page(context)
+        url_cache = {}
+
+        logger.info("=" * 60)
+        logger.info(f"[블로그 분석 시작] {len(blog_keywords)}개 키워드")
+        logger.info(f"  매장: {store_name} (place_id={place_id})")
+        logger.info(f"  주소: {address}")
+        logger.info(f"  키워드: {blog_keywords}")
+        logger.info("=" * 60)
+
+        for i, kw in enumerate(blog_keywords):
+            if i > 0:
+                logger.info(f"  (딜레이 {BLOG_DELAY}초...)")
+                await asyncio.sleep(BLOG_DELAY)
+
+            try:
+                logger.info(f"  [{i+1}/{len(blog_keywords)}] 블로그 검색: '{kw}'")
+
+                # 1. 블로그 검색 결과 수집
+                raw_results = await collect_blog_results(blog_search_page, kw, limit=10)
+                logger.info(f"    → 검색결과 {len(raw_results)}개 수집")
+
+                if not raw_results:
+                    logger.info(f"    → 검색결과 0개 (검색결과없음)")
+                    blog_results.append({
+                        "keyword": kw,
+                        "hits": [{"status": "검색결과없음", "rank": None, "title": "", "blog_link": "", "score": 0, "reasons": []}]
+                    })
+                    continue
+
+                # 2. 각 블로그 딥스캔
+                hits = await check_blog_ranking_deep(
+                    page=blog_search_page,
+                    inspect_page=blog_inspect_page,
+                    keyword=kw,
+                    store_name=store_name,
+                    place_id=place_id,
+                    address=address,
+                    url_cache=url_cache,
+                    max_hits=3,
+                )
+
+                matched_count = len([h for h in hits if h.get("rank")])
+                logger.info(f"    → 매칭 {matched_count}개")
+                for h in hits:
+                    if h.get("rank"):
+                        logger.info(f"       {h['rank']}위: {h.get('title', '')[:30]} | {h.get('blog_link', '')[:50]}")
+
+                blog_results.append({"keyword": kw, "hits": hits})
+
+            except Exception as e:
+                import traceback
+                logger.error(f"  블로그 분석 오류({kw}): {e}")
+                logger.error(traceback.format_exc())
+                blog_results.append({
+                    "keyword": kw,
+                    "hits": [{"status": f"오류: {str(e)[:40]}", "rank": None, "title": "", "blog_link": "", "score": 0, "reasons": [str(e)[:80]]}]
+                })
+
+        logger.info("=" * 60)
+        logger.info(f"[블로그 분석 완료] {len(blog_results)}개 키워드 처리")
+        total_matched = sum(len([h for h in r.get("hits", []) if h.get("rank")]) for r in blog_results)
+        logger.info(f"  총 매칭 블로그: {total_matched}개")
+        logger.info("=" * 60)
+
+        return blog_results
+
     finally:
         await close_browser(playwright, browser)

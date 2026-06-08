@@ -125,3 +125,16 @@ class Lead(Base):
     created_at = Column(DateTime(timezone=True), default=_now)
 
     store = relationship("Store", back_populates="leads")
+
+
+class AnalysisHistory(Base):
+    """분석 히스토리 — 분석할 때마다 1레코드 누적 (덮어쓰기 X)"""
+    __tablename__ = "analysis_history"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    place_id       = Column(String(20), index=True, nullable=False)
+    store_name     = Column(String(200), nullable=False)
+    analysis_type  = Column(String(10), nullable=False)  # 'place' | 'blog'
+    analyzed_at    = Column(DateTime(timezone=True), default=_now, index=True)
+    total_score    = Column(Float, nullable=True)  # 플레이스 분석 시 종합점수
+    result_json    = Column(Text, nullable=True)   # 키워드별 순위 등 전체 결과 JSON
