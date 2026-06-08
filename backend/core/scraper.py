@@ -84,10 +84,15 @@ def clean_blog_url(url):
 async def create_browser():
     """
     헤드리스 Chromium 브라우저와 컨텍스트를 시작합니다.
-    차단 우회 로직 포함 (플마에서 이식):
-      - launch args: AutomationControlled 비활성화
-      - context: 진짜 크롬 user_agent
-      - 이미지 로딩 끔 (속도↑, 요청 부하↓)
+
+    ⚠️ 차단 우회 설정은 플마(_reference/naver_tracker.py)와 **바이트 단위로 동일**하게 유지한다.
+       플마는 같은 PC/IP에서 한 번도 IP 차단이 없었으므로, 플닥을 플마와 똑같이 맞추면 안 막힌다.
+       한 군데라도 다르면 그게 차단 원인일 수 있으니 임의로 args/옵션을 추가/변경하지 말 것.
+
+    플마 원본(naver_tracker.py L2320~2334)과 1:1:
+      - launch args 3개: AutomationControlled 비활성화 / no-sandbox / 이미지 로딩 끔
+      - context: viewport + 진짜 크롬 user_agent (locale/timezone/headers 미설정 — 플마도 안 함)
+      - 모든 페이지: delete navigator.__proto__.webdriver (create_stealth_page)
     """
     playwright = await async_playwright().start()
     browser = await playwright.chromium.launch(
@@ -95,13 +100,10 @@ async def create_browser():
         args=[
             "--disable-blink-features=AutomationControlled",  # 자동화 탐지 끄기 (핵심)
             "--no-sandbox",
-            "--disable-dev-shm-usage",
-            "--blink-settings=imagesEnabled=false",  # 이미지 로딩 끔
-            "--lang=ko-KR",
+            "--blink-settings=imagesEnabled=false",  # 이미지 로딩 끔 (속도↑·부하↓)
         ],
     )
     context = await browser.new_context(
-        locale="ko-KR",
         viewport={"width": 1280, "height": 800},
         user_agent=(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

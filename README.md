@@ -39,8 +39,12 @@ playwright install chromium
 프로젝트 루트(`placedoctor/`)에서:
 
 ```bash
-python -m uvicorn backend.main:app --reload
+python restart.py        # 또는 restart.bat 더블클릭
 ```
+
+> ⚠️ `uvicorn --reload` 를 직접 쓰지 마세요. Windows에서 reload 워커가 포트 8000에
+> '좀비'로 남아 옛 코드로 계속 응답하는 문제가 있습니다. `restart.py` 가 포트 정리(좀비 포함)
+> 후 **단일 프로세스**로 띄웁니다. 코드를 고친 뒤 화면이 안 바뀌면 `restart.py` 를 한 번 실행하세요.
 
 서버가 뜨면 브라우저에서 확인:
 - **API 문서**: http://localhost:8000/docs

@@ -22,6 +22,8 @@
 | D묶음 | 키워드 로직 최신화(방식5·복합어·필터), 리뷰버그(URL·폴백·30일단순화), 닥터코멘트 키워드성과, 재검색 초기화 |
 | E묶음 | kw_list_raw/kw_list 분리(복합어 필터), sort_weight 역(30+15)>동(20+15) 보정, MAX_KW=30, map.naver businesses_total 폴백, SyntaxWarning 전수 제거 |
 | F묶음 | 키워드 생성 디버깅 로그 추가, 키워드 등급(S/A/B/C) businesses_total 상대백분율 UI, 등록업체수 표시, 순위 강조 레이아웃 |
+| H단계 | 플레이스/블로그 선택 분석 + DB 히스토리 누적 저장 + 직전 비교 표시 |
+| I단계 | **고질병 2개 근본 해결** — ① 좀비 서버: `--reload` 폐기 + `restart.py`/`restart.bat`(포트+상속소켓좀비 정리, 단일프로세스 기동). ② IP 차단: 플마와 스텔스 1:1 동일화(create_browser args/context 정리), naver.me 단축링크 place_id 네비게이션 해석, 블로그 분석 병렬화(N_BLOG=3)+딥스캔 지터딜레이+키워드폭15, generate_blog_keywords "맛집" 하드코딩 제거. 라보떼 3회 연속 7매칭·차단 0건 검증 |
 
 ---
 
@@ -70,32 +72,49 @@ placedoctor/
 │   │   └── scoring.py   # 4축 점수 (SEO 34% + 콘텐츠 30% + 활성도 21% + 광고 15%)
 │   ├── test_scraper.py  # CLI 테스트 진입점
 │   └── requirements.txt
+├── restart.py           # ⭐ 서버 재시작(좀비 정리+단일프로세스 기동). 항상 이걸로만 띄움
+├── restart.bat          # restart.py 더블클릭용 래퍼
+├── server.log           # 서버 콘솔 로그 (restart.py가 생성, .gitignore)
 ├── .env                 # DB 접속정보 (GitHub 업로드 금지)
 ├── _reference/
-│   └── naver_tracker.py # 원본 플마 — 절대 수정 금지, 읽기 전용
+│   └── naver_tracker.py # 원본 플마 — 절대 수정 금지, 읽기 전용 (스텔스/우회의 "정답")
 ├── CLAUDE.md
 └── README.md
 ```
 
 ---
 
-## 서버 실행
+## 서버 실행 — ⚠️ 반드시 restart 스크립트로만 (I단계)
 
 ```bash
-# 반드시 --loop none 필요 (Windows ProactorEventLoop 문제)
-python -m uvicorn backend.main:app --loop none --reload
+python restart.py        # 또는 restart.bat 더블클릭
 ```
 
-- 진단 화면: http://localhost:8000/
-- API 문서: http://localhost:8000/docs
+- 진단 화면: http://localhost:8000/  · API 문서: http://localhost:8000/docs
+- 서버 콘솔 로그: `server.log` (UTF-8, .gitignore 처리됨)
 
-### 왜 --loop none인가
+### 🚫 `uvicorn --reload` 를 직접 쓰지 말 것 (좀비 서버 원인)
 
-uvicorn 0.48.0은 `--reload` 모드에서 Windows에 SelectorEventLoop를 강제한다.
-Playwright는 ProactorEventLoop만 지원하므로 `NotImplementedError` 발생.
-`--loop none` → Python 기본 정책(Windows=ProactorEventLoop) 사용.
-`main.py`에서 전용 데몬 스레드로 ProactorEventLoop를 실행하고
-`asyncio.run_coroutine_threadsafe()`로 진단 코루틴을 위임.
+며칠간 "코드를 고쳐도 화면이 안 바뀜"이 반복된 근본 원인:
+Windows에서 `uvicorn --reload`는 워커를 `multiprocessing.spawn`으로 띄우는데,
+reload(부모)가 죽으면 **워커(자식)가 LISTEN 소켓을 상속한 채 좀비로 남는다.**
+이때 netstat은 그 소켓 소유자를 **죽은 부모 PID**로 잘못 표시 → "포트 소유자만 kill"
+하면 죽은 PID를 죽이려다 실패, 포트가 안 풀리고 **옛 코드로 계속 응답**한다.
+
+**근본 해결:** `--reload` 폐기 + 항상 **단일 프로세스**로 기동. `restart.py`가:
+1. 포트 8000 점유 프로세스 종료 (소유자가 죽었으면 `--multiprocessing-fork`·`parent_pid=<죽은PID>`
+   자식까지 추적해 종료 — 상속-소켓 좀비 대응). 플마 GUI(pythonw 플레이스마스터)는 안 건드림.
+2. `python -m uvicorn backend.main:app --loop none` (**--reload 없음**) 으로 기동.
+3. `/health` 200 확인 후 "준비 완료" 출력.
+
+→ 화면이 안 바뀌면 `restart.py` 한 번이면 끝. netstat로 찾아 죽이는 수작업 전부 불필요.
+
+### 왜 --loop none인가 (그대로 유지)
+
+uvicorn 0.48.0은 Windows에서 SelectorEventLoop를 쓰는데 Playwright는 ProactorEventLoop만
+지원 → `NotImplementedError`. `--loop none` → Python 기본 정책(Windows=ProactorEventLoop).
+`main.py`가 전용 데몬 스레드로 ProactorEventLoop를 돌리고
+`asyncio.run_coroutine_threadsafe()`로 진단 코루틴을 위임한다.
 
 ---
 
@@ -147,10 +166,14 @@ URL      : postgresql://postgres:postgres@localhost:5432/placedoctor
 
 ## 주의 사항
 
-- `_reference/naver_tracker.py` — **절대 수정 금지**.
+- `_reference/naver_tracker.py` — **절대 수정 금지**. (스텔스/차단우회의 "정답" 레퍼런스)
 - `backend/core/` 파일만 수정.
 - `.env`는 Git 업로드 금지 (`.gitignore` 처리됨).
 - 진단 1회 약 60~90초 (병렬 10키워드 + 경쟁사 동시).
+- **서버는 `restart.py`로만** 기동. `uvicorn --reload` 직접 실행 금지(좀비 서버 원인). 화면 안 바뀌면 restart.
+- **차단 우회 설정(create_browser/create_stealth_page)은 플마와 1:1 동일 유지.** launch args·context·init script를
+  임의로 추가/변경 말 것 — 한 군데라도 플마와 달라지면 그게 차단 원인이 될 수 있음. 바꿔야 하면 플마부터 대조.
+- **모든 페이지는 `create_stealth_page()`로만 생성** (raw `context.new_page()` 금지 — webdriver 스텔스 누락 방지).
 
 ---
 
@@ -178,8 +201,8 @@ DB_NAME=placedoctor
 DB_USER=postgres
 DB_PASSWORD=postgres
 
-# 5. 서버 실행
-python -m uvicorn backend.main:app --loop none --reload
+# 5. 서버 실행 (--reload 쓰지 말 것 — 좀비 서버 원인)
+python restart.py
 ```
 
 브라우저에서 http://localhost:8000/ 열리면 완료.

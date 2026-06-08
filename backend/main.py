@@ -1,7 +1,19 @@
 import asyncio
+import logging
 import re
 import sys
 import threading
+
+# uvicorn 구동 시 backend 패키지 로거(scraper의 진단·블로그 분석 로그)가
+# 콘솔에 보이도록 핸들러를 1회 설정. uvicorn 자체 로깅과 충돌하지 않게
+# backend 패키지 로거에만 핸들러를 붙이고 상위 전파는 끈다.
+_pkg_logger = logging.getLogger("backend")
+if not _pkg_logger.handlers:
+    _h = logging.StreamHandler(sys.stdout)
+    _h.setFormatter(logging.Formatter("%(message)s"))
+    _pkg_logger.addHandler(_h)
+    _pkg_logger.setLevel(logging.INFO)
+    _pkg_logger.propagate = False
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
@@ -1641,25 +1653,15 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
     2. 없으면 → 매장 정보 크롤링 후 키워드 추출
     """
     import json as json_module
-    from .core.keywords import generate_keywords, generate_blog_keywords
+    from .core.keywords import generate_keywords
 
     place_id = _extract_place_id(req.place_url)
     keywords = []
     address = ""
     category = ""
 
-    # 직전 블로그 분석 기록 조회
-    prev_analysis = None
-    if place_id:
-        prev_record = crud.get_previous_analysis(db, place_id, "blog")
-        if prev_record:
-            prev_analysis = {
-                "total_score": prev_record.total_score,
-                "analyzed_at": prev_record.analyzed_at.isoformat() if prev_record.analyzed_at else None,
-                "result_json": prev_record.result_json,
-            }
-
-    # 1. 기존 플레이스 분석 결과에서 정보 가져오기
+    # 1. place_id가 regex로 잡히면 직전 place 분석 결과를 재사용해 크롤을 생략.
+    #    (naver.me 단축링크는 regex로 안 잡혀 place_id=None → 아래 크롤에서 네비로 해석)
     if place_id:
         prev_place_record = crud.get_previous_analysis(db, place_id, "place")
         if prev_place_record and prev_place_record.result_json:
@@ -1672,8 +1674,10 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
                 pass
 
     try:
-        # 2. 주소가 없으면 매장 정보 크롤링
-        if not address:
+        # 2. place_id 미해석(naver.me 단축링크 등) 또는 주소 없음 → 매장 정보 크롤.
+        #    get_store_details가 page.goto로 redirect를 따라가 place_id를 해석하므로
+        #    store_info["place_id"]를 받아 채운다. (regex만으론 naver.me 해석 불가 = 라보떼 0건 원인)
+        if not place_id or not address:
             from .core.scraper import fetch_store_info_only
 
             future = asyncio.run_coroutine_threadsafe(
@@ -1684,8 +1688,9 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
                 None, future.result, 120
             )
 
-            address = store_info.get("address", "")
-            category = store_info.get("category", "")
+            place_id = store_info.get("place_id") or place_id
+            address = store_info.get("address", "") or address
+            category = store_info.get("category", "") or category
 
             if not keywords:
                 keywords = generate_keywords(
@@ -1698,31 +1703,51 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
                     keyword_list=store_info.get("keyword_list", []),
                 )
 
-        # 3. 블로그 분석용 키워드 생성 (지역+업종 조합)
-        # 기존 키워드가 일반적인 것만 있으면 블로그용 키워드 추가
-        blog_keywords = generate_blog_keywords(req.store_name, address, category)
-        if blog_keywords:
-            # 블로그용 키워드를 앞에 배치
-            combined = blog_keywords + [k for k in keywords if k not in blog_keywords]
-            keywords = combined
+        # 3. 네비게이션까지 했는데도 place_id 없음 → 정말 못 읽은 URL.
+        #    (블로그 딥스캔은 place_id 포함 여부로 매칭 → place_id 필수)
+        if not place_id:
+            raise HTTPException(
+                status_code=400,
+                detail="URL에서 네이버 플레이스를 찾지 못했습니다. 네이버 지도에서 매장 상세 "
+                       "페이지를 연 뒤 그 URL(또는 공유 링크)을 입력해 주세요.",
+            )
 
-        # 블로그 분석 (상위 10개 키워드)
+        # 4. 블로그 키워드 정리: generate_blog_keywords(카테고리 무관 "맛집" 하드코딩)는
+        #    비음식 업종에 엉뚱한 키워드를 만들어 사용 안 함. 대표키워드는 카테고리 기반으로
+        #    이미 올바르게 생성됨(음식='{지역} 맛집', 비음식='{지역} {업종}'). 브랜드 단독만 제거.
+        _brand_base = re.sub(r"(본점|직영점|지점|점)$", "", req.store_name.strip()).strip()
+        _brand_only = {req.store_name.strip(), _brand_base}
+        keywords = [k for k in keywords if k and k not in _brand_only]
+
+        # 5. 블로그 분석 (상위 15개 키워드 — 폭 확보가 핵심)
         future2 = asyncio.run_coroutine_threadsafe(
             analyze_blog_ranking(
                 store_name=req.store_name,
-                place_id=place_id or "",
+                place_id=place_id,
                 address=address,
-                keywords=keywords[:10],
-                max_keywords=10,
+                keywords=keywords[:15],
+                max_keywords=15,
             ),
             _proactor_loop,
         )
         blog_results = await asyncio.get_running_loop().run_in_executor(
             None, future2.result, 300
         )
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         raise HTTPException(status_code=500, detail=traceback.format_exc())
+
+    # 직전 블로그 분석 기록 조회 (place_id 확정 후 — naver.me도 이 시점엔 해석됨)
+    prev_analysis = None
+    prev_record = crud.get_previous_analysis(db, place_id, "blog")
+    if prev_record:
+        prev_analysis = {
+            "total_score": prev_record.total_score,
+            "analyzed_at": prev_record.analyzed_at.isoformat() if prev_record.analyzed_at else None,
+            "result_json": prev_record.result_json,
+        }
 
     total_matched = sum(
         len([h for h in r.get("hits", []) if h.get("rank")])
@@ -1738,7 +1763,7 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
         "total_matched": total_matched,
         "analyzed_keywords": len(blog_results),
         "prev_analysis": prev_analysis,
-        "keywords_used": keywords[:10],
+        "keywords_used": keywords[:15],
     }
 
     # 히스토리에 누적 저장
