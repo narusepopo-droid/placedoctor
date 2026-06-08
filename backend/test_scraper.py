@@ -60,18 +60,19 @@ async def main():
     print(f"  리뷰 수    : 방문자 {_fmt(r['visitor_reviews'])} / 블로그 {_fmt(r['blog_reviews'])}")
     print(f"  사진 수    : {_fmt(r['photo_count'])}")
     print(f"  최근 리뷰  : {_fmt(r['latest_review_date'])}")
-    print(f"  최근30일리뷰: {_fmt(r.get('recent_30d_reviews'), '개')}")
+    print(f"  리뷰 활동  : {_fmt(r.get('review_activity'))} (30일 {_fmt(r.get('recent_30d_reviews'), '개')})")
 
     # ── 키워드별 순위 ──────────────────────────────────────────────────────
     print(f"\n[키워드별 순위]")
     found_any = False
     for item in r["place_results"]:
-        kw, rank = item["keyword"], item["rank"]
+        kw, rank, bt = item["keyword"], item["rank"], item.get("businesses_total")
+        bt_str = f" (등록업체 {bt}개)" if bt else ""
         if rank:
-            print(f"  ✅ {kw} → {rank}위")
+            print(f"  ✅ {kw} → {rank}위{bt_str}")
             found_any = True
         else:
-            print(f"  ─  {kw} → 30위 밖")
+            print(f"  ─  {kw} → 30위 밖{bt_str}")
     if not found_any:
         print("  30위 이내 노출 없음")
 

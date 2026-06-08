@@ -120,7 +120,8 @@ async def get_store_details(page, url):
         place_id=None, address="", category="",
         menu_items=[], official_keywords=[], nearby_station="", keyword_list=[],
         visitor_reviews=None, blog_reviews=None, star_score=None,
-        photo_count=None, latest_review_date=None, recent_30d_reviews=None,
+        photo_count=None, latest_review_date=None,
+        review_activity=None, recent_30d_reviews=None,
     )
     try:
         await page.goto(url, wait_until="domcontentloaded", timeout=20000)
@@ -231,10 +232,10 @@ async def get_store_details(page, url):
 
             let nearbyStation = "";
             const bodyText2 = document.body ? (document.body.innerText || "") : "";
-            const stM = bodyText2.match(/([가-힣]{2,8}역)\s*(?:\d+번\s*출구|에서\s*(?:도보|차로|차량|\d))/);
+            const stM = bodyText2.match(/([가-힣]{2,8}역)[\\s]*(?:\\d+번[\\s]*출구|에서[\\s]*(?:도보|차로|차량|\\d))/);
             if (stM) nearbyStation = stM[1];
             if (!nearbyStation) {
-                const stM2 = bodyText2.match(/([가-힣]{2,8}역)\s*(?:도보|방향|하차|인근|근처)/);
+                const stM2 = bodyText2.match(/([가-힣]{2,8}역)\\s*(?:도보|방향|하차|인근|근처)/);
                 if (stM2) nearbyStation = stM2[1];
             }
 
@@ -393,7 +394,7 @@ async def get_store_details(page, url):
                 domNum([/사진\\s*([\\d,]+)/, /포토\\s*([\\d,]+)/]) ||
                 mNum([/"representativePhotoCount"\\s*:\\s*(\\d+)/, /"photoCount"\\s*:\\s*(\\d+)/, /"imageCount"\\s*:\\s*(\\d+)/]);
 
-            // 최근 리뷰 날짜: JSON 패턴 (DOM 날짜는 오늘 날짜가 포함돼 신뢰도 낮음)
+            // 최근 리뷰 날짜: JSON 패턴 (없으면 아래 리뷰 탭에서 보강)
             const latestReview = mStr([
                 /"latestVisitorReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
                 /"latestReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
@@ -443,40 +444,36 @@ async def get_store_details(page, url):
             except Exception:
                 pass
 
-        # 방문자 리뷰 탭 — 최근 리뷰 날짜 + 최근 30일 방문자 리뷰수 수집.
-        # "펼쳐서 더보기" 버튼 반복 클릭으로 10개 캡 해결.
-        # 차단 감지(본문 급감) 시 즉시 중단 → 직전 값 사용. 실패 시 None 유지.
-        recent_30d_reviews = None
+        # 방문자 리뷰 탭(최근순) → 처음 로드되는 약 10개 리뷰만 사용. 더보기 클릭 없음
+        # (더보기는 3~2월 오래된 리뷰까지 끌어와 활발도를 왜곡 + 차단 위험 → 제거).
+        # 리뷰 페이지 요청은 진단당 정확히 1회.
+        #   처음 ~10개 중 최근 30일 이내 개수: 6+ 활발 / 3~5 보통 / 1~2 한산 / 0 거의 없음
+        review_activity    = None   # "활발" | "보통" | "한산" | "거의 없음"
+        recent_30d_reviews = None   # 처음 ~10개 중 30일 이내 개수
         if p_id:
             from datetime import date as _date, timedelta as _td
             _today = _date.today()
             try:
                 mob_rev_url = f"https://m.place.naver.com/place/{p_id}/review/visitor?reviewSort=recent"
                 await page.goto(mob_rev_url, wait_until="domcontentloaded", timeout=12000)
-                await page.wait_for_timeout(1800)
+                await page.wait_for_timeout(2500)
 
                 _JS_DAYS = r'''() => {
-                    // 줄 단위로 날짜 파싱 — M.D 포맷(연도 없는 "5.10")도 줄 전체 매칭으로 처리
-                    function parseLine(line) {
-                        if (/방금|오늘/.test(line)) return 0;
-                        if (/어제/.test(line)) return 1;
+                    function parseTxt(txt) {
+                        if (!txt) return null;
+                        if (/방금|오늘/.test(txt)) return 0;
+                        if (/어제/.test(txt)) return 1;
                         let m;
-                        if (m = line.match(/(\d{1,3})\s*일\s*전/))          return parseInt(m[1]);
-                        if (m = line.match(/(\d{1,2})\s*주\s*전/))          return parseInt(m[1]) * 7;
-                        if (m = line.match(/(\d{1,2})\s*(?:개월|달)\s*전/)) return parseInt(m[1]) * 30;
-                        if (m = line.match(/(20\d{2})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/)) {
+                        if (m = txt.match(/(\d{1,2})\s*분\s*전/))          return 0;
+                        if (m = txt.match(/(\d{1,2})\s*시간\s*전/))         return 0;
+                        if (m = txt.match(/(\d{1,3})\s*일\s*전/))          return parseInt(m[1]);
+                        if (m = txt.match(/(\d{1,2})\s*주\s*전/))          return parseInt(m[1]) * 7;
+                        if (m = txt.match(/(\d{1,2})\s*(?:개월|달)\s*전/)) return parseInt(m[1]) * 30;
+                        if (m = txt.match(/(20\d{2})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/)) {
                             const d = new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
                             return Math.floor((Date.now()-d)/86400000);
                         }
-                        if (m = line.match(/(?:^|\D)(\d{2})[.\-\/](\d{1,2})[.\-\/](\d{1,2})(?:\D|$)/)) {
-                            const yy = parseInt(m[1]);
-                            if (yy >= 20 && yy <= 40) {
-                                const d = new Date(2000+yy, parseInt(m[2])-1, parseInt(m[3]));
-                                return Math.floor((Date.now()-d)/86400000);
-                            }
-                        }
-                        // "5.10" 같은 M.D 포맷: 줄 전체가 날짜인 경우만 (오탐 방지)
-                        if (m = line.match(/^(\d{1,2})\.(\d{1,2})$/)) {
+                        if (m = txt.match(/^(\d{1,2})\.(\d{1,2})$/)) {
                             const mo = parseInt(m[1]), dy = parseInt(m[2]);
                             if (mo >= 1 && mo <= 12 && dy >= 1 && dy <= 31) {
                                 const now = new Date();
@@ -488,60 +485,40 @@ async def get_store_details(page, url):
                         }
                         return null;
                     }
-                    function tokenDays(txt) {
-                        if (!txt) return null;
-                        for (const line of txt.split(/\n+/).map(l => l.trim()).filter(l => l)) {
-                            const d = parseLine(line);
-                            if (d !== null) return d;
-                        }
-                        return null;
-                    }
+                    // 리뷰 카드(li)를 직접 순회해 각 카드의 날짜 하나씩 추출 — innerText의
+                    // "화면에 보이는 것만" 제약을 피해 로드된 리뷰를 빠짐없이 센다.
                     const out = [];
                     for (const li of document.querySelectorAll('li')) {
-                        if (li.querySelector('li')) continue;
-                        const t = li.innerText || "";
-                        if (t.length < 4 || t.length > 1500) continue;
-                        const dd = tokenDays(t);
-                        if (dd !== null && dd >= 0 && dd <= 4000) out.push(dd);
+                        const t = (li.textContent || '').trim();
+                        if (!t) continue;
+                        const d = parseTxt(t);
+                        if (d !== null && d >= 0 && d <= 4000) out.push(d);
+                    }
+                    // 폴백: li에서 못 찾으면 페이지 전체 텍스트 줄 단위 파싱
+                    if (out.length < 3) {
+                        const lines = (document.body ? document.body.innerText : '').split(/\n+/).map(l => l.trim());
+                        for (const line of lines) {
+                            const d = parseTxt(line);
+                            if (d !== null && d >= 0 && d <= 4000) out.push(d);
+                        }
                     }
                     return out;
                 }'''
 
                 review_days = await page.evaluate(_JS_DAYS)
-                _fetch_note = "초기만"
-
-                # 더보기 1회 클릭 → 약 20개 리뷰 확보 (차단 최소화)
-                body_len_before = await page.evaluate("() => document.body.innerText.length")
-                clicked = await page.evaluate(r'''() => {
-                    window.scrollTo(0, document.body.scrollHeight);
-                    const sels = 'a, button, span[role="button"], div[role="button"]';
-                    for (const el of document.querySelectorAll(sels)) {
-                        const txt = (el.innerText || el.textContent || "").trim();
-                        if (/펼쳐서\s*더보기|더보기/.test(txt) && el.offsetParent !== null) {
-                            el.click();
-                            return true;
-                        }
-                    }
-                    return false;
-                }''')
-                if clicked:
-                    await page.wait_for_timeout(int(random.uniform(1500, 2500)))
-                    body_len_after = await page.evaluate("() => document.body.innerText.length")
-                    if body_len_after >= body_len_before * 0.5:
-                        new_days = await page.evaluate(_JS_DAYS)
-                        if len(new_days) > len(review_days):
-                            review_days = new_days
-                        _fetch_note = "더보기1회"
-                    else:
-                        logger.warning("30일리뷰 더보기 후 차단 감지 — 직전 값 사용")
-                        _fetch_note = "더보기1회(차단)"
 
                 if review_days:
-                    recent_30d_reviews = sum(1 for d in review_days if d <= 30)
-                    logger.info(f"  30일리뷰[{_fetch_note}]: {len(review_days)}개 샘플 → 30일 이내 {recent_30d_reviews}개")
+                    recent10 = sorted(review_days)[:10]          # 최근(작은 일수) 10개
+                    recent_30d_reviews = sum(1 for d in recent10 if d <= 30)
+                    c = recent_30d_reviews
+                    review_activity = ("활발" if c >= 6 else "보통" if c >= 3
+                                       else "한산" if c >= 1 else "거의 없음")
+                    logger.info(
+                        f"  리뷰활동: 처음 {len(recent10)}개 중 30일이내 {c}개 → {review_activity} "
+                        f"(경과일 샘플 {recent10})"
+                    )
                     if not latest_review_date:
-                        min_days = min(review_days)
-                        d = _today - _td(days=min_days)
+                        d = _today - _td(days=min(review_days))
                         latest_review_date = d.strftime("%Y.%m.%d")
             except Exception:
                 pass
@@ -549,7 +526,7 @@ async def get_store_details(page, url):
         logger.info(
             f"리뷰: 방문자 {visitor_reviews} / 블로그 {blog_reviews} | "
             f"별점: {star_score} | 사진: {photo_count} | 최근리뷰: {latest_review_date} | "
-            f"최근30일: {recent_30d_reviews}"
+            f"리뷰활동: {review_activity}(30일 {recent_30d_reviews}개)"
         )
 
         return dict(
@@ -565,6 +542,7 @@ async def get_store_details(page, url):
             star_score=star_score,
             photo_count=photo_count,
             latest_review_date=latest_review_date,
+            review_activity=review_activity,
             recent_30d_reviews=recent_30d_reviews,
         )
     except Exception as e:
@@ -745,6 +723,29 @@ async def _fetch_place_ranking(page, keyword, safe_mode=True):
         except Exception:
             pass
 
+    # map.naver.com Apollo state에서 businesses.total 추출 (search.naver에 데이터 없을 때 최후 폴백)
+    if not businesses_total:
+        try:
+            map_url = f"https://map.naver.com/p/search/{encoded_kw}?type=all"
+            await page.goto(map_url, wait_until="domcontentloaded", timeout=12000)
+            await page.wait_for_timeout(2500)
+            # 메인 컨텍스트 시도
+            businesses_total = await page.evaluate(_BUSINESSES_TOTAL_JS)
+            # 프레임 순회 (pcmap iframe 대응)
+            if not businesses_total:
+                for frame in page.frames:
+                    try:
+                        bt = await asyncio.wait_for(frame.evaluate(_BUSINESSES_TOTAL_JS), timeout=2.0)
+                        if bt:
+                            businesses_total = bt
+                            break
+                    except Exception:
+                        pass
+            if businesses_total:
+                logger.info(f"  [{keyword}] map.naver businesses.total={businesses_total}")
+        except Exception:
+            pass
+
     # 데스크탑 결과 없을 때만 모바일 재시도
     if not ranked_ids:
         p_url_m = f"https://m.search.naver.com/search.naver?query={encoded_kw}&where=m_place"
@@ -788,6 +789,8 @@ async def check_place_rank(page, keyword, place_id, safe_mode=True):
 
     logger.info(f"  검색: '{keyword}'")
     p_ids, p_url, bt = await _fetch_place_ranking(page, keyword, safe_mode)
+    # 등록업체수(businesses_total) 실제 수집값을 키워드별로 명시 — None이면 수집 실패
+    logger.info(f"  [등록업체수] '{keyword}' → businesses_total: {bt}")
 
     # 2페이지 폴백 (1페이지에 없을 때)
     if place_id and place_id not in p_ids:
@@ -1328,7 +1331,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
         }
     """
     N_WORKERS  = 4   # 동시 검색 페이지 수 (네이버 차단 방지: 3~4 이하 유지)
-    MAX_KW     = 20  # 상위 우선순위 키워드 (플마 동등 범위, N_WORKERS=4 기준 +25초)
+    MAX_KW     = 30  # 상위 우선순위 키워드 (역·동 두 지역 키워드 모두 포함, N_WORKERS=4 기준)
 
     playwright, browser, context = await create_browser()
     try:
@@ -1441,6 +1444,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
             "star_score":         details.get("star_score"),
             "photo_count":        details.get("photo_count"),
             "latest_review_date": details.get("latest_review_date"),
+            "review_activity":    details.get("review_activity"),
             "recent_30d_reviews": details.get("recent_30d_reviews"),
             "keywords_used":      target_keywords,
             "place_results":      place_results,

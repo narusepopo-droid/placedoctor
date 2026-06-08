@@ -43,16 +43,16 @@ BLOG_REVIEW_FRACS    = [(300, 1.0), (100, 0.80), (50, 0.60),  (20, 0.40), (5, 0.
 STAR_FRACS           = [(4.7, 1.0), (4.5, 0.85), (4.0, 0.60), (3.5, 0.40), (3.0, 0.20), (0.0, 0.10)]
 
 # ── 최근활동(activity) 축 상수 ───────────────────────────────────────────────
-# 합산 방식: 최근 리뷰 날짜 + 최근 30일 방문자 리뷰수 + 정보 최신성.
-# 최근 30일 리뷰수를 수집하지 못하면(None) 그 항목을 빼고 나머지로 100점 환산.
+# 합산 방식: 최근 리뷰 날짜 + 최근 30일 리뷰수 + 정보 최신성.
+# 30일 리뷰수는 리뷰탭 처음 ~10개 중 30일 이내 개수(더보기 없음). 미수집(None)이면
+# 그 항목을 빼고 나머지(최근 리뷰 날짜 + 정보 최신성)로 100점 환산.
 ACTIVITY_RECENCY_MAX  = 50   # 최근 리뷰 날짜 만점 기여
 ACTIVITY_RECENT30_MAX = 35   # 최근 30일 리뷰수 만점 기여
 ACTIVITY_INFO_MAX     = 15   # 정보 최신성 만점 기여
 # 최근 리뷰 경과 일수 (이하 → 비율)
 RECENCY_FRACS = [(7, 1.0), (30, 0.8), (90, 0.55), (180, 0.30), (365, 0.10), (9999, 0.0)]
-# 최근 30일 방문자 리뷰 개수 (이상 → 비율) — ~20개 샘플 기준 구간
-# 20개(전부) 매우활발 / 15+ 활발 / 10+ 보통 / 5+ 한산 / 미만 거의없음
-RECENT30_FRACS = [(20, 1.0), (15, 0.85), (10, 0.70), (5, 0.50), (0, 0.30)]
+# 처음 ~10개 중 30일 이내 리뷰 개수 (이상 → 비율) — 6+ 활발 / 3~5 보통 / 1~2 한산 / 0 거의없음
+RECENT30_FRACS = [(6, 1.0), (3, 0.7), (1, 0.45), (0, 0.25)]
 
 # ── 키워드광고(ad) 축 상수 ───────────────────────────────────────────────────
 # 자동 감지 제거 → 업주 체크박스 입력 기반. 어떤 경우도 "잘함"은 안 나옴(최적화 여지 항상 있음).
@@ -208,7 +208,7 @@ def calculate_scores(store_data: dict, competitor_data: dict = None,
 
     # ── 최근활동(activity) = 최근 리뷰 날짜 + 최근 30일 리뷰수 + 정보 최신성 ──
     days = _days_since(store_data.get("latest_review_date"))
-    recent30 = store_data.get("recent_30d_reviews")  # 신규 수집값 (None 가능)
+    recent30 = store_data.get("recent_30d_reviews")  # 처음 ~10개 중 30일 이내 개수. None 가능
 
     recency_pt = _frac_le(days, RECENCY_FRACS) * ACTIVITY_RECENCY_MAX
     info_fresh_frac = 1.0 if store_data.get("address") else 0.4
@@ -237,6 +237,7 @@ def calculate_scores(store_data: dict, competitor_data: dict = None,
         "blog_reviews": blog,
         "star_score": star,
         "days_since_review": days,
+        "review_activity": store_data.get("review_activity"),
         "recent_30d_reviews": recent30,
         "benchmark_used": benchmark is not None,
     }

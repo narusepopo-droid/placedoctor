@@ -24,6 +24,7 @@ class DiagnoseResponse(BaseModel):
     star_score: Optional[float] = None
     photo_count: Optional[int] = None
     latest_review_date: Optional[str] = None
+    review_activity: Optional[str] = None
     recent_30d_reviews: Optional[int] = None
     keywords_used: List[str] = []
     place_results: List[Any] = []

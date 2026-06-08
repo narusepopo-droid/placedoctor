@@ -253,14 +253,15 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                       if not _BAD_PATTERNS.search(tag) and not _bone_kw_pat.search(tag)
                       and len(tag) <= 15
                       and not (len(tag) >= 8 and ' ' not in tag)]
-    # 10글자 이상 붙임말(공백없는) keywordList 항목은 SEO 합성어 오염 제거
-    kw_list = [k.strip() for k in (keyword_list or [])
-               if k and len(k.strip()) >= 2
-               and not _BAD_PATTERNS.search(k)
-               and not (len(k.strip()) >= 10 and ' ' not in k.strip())]
+    # kw_list_raw: 위치·의도 토큰 추출용 (길이 필터 미적용)
+    # kw_list: 직접 검색어 시드용 (10자 이상 붙임말 제외 — 검색 노이즈 방지)
+    kw_list_raw = [k.strip() for k in (keyword_list or [])
+                   if k and len(k.strip()) >= 2 and not _BAD_PATTERNS.search(k)]
+    kw_list = [k for k in kw_list_raw
+               if not (len(k) >= 10 and ' ' not in k)]
 
     # ── keywordList에서 추가 지역 토큰 추출 ──
-    for kw in kw_list:
+    for kw in kw_list_raw:
         m = re.match(r'^[가-힣]{2,3}(?:역|동|구|대)', kw)
         added_by_method1 = False
         if m:
@@ -366,7 +367,7 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
     ))
 
     all_kw_tokens = []
-    for kw in kw_list:
+    for kw in kw_list_raw:
         all_kw_tokens.extend(_find_tokens_in_kw(kw, locations))
     all_kw_tokens = list(dict.fromkeys(t for t in all_kw_tokens if len(t) >= 2))
 
@@ -462,7 +463,7 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                 kws.append(combined)
 
     # ── 중복 제거 + 정렬 ───────────────────────────────────────────────────────
-    _kl_text = ''.join(kw_list)
+    _kl_text = ''.join(kw_list_raw)  # 길이 필터 전 원본 텍스트로 지역 보너스 판별
     def sort_weight(kw):
         if kw in set(kw_list): return 1000
         w = 0

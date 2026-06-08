@@ -20,6 +20,7 @@
 | B묶음 | 키워드 태그 7구간 배색·라벨+숫자, 멘트풀 전 구간, 등급배지 위치, 경쟁사 비교 기준 문구 |
 | C묶음 | businesses_total 수집(Apollo state), 등급(S/A/B/C) 상대백분율 계산, 업체수순 정렬, 순위 크게 강조 레이아웃, 경쟁사 1위→2위 보정 |
 | D묶음 | 키워드 로직 최신화(방식5·복합어·필터), 리뷰버그(URL·폴백·30일단순화), 닥터코멘트 키워드성과, 재검색 초기화 |
+| E묶음 | kw_list_raw/kw_list 분리(복합어 필터), sort_weight 역(30+15)>동(20+15) 보정, MAX_KW=30, map.naver businesses_total 폴백, SyntaxWarning 전수 제거 |
 
 ---
 

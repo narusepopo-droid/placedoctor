@@ -144,9 +144,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .kw-rank-col{font-size:1.5rem;font-weight:800;min-width:46px;text-align:center;line-height:1.1;flex-shrink:0;}
 .kw-divider{width:1px;background:var(--gray-200);align-self:stretch;flex-shrink:0;}
 .kw-info{flex:1;min-width:0;}
-.kw-title-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.kw-text{font-size:.82rem;font-weight:600;flex:1;min-width:0;}
-.kw-grade-badge{font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0;}
+.kw-title-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.kw-text{font-size:.82rem;font-weight:600;min-width:0;}
+.kw-count{font-size:.7rem;color:var(--gray-400);white-space:nowrap;flex-shrink:0;}
+.kw-grade-badge{font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0;margin-left:auto;}
 .kw-sub{font-size:.73rem;color:var(--gray-500);margin-top:3px;line-height:1.5;}
 .kw-more{margin-top:10px;font-size:.82rem;color:var(--green-d);font-weight:600;cursor:pointer;}
 
@@ -597,12 +598,12 @@ function buildActivityCard(d, score){
     dayStr=diff<=0?'오늘':`${diff}일 전`;
     dayScore=diff<=7?100:diff<=30?80:diff<=90?55:diff<=180?30:10;
   }
-  const r30=d.recent_30d_reviews;
-  const r30Label=r30==null?'-':r30>=20?'매우 활발':r30>=15?'활발':r30>=10?'보통':r30>=5?'한산':'거의 없음';
-  const r30Score=r30==null?null:r30>=20?100:r30>=15?85:r30>=10?70:r30>=5?50:30;
+  // 리뷰 활동: 처음 ~10개 중 30일 이내 개수로 백엔드가 산출한 라벨 (활발/보통/한산/거의 없음)
+  const act=d.review_activity;
+  const actScore=act==null?null:act==='활발'?100:act==='보통'?70:act==='한산'?45:25;
   return axisCard('🔥','최근활동',score,[
     detailRow('최근 리뷰', dayStr, dayScore),
-    detailRow('리뷰 활동', r30Label, r30Score),
+    detailRow('리뷰 활동', act??'-', actScore),
     detailRow('정보 최신성', d.address?'최신':'미확인', d.address?80:30),
   ].join(''));
 }
@@ -747,7 +748,7 @@ const RANK_MENTS_POOL = {
 };
 function getRankMent(rank, idx){
   const pool=RANK_MENTS_POOL[rankBand(rank)];
-  return pool[idx%pool.length].replace(/\{rank\}/g, rank??'');
+  return pool[idx%pool.length].replace(/\\{rank\\}/g, rank??'');
 }
 
 // ── 키워드 렌더링 ─────────────────────────────────────────────────────────────
@@ -776,14 +777,13 @@ function renderKeywords(expanded){
     const band=rankBand(k.rank);
     if(bandIdx[band]==null) bandIdx[band]=0;
     const comment=getRankMent(k.rank, bandIdx[band]++);
-    const grade=grades[k.keyword]||'C';
+    const grade=grades[k.keyword];  // businesses_total 없으면 undefined → 등급 미표시(잘못된 C 방지)
+    const gradeBadge=grade?`<span class="kw-grade-badge" style="${GRADE_STYLE[grade]}">${grade}급</span>`:'';
     const rc=rankColor(k.rank);
     const rankDisplay=k.rank
       ?`${k.rank}<span style="font-size:.6em;font-weight:600">위</span>`
       :`<span style="font-size:.85rem;font-weight:700;color:#ef4444">놓침</span>`;
-    const subParts=[];
-    if(k.businesses_total) subParts.push(`등록업체 ${k.businesses_total.toLocaleString()}개`);
-    subParts.push(comment);
+    const countHtml=k.businesses_total?`<span class="kw-count">등록업체 ${k.businesses_total.toLocaleString()}개</span>`:'';
     return `<div class="kw-item">
       <div class="kw-main">
         <div class="kw-rank-col" style="color:${rc}">${rankDisplay}</div>
@@ -791,9 +791,10 @@ function renderKeywords(expanded){
         <div class="kw-info">
           <div class="kw-title-row">
             <span class="kw-text">${esc(k.keyword)}</span>
-            <span class="kw-grade-badge" style="${GRADE_STYLE[grade]}">${grade}급</span>
+            ${countHtml}
+            ${gradeBadge}
           </div>
-          <div class="kw-sub">${subParts.join(' · ')}</div>
+          <div class="kw-sub">${comment}</div>
         </div>
       </div>
     </div>`;
