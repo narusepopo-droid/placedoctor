@@ -25,6 +25,7 @@
 | H단계 | 플레이스/블로그 선택 분석 + DB 히스토리 누적 저장 + 직전 비교 표시 |
 | I단계 | **고질병 2개 근본 해결** — ① 좀비 서버: `--reload` 폐기 + `restart.py`/`restart.bat`(포트+상속소켓좀비 정리, 단일프로세스 기동). ② IP 차단: 플마와 스텔스 1:1 동일화(create_browser args/context 정리), naver.me 단축링크 place_id 네비게이션 해석, 블로그 분석 병렬화(N_BLOG=3)+딥스캔 지터딜레이+키워드폭15, generate_blog_keywords "맛집" 하드코딩 제거. 라보떼 3회 연속 7매칭·차단 0건 검증 |
 | J단계 | **히스토리 추세 표시** — 분석 결과에 과거 기록 녹여서 표시: ① 분석 횟수/시점 안내 ("이 가게 N번째 분석 · 지난 분석 MM/DD") ② 종합점수 직전 비교 ("지난번 78점 → 이번 82점 (+4)") ③ 키워드별 순위 추세 (기록 2개↑: "13위→9위→2위", 기록 1개: "전: N위 ▲▼", 첫분석: "(첫 분석)") ④ 블로그 분석도 동일 적용. crud.py에 `get_keyword_rank_history`, `get_analysis_count` 추가 |
+| K단계 | **익명ID 검색기록 + 최근매장 + 재검색 + 정렬/점수강조** — ① 익명 ID(anon_id): localStorage UUID 발급 → 분석 시 DB 기록 ② 최근 본 매장 목록: 입력폼 아래 표시, 탭하면 저장 결과 즉시(place/blog 둘 다 로드해 탭 전환) ③ 재검색: "다른 매장 검색 / 다시 분석" 버튼(새로고침 없이 JS 전환), goBackToSearch 버튼 상태 리셋 ④ 키워드 정렬: 내 순위 높은 순→업체수순→놓침 뒤로 ⑤ 점수 변화 강조: 상승=초록/하락=빨강 그라데이션 + 큰 숫자 + 단계별 멘트(±1~3/±4~9/±10↑). API 3개 추가(아래 표) |
 
 ---
 
@@ -142,6 +143,9 @@ URL      : postgresql://postgres:postgres@localhost:5432/placedoctor
 | POST | `/diagnose` | 매장 진단 (순위·리뷰·점수·경쟁사) |
 | GET | `/store/{place_id}/history` | 과거 순위·점수 이력 |
 | POST | `/lead` | 연락처(리드) 저장 |
+| GET | `/recent-stores/{anon_id}` | (K단계) 익명ID의 최근 본 매장 목록 |
+| GET | `/history-result/{place_id}` | (K단계) 저장된 최신 분석 결과 |
+| GET | `/history-result-all/{place_id}` | (K단계) place+blog 분석 결과 둘 다 반환 |
 
 ---
 
@@ -175,6 +179,8 @@ URL      : postgresql://postgres:postgres@localhost:5432/placedoctor
 - **차단 우회 설정(create_browser/create_stealth_page)은 플마와 1:1 동일 유지.** launch args·context·init script를
   임의로 추가/변경 말 것 — 한 군데라도 플마와 달라지면 그게 차단 원인이 될 수 있음. 바꿔야 하면 플마부터 대조.
 - **모든 페이지는 `create_stealth_page()`로만 생성** (raw `context.new_page()` 금지 — webdriver 스텔스 누락 방지).
+- **단계(묶음) 완료 시 CLAUDE.md를 반드시 갱신** — "완료된 단계" 표 + (API 추가 시) 엔드포인트 표. 커밋 전 체크.
+  (K단계에서 표 갱신을 빠뜨려 작업이 유실된 줄 알고 헤맨 적 있음. 갱신·커밋·푸시는 한 묶음으로.)
 
 ---
 
