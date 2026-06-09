@@ -138,3 +138,4 @@ class AnalysisHistory(Base):
     analyzed_at    = Column(DateTime(timezone=True), default=_now, index=True)
     total_score    = Column(Float, nullable=True)  # 플레이스 분석 시 종합점수
     result_json    = Column(Text, nullable=True)   # 키워드별 순위 등 전체 결과 JSON
+    anon_id        = Column(String(36), index=True, nullable=True)  # K단계: 익명 식별자 (UUID)

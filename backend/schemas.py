@@ -11,6 +11,8 @@ class DiagnoseRequest(BaseModel):
     ad_powerlink: bool = False   # 파워링크
     ad_local: bool = False       # 지역소상공인광고
     ad_blog: bool = False        # 블로그 체험단
+    # K단계: 익명 식별자
+    anon_id: Optional[str] = None
 
 
 class DiagnoseResponse(BaseModel):
@@ -49,6 +51,7 @@ class BlogAnalyzeRequest(BaseModel):
 class BlogStandaloneRequest(BaseModel):
     store_name: str
     place_url: str
+    anon_id: Optional[str] = None  # K단계: 익명 식별자
 
 
 class BlogAnalyzeResponse(BaseModel):
@@ -70,3 +73,18 @@ class LeadResponse(BaseModel):
     status: str
 
     model_config = {"from_attributes": True}
+
+
+# K단계: 최근 본 매장
+class RecentStore(BaseModel):
+    place_id: str
+    store_name: str
+    address: str = ""
+    category: str = ""
+    analysis_type: str = "place"
+    total_score: Optional[float] = None
+    analyzed_at: Optional[str] = None
+
+
+class RecentStoresResponse(BaseModel):
+    stores: List[RecentStore] = []

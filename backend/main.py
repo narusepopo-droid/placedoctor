@@ -118,15 +118,45 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* J단계: 히스토리 추세 */
 .analysis-history-info{margin-top:8px;font-size:.82rem;color:var(--gray-500);text-align:center;}
-.score-trend{margin-top:12px;font-size:.85rem;color:var(--gray-600);text-align:center;padding:8px 12px;background:var(--gray-50);border-radius:8px;}
-.score-trend .up{color:#16a34a;font-weight:600;}
-.score-trend .down{color:#dc2626;font-weight:600;}
-.score-trend .same{color:var(--gray-500);}
+.score-trend{margin-top:16px;text-align:center;padding:14px 16px;border-radius:12px;}
+.score-trend.trend-up{background:linear-gradient(135deg,#dcfce7,#bbf7d0);border:2px solid #22c55e;}
+.score-trend.trend-down{background:linear-gradient(135deg,#fef2f2,#fecaca);border:2px solid #f87171;}
+.score-trend.trend-same{background:var(--gray-50);border:1px solid var(--gray-200);}
+.trend-main{display:flex;align-items:center;justify-content:center;gap:8px;}
+.trend-arrow{font-size:1.5rem;font-weight:800;}
+.trend-up .trend-arrow{color:#16a34a;}
+.trend-down .trend-arrow{color:#dc2626;}
+.trend-same .trend-arrow{color:var(--gray-400);}
+.trend-diff{font-size:1.4rem;font-weight:800;}
+.trend-up .trend-diff{color:#16a34a;}
+.trend-down .trend-diff{color:#dc2626;}
+.trend-same .trend-diff{color:var(--gray-500);}
+.trend-vs{font-size:.85rem;color:var(--gray-500);font-weight:500;}
+.trend-ment{margin-top:8px;font-size:.9rem;color:var(--gray-700);font-weight:500;}
 .kw-trend{display:inline-block;margin-left:6px;font-size:.75rem;color:var(--gray-500);}
 .kw-trend .up{color:#16a34a;}
 .kw-trend .down{color:#dc2626;}
 .kw-trend .same{color:var(--gray-400);}
 .kw-first{font-size:.72rem;color:var(--gray-400);margin-left:4px;}
+
+/* K단계: 최근 본 매장 */
+.recent-stores-section{margin-top:24px;padding:0 4px;}
+.recent-stores-header{font-size:.9rem;font-weight:700;color:var(--gray-700);margin-bottom:12px;}
+.recent-stores-list{display:flex;flex-direction:column;gap:10px;}
+.recent-store-item{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;cursor:pointer;transition:transform .15s,box-shadow .15s;}
+.recent-store-item:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1);}
+.recent-store-name{font-size:.95rem;font-weight:700;color:var(--gray-800);}
+.recent-store-meta{font-size:.8rem;color:var(--gray-500);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;}
+.recent-store-score{font-size:.85rem;font-weight:600;color:var(--green);}
+.recent-store-time{font-size:.75rem;color:var(--gray-400);}
+.recent-stores-empty{font-size:.85rem;color:var(--gray-400);text-align:center;padding:20px 0;}
+
+/* K단계: 결과 상단 버튼 */
+.result-top-actions{display:flex;gap:10px;margin-bottom:16px;}
+.btn-action{flex:1;padding:10px 14px;border:1px solid var(--gray-200);border-radius:8px;background:#fff;font-size:.85rem;font-weight:600;color:var(--gray-700);cursor:pointer;transition:all .15s;}
+.btn-action:hover{background:var(--gray-50);border-color:var(--gray-300);}
+.btn-action.btn-refresh{background:var(--green);color:#fff;border-color:var(--green);}
+.btn-action.btn-refresh:hover{background:#02b350;}
 
 /* 4-AXIS CARDS */
 .axis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
@@ -338,6 +368,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="status-msg" id="statusMsg"></div>
     </div>
     <div id="errBox"></div>
+
+    <!-- K단계: 최근 본 매장 -->
+    <div class="recent-stores-section" id="recentStoresSection" style="display:none;">
+      <div class="recent-stores-header">최근 본 매장</div>
+      <div class="recent-stores-list" id="recentStoresList"></div>
+    </div>
   </div>
 
   <!-- LOADING -->
@@ -355,6 +391,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
   <!-- RESULT -->
   <div id="result">
+    <!-- K단계: 결과 화면 상단 재검색 버튼 -->
+    <div class="result-top-actions">
+      <button class="btn-action" onclick="goBackToSearch()">← 다른 매장 검색</button>
+      <button class="btn-action btn-refresh" onclick="reAnalyze()">🔄 다시 분석</button>
+    </div>
+
     <!-- 공통 헤더: 매장명 + 종합점수 (탭 위에 항상 표시) -->
     <div class="result-header">
       <div class="store-badge">📍 <span id="rCategory"></span></div>
@@ -454,8 +496,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="blog-summary" id="blogSummary"></div>
       </div>
     </div>
-
-    <div class="btn-redo"><button onclick="resetForm()">← 다시 진단하기</button></div>
   </div>
 
 </div>
@@ -467,8 +507,171 @@ let _blogAnalyzed = false;
 let _analysisType = 'place';  // 'place' | 'blog'
 let _prevAnalysis = null;     // 직전 분석 결과 (비교용)
 
+// K단계: 익명 ID + 마지막 분석 정보
+let _anonId = null;
+let _lastStoreName = '';
+let _lastPlaceUrl = '';
+
+// K단계: 익명 ID 발급/조회
+function getOrCreateAnonId(){
+  let id = localStorage.getItem('placedoctor_anon_id');
+  if(!id){
+    id = crypto.randomUUID ? crypto.randomUUID() : 'anon-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    localStorage.setItem('placedoctor_anon_id', id);
+  }
+  return id;
+}
+
+// K단계: 최근 본 매장 로드
+async function loadRecentStores(){
+  if(!_anonId) return;
+  try{
+    const res = await fetch('/recent-stores/' + _anonId);
+    if(!res.ok) return;
+    const data = await res.json();
+    renderRecentStores(data.stores || []);
+  }catch(e){
+    console.log('최근 매장 로드 실패:', e);
+  }
+}
+
+function renderRecentStores(stores){
+  const section = document.getElementById('recentStoresSection');
+  const list = document.getElementById('recentStoresList');
+
+  if(!stores || stores.length === 0){
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  list.innerHTML = stores.map(s => {
+    const score = s.total_score != null ? `<span class="recent-store-score">${Math.round(s.total_score)}점</span>` : '';
+    const time = formatRelativeTime(s.analyzed_at);
+    const addr = s.address ? s.address.split(' ').slice(0,3).join(' ') : '';
+    return `<div class="recent-store-item" onclick="loadHistoryResult('${esc(s.place_id)}', '${esc(s.store_name)}')">
+      <div class="recent-store-name">${esc(s.store_name)}</div>
+      <div class="recent-store-meta">
+        <span>${esc(addr)}</span>
+        ${score}
+        <span class="recent-store-time">${time}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function formatRelativeTime(isoStr){
+  if(!isoStr) return '';
+  const d = new Date(isoStr);
+  const now = new Date();
+  const diff = Math.floor((now - d) / 1000);
+  if(diff < 60) return '방금';
+  if(diff < 3600) return Math.floor(diff/60) + '분 전';
+  if(diff < 86400) return Math.floor(diff/3600) + '시간 전';
+  if(diff < 172800) return '어제';
+  return d.toLocaleDateString('ko-KR', {month:'numeric', day:'numeric'});
+}
+
+// K단계: 저장된 결과 즉시 표시 (place + blog 둘 다)
+let _historyPlaceData = null;
+let _historyBlogData = null;
+let _historyBlogRendered = false;  // 히스토리 블로그 데이터 렌더링 여부
+
+async function loadHistoryResult(placeId, storeName){
+  try{
+    const res = await fetch('/history-result-all/' + placeId);
+    if(!res.ok) throw new Error('저장된 결과 없음');
+    const allData = await res.json();
+
+    _historyPlaceData = allData.place;
+    _historyBlogData = allData.blog;
+
+    const placeData = _historyPlaceData;
+    if(!placeData){
+      alert('저장된 플레이스 분석 결과가 없습니다.');
+      return;
+    }
+
+    _lastStoreName = storeName;
+    _lastPlaceUrl = placeData.place_url || (placeData.place_id ? 'https://m.place.naver.com/place/' + placeData.place_id : '');
+    _prevAnalysis = placeData.prev_analysis || null;
+
+    document.getElementById('input-section').style.display = 'none';
+    document.getElementById('loading-section').style.display = 'none';
+    document.getElementById('result').style.display = 'block';
+    document.querySelector('.tabs').style.display = 'flex';
+    document.getElementById('tab-place').style.display = 'block';
+    document.getElementById('tab-blog').style.display = 'none';
+    document.querySelector('.tab-btn[data-tab="place"]').classList.add('active');
+    document.querySelector('.tab-btn[data-tab="blog"]').classList.remove('active');
+
+    // 블로그 탭 상태 설정 (저장된 결과 있으면 바로 볼 수 있게)
+    _blogAnalyzed = false;  // 아직 블로그 탭에서 렌더링 안 함
+    _historyBlogRendered = false;  // 히스토리 블로그 렌더링 플래그 초기화
+
+    renderResult(placeData);
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){
+    alert('저장된 분석 결과를 불러올 수 없습니다. 새로 분석해주세요.');
+  }
+}
+
+// K단계: 다른 매장 검색 (새로고침 없이)
+function goBackToSearch(){
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('loading-section').style.display = 'none';
+  document.getElementById('input-section').style.display = 'block';
+
+  // 입력 필드 초기화
+  document.getElementById('storeName').value = '';
+  document.getElementById('placeUrl').value = '';
+  document.getElementById('forceRefresh').checked = false;
+
+  // 버튼 상태 리셋
+  const btn = document.getElementById('diagBtn');
+  btn.disabled = false;
+  btn.textContent = '🔍 진단하기';
+
+  // 최근 매장 새로고침
+  loadRecentStores();
+
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// K단계: 같은 매장 다시 분석
+async function reAnalyze(){
+  if(!_lastStoreName || !_lastPlaceUrl){
+    const d = window._diagData;
+    if(d){
+      _lastStoreName = d.store_name || '';
+      // place_url은 없을 수 있으므로 place_id로 재구성
+      _lastPlaceUrl = d.place_url || (d.place_id ? 'https://m.place.naver.com/place/' + d.place_id : '');
+    }
+  }
+  if(!_lastStoreName || !_lastPlaceUrl){
+    alert('매장 정보를 찾을 수 없습니다. 다시 검색해주세요.');
+    goBackToSearch();
+    return;
+  }
+
+  document.getElementById('storeName').value = _lastStoreName;
+  document.getElementById('placeUrl').value = _lastPlaceUrl;
+  document.getElementById('forceRefresh').checked = true;
+
+  // 분석 유형 유지
+  _analysisType = 'place';
+  document.querySelectorAll('.analysis-type-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelector('.analysis-type-btn[data-type="place"]').classList.add('selected');
+
+  startAnalysis();
+}
+
 // ── 분석 유형 선택 ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // K단계: 익명 ID 발급 + 최근 매장 로드
+  _anonId = getOrCreateAnonId();
+  loadRecentStores();
+
   document.querySelectorAll('.analysis-type-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.analysis-type-btn').forEach(b => b.classList.remove('selected'));
@@ -643,6 +846,14 @@ async function analyzePlaceOnly(){
   };
   if(!name||!url){alert('매장명과 URL을 입력해주세요.');return;}
 
+  // K단계: 마지막 분석 정보 저장 + 히스토리 데이터 초기화
+  _lastStoreName = name;
+  _lastPlaceUrl = url;
+  _historyPlaceData = null;
+  _historyBlogData = null;
+  _historyBlogRendered = false;
+  _blogAnalyzed = false;
+
   const btn = document.getElementById('diagBtn');
   btn.disabled=true; btn.textContent='분석 중...';
   document.getElementById('errBox').innerHTML='';
@@ -659,7 +870,7 @@ async function analyzePlaceOnly(){
       fetch('/diagnose',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({store_name:name,place_url:url,force_refresh:force,...adFlags})
+        body: JSON.stringify({store_name:name,place_url:url,force_refresh:force,anon_id:_anonId,...adFlags})
       }),
       new Promise(r=>setTimeout(r, MIN_SHOW_MS))
     ]);
@@ -678,6 +889,8 @@ async function analyzePlaceOnly(){
     renderResult(data);
     document.getElementById('result').style.display='block';
     switchTab('place');
+    // K단계: 최근 매장 목록 새로고침
+    loadRecentStores();
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(e){
     stopLoading();
@@ -693,6 +906,13 @@ async function analyzeBlogOnly(){
   const name = document.getElementById('storeName').value.trim();
   const url  = document.getElementById('placeUrl').value.trim();
   if(!name||!url){alert('매장명과 URL을 입력해주세요.');return;}
+
+  // K단계: 마지막 분석 정보 저장 + 히스토리 초기화
+  _lastStoreName = name;
+  _lastPlaceUrl = url;
+  _historyPlaceData = null;
+  _historyBlogData = null;
+  _historyBlogRendered = false;
 
   const btn = document.getElementById('diagBtn');
   btn.disabled=true; btn.textContent='분석 중...';
@@ -710,7 +930,7 @@ async function analyzeBlogOnly(){
       fetch('/analyze-blog-standalone',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({store_name:name,place_url:url})
+        body: JSON.stringify({store_name:name,place_url:url,anon_id:_anonId})
       }),
       new Promise(r=>setTimeout(r, MIN_SHOW_MS))
     ]);
@@ -729,6 +949,8 @@ async function analyzeBlogOnly(){
     renderBlogOnlyResult(data);
     document.getElementById('result').style.display='block';
     switchTab('blog');
+    // K단계: 최근 매장 목록 새로고침
+    loadRecentStores();
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(e){
     stopLoading();
@@ -763,18 +985,41 @@ function renderResult(d){
   let summaryHtml = buildSummary(d,sc);
   document.getElementById('gaugeSummary').innerHTML = summaryHtml;
 
-  // J단계: 종합점수 직전 비교 (별도 영역)
+  // J단계+K추가: 종합점수 직전 비교 (강조 + 단계별 멘트)
   const trendEl = document.getElementById('scoreTrend');
   if(prev && prev.total_score != null){
     const prevScore = Math.round(prev.total_score);
     const diff = Math.round(tot - prevScore);
+    const absDiff = Math.abs(diff);
+    let cls, arrow, ment;
+
     if(diff > 0){
-      trendEl.innerHTML = `<span class="up">지난번 ${prevScore}점 → 이번 ${Math.round(tot)}점 (+${diff})</span>`;
+      cls = 'trend-up';
+      arrow = '▲';
+      if(absDiff >= 10) ment = '크게 상승했어요! 🎉';
+      else if(absDiff >= 4) ment = '순위가 오르고 있어요! 잘하고 계세요';
+      else ment = '조금씩 좋아지고 있어요 👍';
     } else if(diff < 0){
-      trendEl.innerHTML = `<span class="down">지난번 ${prevScore}점 → 이번 ${Math.round(tot)}점 (${diff})</span>`;
+      cls = 'trend-down';
+      arrow = '▼';
+      if(absDiff >= 10) ment = '최근 노출이 많이 줄었어요. 원인을 살펴보는 게 좋아요';
+      else if(absDiff >= 4) ment = '점수가 떨어지고 있어요. 점검해볼 시점이에요';
+      else ment = '살짝 주춤했어요. 조금만 관리하면 금방 회복돼요';
     } else {
-      trendEl.innerHTML = `<span class="same">지난번과 동일 (${Math.round(tot)}점)</span>`;
+      cls = 'trend-same';
+      arrow = '→';
+      ment = '지난번과 같은 점수를 유지하고 있어요';
     }
+
+    trendEl.className = 'score-trend ' + cls;
+    trendEl.innerHTML = `
+      <div class="trend-main">
+        <span class="trend-arrow">${arrow}</span>
+        <span class="trend-diff">${diff > 0 ? '+' : ''}${diff}점</span>
+        <span class="trend-vs">(${prevScore}점 → ${Math.round(tot)}점)</span>
+      </div>
+      <div class="trend-ment">${ment}</div>
+    `;
     trendEl.style.display = 'block';
   } else {
     trendEl.style.display = 'none';
@@ -1126,14 +1371,16 @@ function renderKeywords(expanded, prevRankMap, kwHistory){
   // 등급 계산 (businesses_total 상대 백분율)
   const grades=calcGrades(_allKw);
 
-  // 업체수 많은 순 정렬 (없으면 뒤로, 업체수 같으면 순위 좋은 순)
+  // 정렬: 내 순위 높은 순(1위→2위→...) → 같은 순위면 업체수 많은 순 → 놓침은 맨 뒤(업체수순)
   const sorted=[..._allKw].sort((a,b)=>{
-    const at=a.businesses_total??-1, bt=b.businesses_total??-1;
-    if(at!==bt) return bt-at;
-    if(a.rank&&b.rank) return a.rank-b.rank;
-    if(a.rank) return -1;
-    if(b.rank) return 1;
-    return 0;
+    const aRank = a.rank ?? 9999;
+    const bRank = b.rank ?? 9999;
+    // 1순위: 순위 좋은 순 (놓침=9999로 뒤로)
+    if(aRank !== bRank) return aRank - bRank;
+    // 2순위: 등록업체수 많은 순 (경쟁 센 키워드가 더 가치 있음)
+    const at = a.businesses_total ?? -1;
+    const bt = b.businesses_total ?? -1;
+    return bt - at;
   });
   const show=expanded?sorted:sorted.slice(0,8);
 
@@ -1316,12 +1563,21 @@ function renderBlogResultsWithComparison(blogResults, prevBlogMap, kwHistory){
     return;
   }
 
+  // 정렬: 내 순위 높은 순 → 놓침은 뒤로
+  const sortedResults = [...blogResults].sort((a,b)=>{
+    const aHits = (a.hits||[]).filter(h=>h.rank!=null);
+    const bHits = (b.hits||[]).filter(h=>h.rank!=null);
+    const aTop = aHits.length > 0 ? Math.min(...aHits.map(h=>h.rank)) : 9999;
+    const bTop = bHits.length > 0 ? Math.min(...bHits.map(h=>h.rank)) : 9999;
+    return aTop - bTop;
+  });
+
   let totalMatched = 0;
   let bestRank = null;
   let bestKw = '';
 
   let html = '';
-  for(const br of blogResults){
+  for(const br of sortedResults){
     const kw = br.keyword;
     const hits = br.hits || [];
     const matchedHits = hits.filter(h => h.rank != null);
@@ -1482,7 +1738,28 @@ function switchTab(tabId){
   });
   document.querySelectorAll('.tab-content').forEach(content=>{
     content.classList.toggle('active', content.id===`tab-${tabId}`);
+    content.style.display = content.id===`tab-${tabId}` ? 'block' : 'none';
   });
+
+  // K단계: 블로그 탭 클릭 시 히스토리 데이터가 있으면 표시
+  if(tabId === 'blog'){
+    if(_historyBlogData && !_historyBlogRendered){
+      _historyBlogRendered = true;
+      _blogAnalyzed = true;
+      document.getElementById('blogStartCard').style.display = 'none';
+      document.getElementById('blogLoading').style.display = 'none';
+      document.getElementById('blogResultCard').style.display = 'block';
+
+      const prevBlogMap = buildPrevBlogRankMap(_historyBlogData.prev_analysis);
+      const kwHistory = _historyBlogData.keyword_history || {};
+      renderBlogResultsWithComparison(_historyBlogData.blog_results || [], prevBlogMap, kwHistory);
+    } else if(!_blogAnalyzed && !_historyBlogData){
+      // 블로그 기록 없으면 분석하기 버튼 표시
+      document.getElementById('blogStartCard').style.display = 'block';
+      document.getElementById('blogLoading').style.display = 'none';
+      document.getElementById('blogResultCard').style.display = 'none';
+    }
+  }
 }
 
 // ── 블로그 분석 ──────────────────────────────────────────────────────────────
@@ -1673,6 +1950,7 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
                 analysis_type="place",
                 total_score=result.get("scores", {}).get("total"),
                 result_json=json_module.dumps(result, ensure_ascii=False),
+                anon_id=req.anon_id,  # K단계: 익명 ID 저장
             )
         except Exception as e:
             import logging
@@ -1893,6 +2171,7 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
                 analysis_type="blog",
                 total_score=None,
                 result_json=json_module.dumps(result, ensure_ascii=False),
+                anon_id=req.anon_id,  # K단계: 익명 ID 저장
             )
         except Exception as e:
             import logging
@@ -1910,3 +2189,35 @@ def create_lead(req: schemas.LeadRequest, db: Session = Depends(get_db)):
     """연락처(리드)를 저장합니다."""
     lead = crud.create_lead(db, contact=req.contact, source=req.source, store_id=req.store_id)
     return lead
+
+
+# ── K단계: 최근 본 매장 API ───────────────────────────────────────────────────
+@app.get("/recent-stores/{anon_id}", tags=["K단계"])
+def get_recent_stores(anon_id: str, db: Session = Depends(get_db)):
+    """익명 사용자의 최근 본 매장 목록을 반환합니다."""
+    stores = crud.get_recent_stores_by_anon_id(db, anon_id, limit=10)
+    return {"stores": stores}
+
+
+@app.get("/history-result/{place_id}", tags=["K단계"])
+def get_history_result(place_id: str, analysis_type: str = "place", db: Session = Depends(get_db)):
+    """저장된 최신 분석 결과를 반환합니다 (재크롤링 없이 즉시 표시용)."""
+    result = crud.get_latest_analysis_result(db, place_id, analysis_type)
+    if not result:
+        raise HTTPException(status_code=404, detail="저장된 분석 결과가 없습니다")
+    return result
+
+
+@app.get("/history-result-all/{place_id}", tags=["K단계"])
+def get_history_result_all(place_id: str, db: Session = Depends(get_db)):
+    """place와 blog 저장된 결과를 모두 반환합니다."""
+    place_result = crud.get_latest_analysis_result(db, place_id, "place")
+    blog_result = crud.get_latest_analysis_result(db, place_id, "blog")
+
+    if not place_result and not blog_result:
+        raise HTTPException(status_code=404, detail="저장된 분석 결과가 없습니다")
+
+    return {
+        "place": place_result,
+        "blog": blog_result,
+    }

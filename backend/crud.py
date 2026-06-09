@@ -153,6 +153,7 @@ def save_analysis_history(
     analysis_type: str,
     total_score: float | None,
     result_json: str,
+    anon_id: str | None = None,
 ) -> models.AnalysisHistory:
     """분석 결과를 히스토리에 누적 저장 (덮어쓰기 X)"""
     history = models.AnalysisHistory(
@@ -161,6 +162,7 @@ def save_analysis_history(
         analysis_type=analysis_type,
         total_score=total_score,
         result_json=result_json,
+        anon_id=anon_id,
     )
     db.add(history)
     db.commit()
@@ -262,3 +264,86 @@ def get_analysis_count(db: Session, place_id: str, analysis_type: str) -> int:
         )
         .count()
     )
+
+
+def get_recent_stores_by_anon_id(
+    db: Session, anon_id: str, limit: int = 10
+) -> list[dict]:
+    """
+    K단계: 익명 사용자의 최근 본 매장 목록을 반환합니다.
+    place_id별로 가장 최근 분석 기록만 (중복 제거).
+    """
+    from sqlalchemy import func, desc
+
+    # place_id별 최신 분석 기록의 id를 서브쿼리로
+    subq = (
+        db.query(
+            models.AnalysisHistory.place_id,
+            func.max(models.AnalysisHistory.id).label("max_id"),
+        )
+        .filter(models.AnalysisHistory.anon_id == anon_id)
+        .group_by(models.AnalysisHistory.place_id)
+        .subquery()
+    )
+
+    # 최신 기록만 조회
+    records = (
+        db.query(models.AnalysisHistory)
+        .join(subq, models.AnalysisHistory.id == subq.c.max_id)
+        .order_by(desc(models.AnalysisHistory.analyzed_at))
+        .limit(limit)
+        .all()
+    )
+
+    result = []
+    for r in records:
+        # 주소 추출 (result_json에서)
+        address = ""
+        category = ""
+        if r.result_json:
+            try:
+                data = json.loads(r.result_json)
+                address = data.get("address", "")
+                category = data.get("category", "")
+            except:
+                pass
+
+        result.append({
+            "place_id": r.place_id,
+            "store_name": r.store_name,
+            "address": address,
+            "category": category,
+            "analysis_type": r.analysis_type,
+            "total_score": r.total_score,
+            "analyzed_at": r.analyzed_at.isoformat() if r.analyzed_at else None,
+        })
+
+    return result
+
+
+def get_latest_analysis_result(
+    db: Session, place_id: str, analysis_type: str = "place"
+) -> dict | None:
+    """
+    K단계: 특정 매장의 최신 분석 결과를 반환합니다 (재크롤링 없이 즉시 표시용).
+    """
+    record = (
+        db.query(models.AnalysisHistory)
+        .filter(
+            models.AnalysisHistory.place_id == place_id,
+            models.AnalysisHistory.analysis_type == analysis_type,
+        )
+        .order_by(models.AnalysisHistory.analyzed_at.desc())
+        .first()
+    )
+
+    if not record or not record.result_json:
+        return None
+
+    try:
+        result = json.loads(record.result_json)
+        result["_from_history"] = True
+        result["_analyzed_at"] = record.analyzed_at.isoformat() if record.analyzed_at else None
+        return result
+    except:
+        return None
