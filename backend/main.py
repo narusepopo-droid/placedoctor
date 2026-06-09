@@ -116,6 +116,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .grade-badge{font-size:1rem;font-weight:700;padding:6px 18px;border-radius:20px;color:#fff;}
 .gauge-summary{font-size:.88rem;color:var(--gray-600);text-align:center;max-width:260px;}
 
+/* J단계: 히스토리 추세 */
+.analysis-history-info{margin-top:8px;font-size:.82rem;color:var(--gray-500);text-align:center;}
+.score-trend{margin-top:12px;font-size:.85rem;color:var(--gray-600);text-align:center;padding:8px 12px;background:var(--gray-50);border-radius:8px;}
+.score-trend .up{color:#16a34a;font-weight:600;}
+.score-trend .down{color:#dc2626;font-weight:600;}
+.score-trend .same{color:var(--gray-500);}
+.kw-trend{display:inline-block;margin-left:6px;font-size:.75rem;color:var(--gray-500);}
+.kw-trend .up{color:#16a34a;}
+.kw-trend .down{color:#dc2626;}
+.kw-trend .same{color:var(--gray-400);}
+.kw-first{font-size:.72rem;color:var(--gray-400);margin-left:4px;}
+
 /* 4-AXIS CARDS */
 .axis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
 @media(max-width:380px){.axis-grid{grid-template-columns:1fr;}}
@@ -348,6 +360,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="store-badge">📍 <span id="rCategory"></span></div>
       <div class="store-name" id="rStoreName"></div>
       <div class="store-meta" id="rMeta"></div>
+      <!-- J단계: 분석 횟수 표시 -->
+      <div class="analysis-history-info" id="analysisHistoryInfo" style="display:none;"></div>
     </div>
 
     <!-- GAUGE (공통) -->
@@ -362,6 +376,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <text class="gauge-sub" x="80" y="98">/100점</text>
         </svg>
         <p class="gauge-summary" id="gaugeSummary"></p>
+        <!-- J단계: 종합점수 직전 비교 -->
+        <div class="score-trend" id="scoreTrend" style="display:none;"></div>
       </div>
     </div>
 
@@ -734,6 +750,9 @@ function renderResult(d){
   document.getElementById('rCategory').textContent  = d.category||'매장';
   document.getElementById('rMeta').textContent      = d.address||'';
 
+  // J단계: 분석 횟수 표시
+  renderAnalysisHistoryInfo(d, 'place');
+
   // 종합 게이지 + 변동 표시
   const tot = sc.total??0;
   animateGauge(tot);
@@ -742,17 +761,24 @@ function renderResult(d){
   badge.textContent=g.text; badge.style.background=g.bg;
 
   let summaryHtml = buildSummary(d,sc);
-  if(prev && prev.total_score != null){
-    const diff = Math.round(tot - prev.total_score);
-    if(diff !== 0){
-      const cls = diff > 0 ? 'up' : 'down';
-      const arrow = diff > 0 ? '▲' : '▼';
-      summaryHtml += ` <span class="score-change ${cls}">(지난번 ${Math.round(prev.total_score)}점 → ${arrow}${Math.abs(diff)})</span>`;
-    } else {
-      summaryHtml += ` <span class="score-change same">(지난번과 동일)</span>`;
-    }
-  }
   document.getElementById('gaugeSummary').innerHTML = summaryHtml;
+
+  // J단계: 종합점수 직전 비교 (별도 영역)
+  const trendEl = document.getElementById('scoreTrend');
+  if(prev && prev.total_score != null){
+    const prevScore = Math.round(prev.total_score);
+    const diff = Math.round(tot - prevScore);
+    if(diff > 0){
+      trendEl.innerHTML = `<span class="up">지난번 ${prevScore}점 → 이번 ${Math.round(tot)}점 (+${diff})</span>`;
+    } else if(diff < 0){
+      trendEl.innerHTML = `<span class="down">지난번 ${prevScore}점 → 이번 ${Math.round(tot)}점 (${diff})</span>`;
+    } else {
+      trendEl.innerHTML = `<span class="same">지난번과 동일 (${Math.round(tot)}점)</span>`;
+    }
+    trendEl.style.display = 'block';
+  } else {
+    trendEl.style.display = 'none';
+  }
 
   // 4축 카드
   renderAxisCards(d, sc);
@@ -760,10 +786,11 @@ function renderResult(d){
   // 경쟁사
   renderCompetitor(d);
 
-  // 키워드 (직전 순위 맵 전달)
+  // 키워드 (J단계: 키워드별 히스토리 전달)
   _allKw = d.place_results||[];
   const prevRankMap = buildPrevRankMap(prev);
-  renderKeywords(false, prevRankMap);
+  const kwHistory = d.keyword_history || {};
+  renderKeywords(false, prevRankMap, kwHistory);
 
   // 블로그 분석
   renderBlogResults(d.blog_results||[]);
@@ -785,6 +812,28 @@ function buildPrevRankMap(prev){
   return map;
 }
 
+// J단계: 분석 횟수/시점 안내 표시
+function renderAnalysisHistoryInfo(d, type){
+  const el = document.getElementById('analysisHistoryInfo');
+  const count = d.analysis_count || 0;
+  const prevDate = d.prev_analyzed_at || null;
+
+  if(count <= 1 && !prevDate){
+    el.innerHTML = '첫 분석이에요. 다음에 또 분석하면 변화를 보여드려요.';
+    el.style.display = 'block';
+  } else if(count > 1){
+    const typeLabel = type === 'place' ? '플레이스' : '블로그';
+    let info = `이 가게 ${typeLabel} ${count}번째 분석`;
+    if(prevDate){
+      info += ` · 지난 분석 ${prevDate}`;
+    }
+    el.innerHTML = info;
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 // 블로그 단독 결과 렌더링
 function renderBlogOnlyResult(d){
   window._diagData = d;
@@ -794,12 +843,16 @@ function renderBlogOnlyResult(d){
   document.getElementById('rCategory').textContent  = d.category||'매장';
   document.getElementById('rMeta').textContent      = d.address||'';
 
+  // J단계: 블로그 분석 횟수 표시
+  renderAnalysisHistoryInfo(d, 'blog');
+
   // 게이지 숨기기 (플레이스 분석 결과가 아님)
   document.getElementById('gradeBadge').textContent = '블로그';
   document.getElementById('gradeBadge').style.background = '#3b82f6';
   document.getElementById('gaugeFill').setAttribute('stroke-dasharray', '0 415');
   document.getElementById('gaugeNum').textContent = '-';
   document.getElementById('gaugeSummary').innerHTML = '블로그 노출 분석 결과입니다.';
+  document.getElementById('scoreTrend').style.display = 'none';
 
   // 탭 숨기기 (블로그 결과만 표시)
   document.querySelector('.tabs').style.display = 'none';
@@ -811,9 +864,10 @@ function renderBlogOnlyResult(d){
   document.getElementById('blogStartCard').style.display = 'none';
   document.getElementById('blogResultCard').style.display = 'block';
 
-  // 직전 블로그 순위 맵
+  // 직전 블로그 순위 맵 + J단계: 키워드 히스토리
   const prevBlogMap = buildPrevBlogRankMap(prev);
-  renderBlogResultsWithComparison(d.blog_results||[], prevBlogMap);
+  const kwHistory = d.keyword_history || {};
+  renderBlogResultsWithComparison(d.blog_results||[], prevBlogMap, kwHistory);
 }
 
 function buildPrevBlogRankMap(prev){
@@ -1061,9 +1115,11 @@ function getRankMent(rank, idx){
 
 // ── 키워드 렌더링 ─────────────────────────────────────────────────────────────
 let _lastPrevRankMap = {};
-function renderKeywords(expanded, prevRankMap){
+let _lastKwHistory = {};
+function renderKeywords(expanded, prevRankMap, kwHistory){
   _kwExpanded=expanded;
   if(prevRankMap) _lastPrevRankMap = prevRankMap;
+  if(kwHistory) _lastKwHistory = kwHistory;
   const list=document.getElementById('kwList');
   const more=document.getElementById('kwMore');
 
@@ -1095,27 +1151,12 @@ function renderKeywords(expanded, prevRankMap){
       :`<span style="font-size:.85rem;font-weight:700;color:#ef4444">놓침</span>`;
     const countHtml=k.businesses_total?`<span class="kw-count">등록업체 ${k.businesses_total.toLocaleString()}개</span>`:'';
 
-    // 직전 순위 비교
-    let changeHtml = '';
-    const prevRank = _lastPrevRankMap[k.keyword];
-    if(prevRank != null && k.rank != null){
-      const diff = prevRank - k.rank;  // 양수면 상승
-      if(diff > 0){
-        changeHtml = `<span class="rank-change up">▲${diff}</span><span class="prev-rank">(전: ${prevRank}위)</span>`;
-      } else if(diff < 0){
-        changeHtml = `<span class="rank-change down">▼${Math.abs(diff)}</span><span class="prev-rank">(전: ${prevRank}위)</span>`;
-      } else {
-        changeHtml = `<span class="rank-change same">-</span><span class="prev-rank">(전: ${prevRank}위)</span>`;
-      }
-    } else if(prevRank != null && k.rank == null){
-      changeHtml = `<span class="rank-change down">▼</span><span class="prev-rank">(전: ${prevRank}위)</span>`;
-    } else if(prevRank == null && k.rank != null && Object.keys(_lastPrevRankMap).length > 0){
-      changeHtml = `<span class="rank-change up">NEW</span>`;
-    }
+    // J단계: 키워드 히스토리 추세 표시
+    let trendHtml = buildKeywordTrend(k.keyword, k.rank, _lastKwHistory);
 
     return `<div class="kw-item">
       <div class="kw-main">
-        <div class="kw-rank-col" style="color:${rc}">${rankDisplay}${changeHtml}</div>
+        <div class="kw-rank-col" style="color:${rc}">${rankDisplay}${trendHtml}</div>
         <div class="kw-divider"></div>
         <div class="kw-info">
           <div class="kw-title-row">
@@ -1134,6 +1175,50 @@ function renderKeywords(expanded, prevRankMap){
   } else {
     more.textContent='';
   }
+}
+
+// J단계: 키워드 히스토리 추세 문자열 생성
+function buildKeywordTrend(keyword, currentRank, kwHistory){
+  const history = kwHistory[keyword];
+  if(!history || history.length === 0){
+    // 첫 분석
+    return '<span class="kw-first">(첫 분석)</span>';
+  }
+
+  // 과거 기록이 1개면 직전 비교만
+  if(history.length === 1){
+    const prev = history[0];
+    if(prev.rank == null && currentRank == null) return '';
+    if(prev.rank == null) return '<span class="kw-trend"><span class="up">NEW</span></span>';
+    if(currentRank == null) return `<span class="kw-trend"><span class="down">놓침</span> (전: ${prev.rank}위)</span>`;
+
+    const diff = prev.rank - currentRank;
+    if(diff > 0){
+      return `<span class="kw-trend"><span class="up">▲${diff}</span> (전: ${prev.rank}위)</span>`;
+    } else if(diff < 0){
+      return `<span class="kw-trend"><span class="down">▼${Math.abs(diff)}</span> (전: ${prev.rank}위)</span>`;
+    } else {
+      return `<span class="kw-trend"><span class="same">-</span> (전: ${prev.rank}위)</span>`;
+    }
+  }
+
+  // 과거 기록이 2개 이상이면 추세 나열: "13위 → 9위 → 2위"
+  const ranks = history.map(h => h.rank != null ? h.rank + '위' : '놓침');
+  ranks.push(currentRank != null ? currentRank + '위' : '놓침');
+
+  // 최근 2개로 상승/하락 판단
+  const lastPrev = history[history.length - 1];
+  let cls = 'same';
+  if(lastPrev.rank != null && currentRank != null){
+    if(lastPrev.rank > currentRank) cls = 'up';
+    else if(lastPrev.rank < currentRank) cls = 'down';
+  } else if(lastPrev.rank == null && currentRank != null){
+    cls = 'up';
+  } else if(lastPrev.rank != null && currentRank == null){
+    cls = 'down';
+  }
+
+  return `<span class="kw-trend"><span class="${cls}">${ranks.join(' → ')}</span></span>`;
 }
 function toggleKw(){ renderKeywords(!_kwExpanded); }
 
@@ -1217,9 +1302,10 @@ function renderBlogResults(blogResults){
 }
 
 // 블로그 분석 결과 (직전 비교 포함)
-function renderBlogResultsWithComparison(blogResults, prevBlogMap){
+function renderBlogResultsWithComparison(blogResults, prevBlogMap, kwHistory){
   const list = document.getElementById('blogList');
   const summary = document.getElementById('blogSummary');
+  kwHistory = kwHistory || {};
 
   if(!blogResults || blogResults.length===0){
     list.innerHTML = `<div class="blog-empty">
@@ -1252,8 +1338,12 @@ function renderBlogResultsWithComparison(blogResults, prevBlogMap){
       ? `<span class="blog-kw-badge">${matchedHits.length}개 매칭</span>`
       : '<span class="blog-kw-badge" style="background:var(--gray-400)">0개</span>';
 
+    // J단계: 블로그 키워드 추세 (최상위 순위 기준)
+    const topRank = matchedHits.length > 0 ? Math.min(...matchedHits.map(h=>h.rank)) : null;
+    const kwTrendHtml = buildKeywordTrend(kw, topRank, kwHistory);
+
     html += `<div class="blog-kw-group">
-      <div class="blog-kw-title">${esc(kw)} ${badge}</div>
+      <div class="blog-kw-title">${esc(kw)} ${badge} ${kwTrendHtml}</div>
       <div class="blog-hits">`;
 
     if(matchedHits.length > 0){
@@ -1523,8 +1613,11 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
         "blog":      req.ad_blog,
     }
 
-    # 직전 분석 기록 조회
+    # 직전 분석 기록 조회 + J단계: 히스토리 추세
     prev_analysis = None
+    analysis_count = 0
+    prev_analyzed_at = None
+    keyword_history = {}
     if place_id:
         prev_record = crud.get_previous_analysis(db, place_id, "place")
         if prev_record:
@@ -1533,6 +1626,11 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
                 "analyzed_at": prev_record.analyzed_at.isoformat() if prev_record.analyzed_at else None,
                 "result_json": prev_record.result_json,
             }
+            prev_analyzed_at = prev_record.analyzed_at.strftime("%m/%d") if prev_record.analyzed_at else None
+        # 분석 횟수 (현재 분석 포함이므로 조회 시점에서는 +1 전)
+        analysis_count = crud.get_analysis_count(db, place_id, "place")
+        # 키워드별 과거 순위 기록
+        keyword_history = crud.get_keyword_rank_history(db, place_id, "place", limit=5)
 
     if place_id and not req.force_refresh:
         cached = crud.get_cached_result(db, place_id)
@@ -1540,6 +1638,9 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
             cached["cached"] = True
             cached["ad_flags"] = ad_flags
             cached["prev_analysis"] = prev_analysis
+            cached["analysis_count"] = analysis_count
+            cached["prev_analyzed_at"] = prev_analyzed_at
+            cached["keyword_history"] = keyword_history
             apply_ad_flags(cached.get("scores", {}), ad_flags)
             return cached
 
@@ -1579,6 +1680,15 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
 
     result["cached"] = False
     result["prev_analysis"] = prev_analysis
+    # J단계: 저장 후 히스토리 다시 조회 (방금 저장한 것 포함)
+    result_place_id_final = result.get("place_id") or place_id
+    if result_place_id_final:
+        result["analysis_count"] = crud.get_analysis_count(db, result_place_id_final, "place")
+        result["keyword_history"] = crud.get_keyword_rank_history(db, result_place_id_final, "place", limit=5)
+    else:
+        result["analysis_count"] = 1
+        result["keyword_history"] = {}
+    result["prev_analyzed_at"] = prev_analyzed_at
     return result
 
 
@@ -1741,6 +1851,7 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
 
     # 직전 블로그 분석 기록 조회 (place_id 확정 후 — naver.me도 이 시점엔 해석됨)
     prev_analysis = None
+    prev_analyzed_at = None
     prev_record = crud.get_previous_analysis(db, place_id, "blog")
     if prev_record:
         prev_analysis = {
@@ -1748,6 +1859,11 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
             "analyzed_at": prev_record.analyzed_at.isoformat() if prev_record.analyzed_at else None,
             "result_json": prev_record.result_json,
         }
+        prev_analyzed_at = prev_record.analyzed_at.strftime("%m/%d") if prev_record.analyzed_at else None
+
+    # J단계: 분석 횟수 + 키워드별 과거 순위 (저장 전이므로 현재 분석 미포함)
+    analysis_count_before = crud.get_analysis_count(db, place_id, "blog")
+    keyword_history = crud.get_keyword_rank_history(db, place_id, "blog", limit=5)
 
     total_matched = sum(
         len([h for h in r.get("hits", []) if h.get("rank")])
@@ -1763,6 +1879,7 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
         "total_matched": total_matched,
         "analyzed_keywords": len(blog_results),
         "prev_analysis": prev_analysis,
+        "prev_analyzed_at": prev_analyzed_at,
         "keywords_used": keywords[:15],
     }
 
@@ -1780,6 +1897,10 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning(f"블로그 히스토리 저장 실패: {e}")
+
+    # J단계: 저장 후 최종 분석 횟수 (방금 저장한 것 포함)
+    result["analysis_count"] = analysis_count_before + 1
+    result["keyword_history"] = keyword_history
 
     return result
 

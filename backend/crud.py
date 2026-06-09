@@ -197,3 +197,68 @@ def get_analysis_history_list(
         .limit(limit)
         .all()
     )
+
+
+def get_keyword_rank_history(
+    db: Session, place_id: str, analysis_type: str, limit: int = 5
+) -> dict[str, list[dict]]:
+    """
+    키워드별 과거 순위 기록을 조회합니다.
+
+    Returns:
+        {"키워드명": [{"rank": 5, "date": "06/08"}, ...], ...}
+        리스트는 오래된 순 -> 최신순 정렬
+    """
+    history_list = get_analysis_history_list(db, place_id, analysis_type, limit)
+    if not history_list:
+        return {}
+
+    keyword_history: dict[str, list[dict]] = {}
+
+    # 오래된 순으로 처리 (reverse)
+    for record in reversed(history_list):
+        if not record.result_json:
+            continue
+        try:
+            data = json.loads(record.result_json)
+            results_key = "place_results" if analysis_type == "place" else "blog_results"
+            results = data.get(results_key, [])
+
+            date_str = record.analyzed_at.strftime("%m/%d") if record.analyzed_at else ""
+
+            for item in results:
+                kw = item.get("keyword", "")
+                if not kw:
+                    continue
+
+                rank = item.get("rank")
+                if rank is None:
+                    rank_str = item.get("status", "")
+                    if "위" in str(rank_str):
+                        try:
+                            rank = int(str(rank_str).replace("위", ""))
+                        except:
+                            rank = None
+
+                if kw not in keyword_history:
+                    keyword_history[kw] = []
+                keyword_history[kw].append({
+                    "rank": rank,
+                    "date": date_str,
+                })
+        except Exception:
+            continue
+
+    return keyword_history
+
+
+def get_analysis_count(db: Session, place_id: str, analysis_type: str) -> int:
+    """해당 매장의 분석 횟수"""
+    return (
+        db.query(models.AnalysisHistory)
+        .filter(
+            models.AnalysisHistory.place_id == place_id,
+            models.AnalysisHistory.analysis_type == analysis_type,
+        )
+        .count()
+    )

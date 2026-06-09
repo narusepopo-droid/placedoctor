@@ -32,6 +32,10 @@ class DiagnoseResponse(BaseModel):
     scores: Any = {}
     ad_flags: Any = {}
     prev_analysis: Any = None  # 직전 분석 결과 (비교용)
+    # J단계: 히스토리 추세 표시용
+    analysis_count: int = 0  # 이 가게 N번째 분석
+    prev_analyzed_at: Optional[str] = None  # 지난 분석 날짜
+    keyword_history: Any = {}  # 키워드별 과거 순위 {"키워드": [{"rank": N, "date": "MM/DD"}, ...]}
 
 
 class BlogAnalyzeRequest(BaseModel):
