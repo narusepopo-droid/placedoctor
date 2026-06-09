@@ -2009,12 +2009,30 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
     if place_id and not req.force_refresh:
         cached = crud.get_cached_result(db, place_id)
         if cached:
+            cached_place_id = cached.get("place_id") or place_id
+            # 캐시 적중이어도 "분석 1회"로 히스토리에 누적한다.
+            # (저장을 건너뛰면 24h 캐시 동안 재분석이 안 쌓여 항상 "첫 분석"으로 표시됨)
+            if cached_place_id:
+                try:
+                    crud.save_analysis_history(
+                        db,
+                        place_id=cached_place_id,
+                        store_name=cached.get("store_name", req.store_name),
+                        analysis_type="place",
+                        total_score=cached.get("scores", {}).get("total"),
+                        result_json=json_module.dumps(cached, ensure_ascii=False),
+                        anon_id=req.anon_id,
+                    )
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"히스토리 저장 실패(캐시): {e}")
             cached["cached"] = True
             cached["ad_flags"] = ad_flags
             cached["prev_analysis"] = prev_analysis
-            cached["analysis_count"] = analysis_count
             cached["prev_analyzed_at"] = prev_analyzed_at
-            cached["keyword_history"] = keyword_history
+            # 방금 저장분 포함해 재집계 (N번째 분석 / 키워드 추세)
+            cached["analysis_count"] = crud.get_analysis_count(db, cached_place_id, "place") if cached_place_id else analysis_count
+            cached["keyword_history"] = crud.get_keyword_rank_history(db, cached_place_id, "place", limit=5) if cached_place_id else keyword_history
             apply_ad_flags(cached.get("scores", {}), ad_flags)
             return cached
 
@@ -2036,8 +2054,22 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
         import logging
         logging.getLogger(__name__).warning(f"DB 저장 실패: {e}")
 
-    # 히스토리에 누적 저장
+    # 히스토리 누적 + 직전기록 조회는 '해석된' place_id 기준으로 한다.
+    # (_extract_place_id는 naver.me 단축URL에서 None이라, URL 기준으로만 조회하면
+    #  단축URL 사용 시 직전기록/추세가 항상 비어 "첫 분석"으로만 보였음)
     result_place_id = result.get("place_id") or place_id
+
+    # 저장 '전' 시점의 직전 기록(= 이번 분석 직전) — 해석된 place_id 기준으로 재조회
+    if result_place_id:
+        prev_record2 = crud.get_previous_analysis(db, result_place_id, "place")
+        if prev_record2:
+            prev_analysis = {
+                "total_score": prev_record2.total_score,
+                "analyzed_at": prev_record2.analyzed_at.isoformat() if prev_record2.analyzed_at else None,
+                "result_json": prev_record2.result_json,
+            }
+            prev_analyzed_at = prev_record2.analyzed_at.strftime("%m/%d") if prev_record2.analyzed_at else None
+
     if result_place_id:
         try:
             crud.save_analysis_history(
@@ -2055,11 +2087,10 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
 
     result["cached"] = False
     result["prev_analysis"] = prev_analysis
-    # J단계: 저장 후 히스토리 다시 조회 (방금 저장한 것 포함)
-    result_place_id_final = result.get("place_id") or place_id
-    if result_place_id_final:
-        result["analysis_count"] = crud.get_analysis_count(db, result_place_id_final, "place")
-        result["keyword_history"] = crud.get_keyword_rank_history(db, result_place_id_final, "place", limit=5)
+    # J단계: 저장 후 재집계 (방금 저장분 포함)
+    if result_place_id:
+        result["analysis_count"] = crud.get_analysis_count(db, result_place_id, "place")
+        result["keyword_history"] = crud.get_keyword_rank_history(db, result_place_id, "place", limit=5)
     else:
         result["analysis_count"] = 1
         result["keyword_history"] = {}
