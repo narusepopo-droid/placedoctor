@@ -53,7 +53,7 @@ _proactor_ready.wait()  # 루프가 준비될 때까지 대기
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="플레이스닥터 API",
+    title="플레이스랭킹 API",
     description="네이버 플레이스 순위 진단 서비스",
     version="0.4.0",
 )
@@ -63,29 +63,31 @@ _HTML = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>플레이스닥터 — 네이버 플레이스 무료 진단</title>
+<title>플레이스랭킹 — 네이버 플레이스 순위 무료 확인</title>
 <style>
 :root{
   --green:#03c75a;--green-d:#02a84d;--green-bg:#f0fdf6;
   --red:#ef4444;--orange:#f97316;--score-green:#22c55e;
-  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;
-  --gray-400:#9ca3af;--gray-600:#4b5563;--gray-800:#1f2937;--gray-900:#111827;
-  --radius:16px;--shadow:0 2px 16px rgba(0,0,0,.08);
+  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;
+  --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;--gray-800:#1f2937;--gray-900:#111827;
+  --radius:14px;--shadow:0 2px 16px rgba(0,0,0,.08);--card-border:1px solid #e5e7eb;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f9fafb;color:var(--gray-900);min-height:100vh;}
 
-/* HEADER */
-.header{background:var(--green);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(3,199,90,.3);}
-.logo{display:flex;align-items:center;gap:8px;color:#fff;font-size:1.2rem;font-weight:800;letter-spacing:-.3px;}
-.logo-icon{font-size:1.4rem;}
-.header-badge{background:rgba(255,255,255,.25);color:#fff;font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:20px;}
+/* HEADER (L단계: 흰 배경 + 차분한 초록 로고) */
+.header{background:#fff;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--gray-200);}
+.logo{display:flex;align-items:baseline;gap:7px;color:var(--green-d);font-size:1.2rem;font-weight:800;letter-spacing:-.3px;}
+.logo-icon{font-size:1.3rem;}
+.logo-sub{font-size:.72rem;font-weight:500;color:var(--gray-400);padding-left:9px;border-left:1px solid var(--gray-200);letter-spacing:0;}
+.header-badge{background:var(--green-bg);color:var(--green-d);font-size:.72rem;font-weight:700;padding:4px 11px;border-radius:20px;border:1px solid #bbf7d0;}
+@media (max-width:480px){.logo-sub{display:none;}}
 
 /* MAIN */
 .main{max-width:520px;margin:0 auto;padding:20px 16px 100px;}
 
 /* INPUT CARD */
-.input-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 20px;}
+.input-card{background:#fff;border-radius:var(--radius);border:var(--card-border);padding:24px 20px;}
 .input-card h2{font-size:1.15rem;font-weight:700;margin-bottom:4px;}
 .input-card p{font-size:.85rem;color:var(--gray-600);margin-bottom:20px;}
 .field{margin-bottom:14px;}
@@ -97,6 +99,43 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-diagnose:disabled{background:var(--gray-400);cursor:not-allowed;}
 .status-msg{text-align:center;color:var(--gray-600);font-size:.85rem;margin-top:12px;min-height:20px;}
 
+/* L단계: 랜딩 (클린 메디컬 톤 — 흰배경+초록+넓은 여백) */
+.landing{margin-bottom:8px;}
+.hero{text-align:center;padding:30px 12px 26px;}
+.hero-icon{font-size:2.8rem;display:block;margin-bottom:16px;}
+.hero h1{font-size:1.6rem;font-weight:800;line-height:1.35;letter-spacing:-.5px;color:var(--gray-900);margin-bottom:12px;}
+.hero h1 .accent{color:var(--green);}
+.hero-sub{font-size:.95rem;color:var(--gray-600);line-height:1.65;margin:0 auto 24px;max-width:330px;}
+.hero-cta{width:100%;max-width:300px;padding:15px 24px;background:var(--green);color:#fff;border:none;border-radius:12px;font-size:1.05rem;font-weight:700;cursor:pointer;transition:background .2s,transform .1s;box-shadow:0 4px 14px rgba(3,199,90,.25);}
+.hero-cta:hover{background:var(--green-d);}
+.hero-cta:active{transform:translateY(1px);}
+.hero-note{font-size:.78rem;color:var(--gray-400);margin-top:13px;}
+.lp-section{margin-top:38px;}
+.lp-section-title{font-size:.74rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:1px;text-align:center;margin-bottom:18px;}
+.value-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.value-card{background:#fff;border:1px solid var(--gray-200);border-radius:14px;padding:20px 14px;text-align:center;}
+.value-card .v-icon{font-size:1.7rem;display:block;margin-bottom:10px;}
+.value-card .v-title{font-size:.93rem;font-weight:700;color:var(--gray-900);margin-bottom:5px;}
+.value-card .v-desc{font-size:.77rem;color:var(--gray-500);line-height:1.5;}
+.steps{display:flex;flex-direction:column;gap:12px;}
+.step{display:flex;align-items:flex-start;gap:14px;background:#fff;border:1px solid var(--gray-200);border-radius:14px;padding:16px 18px;}
+.step-num{flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--green-bg);color:var(--green-d);font-weight:800;font-size:1rem;display:flex;align-items:center;justify-content:center;}
+.step-body .s-title{font-size:.93rem;font-weight:700;color:var(--gray-900);margin-bottom:3px;}
+.step-body .s-desc{font-size:.81rem;color:var(--gray-500);line-height:1.5;}
+.preview-card{background:#fff;border:1px solid var(--gray-200);border-radius:16px;padding:26px 20px;text-align:center;}
+.preview-gauge{position:relative;width:140px;height:140px;margin:0 auto;}
+.preview-score{position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:2.1rem;font-weight:800;color:var(--green-d);line-height:1;}
+.preview-score small{display:block;font-size:.66rem;color:var(--gray-400);font-weight:600;margin-top:3px;}
+.preview-trend{margin-top:16px;display:inline-flex;align-items:center;gap:6px;background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:8px 16px;font-size:.86rem;font-weight:700;color:#16a34a;}
+.preview-kw{margin-top:16px;display:flex;flex-direction:column;gap:8px;}
+.preview-kw-row{display:flex;justify-content:space-between;align-items:center;font-size:.84rem;padding:9px 13px;background:var(--gray-50);border-radius:9px;}
+.preview-kw-row .pk-name{color:var(--gray-700);font-weight:600;}
+.preview-kw-row .pk-rank{color:var(--green-d);font-weight:700;}
+.preview-caption{font-size:.76rem;color:var(--gray-400);margin-top:16px;}
+.search-divider{text-align:center;margin:44px 0 18px;}
+.search-divider .sd-title{font-size:1.2rem;font-weight:800;color:var(--gray-900);}
+.search-divider .sd-sub{font-size:.85rem;color:var(--gray-500);margin-top:5px;}
+
 /* RESULT */
 #result{display:none;}
 .result-header{text-align:center;padding:24px 0 8px;}
@@ -105,7 +144,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .store-meta{font-size:.82rem;color:var(--gray-600);}
 
 /* GAUGE CARD */
-.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 20px;margin-top:14px;}
+.card{background:#fff;border-radius:var(--radius);border:var(--card-border);padding:22px 20px;margin-top:14px;}
 .card-title{font-size:.82rem;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;}
 .gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;}
 .gauge-svg{overflow:visible;}
@@ -143,8 +182,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .recent-stores-section{margin-top:24px;padding:0 4px;}
 .recent-stores-header{font-size:.9rem;font-weight:700;color:var(--gray-700);margin-bottom:12px;}
 .recent-stores-list{display:flex;flex-direction:column;gap:10px;}
-.recent-store-item{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;cursor:pointer;transition:transform .15s,box-shadow .15s;}
-.recent-store-item:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1);}
+.recent-store-item{background:#fff;border-radius:var(--radius);border:var(--card-border);padding:14px 16px;cursor:pointer;transition:transform .15s,border-color .15s;}
+.recent-store-item:hover{transform:translateY(-1px);border-color:var(--green);}
 .recent-store-name{font-size:.95rem;font-weight:700;color:var(--gray-800);}
 .recent-store-meta{font-size:.8rem;color:var(--gray-500);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;}
 .recent-store-score{font-size:.85rem;font-weight:600;color:var(--green);}
@@ -162,7 +201,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .axis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
 @media(max-width:380px){.axis-grid{grid-template-columns:1fr;}}
 @media(min-width:640px){.axis-grid{grid-template-columns:1fr 1fr;}}
-.axis-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 16px;}
+.axis-card{background:#fff;border-radius:var(--radius);border:var(--card-border);padding:18px 16px;}
 .axis-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
 .axis-icon{font-size:1.3rem;}
 .axis-name{font-size:.82rem;font-weight:700;color:var(--gray-600);}
@@ -243,7 +282,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* LOADING */
 #loading-section{display:none;}
-.l-card{background:#fff;border-radius:var(--radius);box-shadow:0 8px 32px rgba(3,199,90,.15),var(--shadow);padding:32px 20px;text-align:center;border-top:4px solid var(--green);}
+.l-card{background:#fff;border-radius:var(--radius);border:var(--card-border);border-top:3px solid var(--green);padding:32px 20px;text-align:center;}
 .l-pulse{font-size:3rem;display:block;margin-bottom:14px;animation:lpulse 1.4s ease-in-out infinite;}
 @keyframes lpulse{0%,100%{transform:scale(1);}50%{transform:scale(1.14);}}
 .l-title{font-size:1.15rem;font-weight:700;margin-bottom:4px;}
@@ -271,7 +310,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .l-tip{background:var(--green-bg);border-radius:10px;padding:12px 14px;font-size:.8rem;color:#374151;line-height:1.6;text-align:left;}
 
 /* TABS */
-.tabs{display:flex;gap:0;margin-top:14px;background:#fff;border-radius:var(--radius) var(--radius) 0 0;box-shadow:var(--shadow);overflow:hidden;}
+.tabs{display:flex;gap:0;margin-top:14px;background:#fff;border-radius:var(--radius);border:var(--card-border);overflow:hidden;}
 .tab-btn{flex:1;padding:14px 10px;background:#fff;border:none;font-size:.9rem;font-weight:600;color:var(--gray-600);cursor:pointer;transition:all .2s;border-bottom:3px solid transparent;}
 .tab-btn.active{color:var(--green);border-bottom-color:var(--green);background:var(--green-bg);}
 .tab-btn:hover:not(.active){background:var(--gray-50);}
@@ -279,7 +318,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .tab-content.active{display:block;}
 
 /* BLOG TAB */
-.blog-start-card{background:#fff;border-radius:0 0 var(--radius) var(--radius);box-shadow:var(--shadow);padding:32px 20px;text-align:center;}
+.blog-start-card{background:#fff;border-radius:var(--radius);border:var(--card-border);margin-top:14px;padding:32px 20px;text-align:center;}
 .blog-start-icon{font-size:3rem;margin-bottom:12px;}
 .blog-start-title{font-size:1.1rem;font-weight:700;margin-bottom:8px;}
 .blog-start-desc{font-size:.85rem;color:var(--gray-600);margin-bottom:20px;line-height:1.5;}
@@ -323,16 +362,69 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </head>
 <body>
 <div class="header">
-  <div class="logo"><span class="logo-icon">🩺</span>플레이스닥터</div>
-  <span class="header-badge">무료 진단</span>
+  <div class="logo"><span class="logo-icon">📊</span>플레이스랭킹<span class="logo-sub">네이버 플레이스 순위 분석</span></div>
+  <span class="header-badge">무료</span>
 </div>
 <div class="main">
 
-  <!-- INPUT -->
+  <!-- INPUT (L단계: 랜딩 + 검색폼) -->
   <div id="input-section">
-    <div class="input-card">
-      <h2>내 매장, 지금 몇 위인지 아세요?</h2>
-      <p>네이버 플레이스 URL만 있으면 순위·리뷰·경쟁사까지 무료로 분석해드려요</p>
+
+    <!-- 랜딩 -->
+    <div class="landing" id="landing">
+      <section class="hero">
+        <span class="hero-icon">🏆</span>
+        <h1>내 가게, 네이버에서<br><span class="accent">몇 위</span>인지 아세요?</h1>
+        <p class="hero-sub">플레이스 순위 · 블로그 노출 · 경쟁사까지<br>1분 만에 무료로 확인하세요.</p>
+        <button class="hero-cta" onclick="scrollToSearch()">내 순위 확인하기</button>
+        <div class="hero-note">가입 없이 바로 · 네이버 URL만 있으면 OK</div>
+      </section>
+
+      <section class="lp-section">
+        <div class="lp-section-title">무엇을 알 수 있나요</div>
+        <div class="value-grid">
+          <div class="value-card"><span class="v-icon">📍</span><div class="v-title">플레이스 순위</div><div class="v-desc">키워드별 내 가게 순위</div></div>
+          <div class="value-card"><span class="v-icon">📝</span><div class="v-title">블로그 노출</div><div class="v-desc">블로그 검색 노출 현황</div></div>
+          <div class="value-card"><span class="v-icon">📈</span><div class="v-title">변화 추적</div><div class="v-desc">지난 분석 대비 순위 변화</div></div>
+          <div class="value-card"><span class="v-icon">⚔️</span><div class="v-title">경쟁사 비교</div><div class="v-desc">1위 매장과의 격차</div></div>
+        </div>
+      </section>
+
+      <section class="lp-section">
+        <div class="lp-section-title">어떻게 작동하나요</div>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-body"><div class="s-title">URL 입력</div><div class="s-desc">매장명과 네이버 플레이스 URL만 넣으면 끝</div></div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-body"><div class="s-title">1분 분석</div><div class="s-desc">순위·리뷰·경쟁사를 자동으로 분석해요</div></div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-body"><div class="s-title">결과 확인 + 추적</div><div class="s-desc">점수와 순위를 받고, 다음 분석과 비교까지</div></div></div>
+        </div>
+      </section>
+
+      <section class="lp-section">
+        <div class="lp-section-title">이런 결과를 받아요</div>
+        <div class="preview-card">
+          <div class="preview-gauge">
+            <svg width="140" height="140" viewBox="0 0 140 140" style="transform:rotate(-90deg);">
+              <circle cx="70" cy="70" r="60" fill="none" stroke="#f3f4f6" stroke-width="12"/>
+              <circle cx="70" cy="70" r="60" fill="none" stroke="#22c55e" stroke-width="12" stroke-linecap="round" stroke-dasharray="309 377"/>
+            </svg>
+            <div class="preview-score">82<small>종합점수</small></div>
+          </div>
+          <div class="preview-trend">▲ 지난번 78점 → 이번 82점 (+4)</div>
+          <div class="preview-kw">
+            <div class="preview-kw-row"><span class="pk-name">오산 피부관리</span><span class="pk-rank">13위 → 9위 → 2위</span></div>
+            <div class="preview-kw-row"><span class="pk-name">오산 에스테틱</span><span class="pk-rank">6위 → 3위</span></div>
+          </div>
+          <div class="preview-caption">* 실제 분석 결과 예시 화면입니다</div>
+        </div>
+      </section>
+
+      <div class="search-divider" id="searchStart">
+        <div class="sd-title">내 가게 순위, 지금 확인</div>
+        <div class="sd-sub">아래에 매장 정보를 입력하세요</div>
+      </div>
+    </div>
+
+    <div class="input-card" id="searchFormCard">
       <div class="field"><label>매장명</label><input type="text" id="storeName" placeholder="예: 감동식당"></div>
       <div class="field"><label>네이버 플레이스 URL</label><input type="text" id="placeUrl" placeholder="https://naver.me/... 또는 map.naver.com/..."></div>
       <div class="field">
@@ -361,10 +453,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <label class="ad-check"><input type="checkbox" id="adBlog"> 블로그 체험단</label>
         </div>
       </div>
-      <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--gray-600);margin-bottom:14px;cursor:pointer;">
-        <input type="checkbox" id="forceRefresh"> 강제 재크롤링
-      </label>
-      <button class="btn-diagnose" id="diagBtn" onclick="startAnalysis()">🔍 진단하기</button>
+      <button class="btn-diagnose" id="diagBtn" onclick="startAnalysis()">내 순위 확인하기</button>
       <div class="status-msg" id="statusMsg"></div>
     </div>
     <div id="errBox"></div>
@@ -379,7 +468,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <!-- LOADING -->
   <div id="loading-section">
     <div class="l-card">
-      <span class="l-pulse" id="lIcon">🩺</span>
+      <span class="l-pulse" id="lIcon">📊</span>
       <div class="l-title" id="lTitle">플레이스 진단 중이에요</div>
       <div class="l-sub" id="lSub">키워드를 하나씩 검색하고 있어요 · 1~3분 소요</div>
       <div class="l-bar-wrap"><div class="l-bar" id="lBar"></div></div>
@@ -448,9 +537,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="kw-more" id="kwMore" onclick="toggleKw()"></div>
       </div>
 
-      <!-- DOCTOR COMMENT -->
+      <!-- ANALYSIS COMMENT -->
       <div class="card">
-        <div class="card-title">💬 닥터 코멘트</div>
+        <div class="card-title">💬 분석 코멘트</div>
         <div class="comment-box" id="commentBox"></div>
       </div>
 
@@ -511,6 +600,7 @@ let _prevAnalysis = null;     // 직전 분석 결과 (비교용)
 let _anonId = null;
 let _lastStoreName = '';
 let _lastPlaceUrl = '';
+let _forceRefresh = false;  // L단계: 강제 재크롤 체크박스 제거 → "다시 분석"에서만 내부적으로 true
 
 // K단계: 익명 ID 발급/조회
 function getOrCreateAnonId(){
@@ -617,6 +707,13 @@ async function loadHistoryResult(placeId, storeName){
 }
 
 // K단계: 다른 매장 검색 (새로고침 없이)
+// L단계: 랜딩 히어로 "내 순위 확인하기" → 검색폼으로 부드럽게 스크롤
+function scrollToSearch(){
+  const el = document.getElementById('searchStart') || document.getElementById('searchFormCard');
+  if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  setTimeout(function(){ var s=document.getElementById('storeName'); if(s) s.focus({preventScroll:true}); }, 450);
+}
+
 function goBackToSearch(){
   document.getElementById('result').style.display = 'none';
   document.getElementById('loading-section').style.display = 'none';
@@ -625,12 +722,12 @@ function goBackToSearch(){
   // 입력 필드 초기화
   document.getElementById('storeName').value = '';
   document.getElementById('placeUrl').value = '';
-  document.getElementById('forceRefresh').checked = false;
+  _forceRefresh = false;
 
   // 버튼 상태 리셋
   const btn = document.getElementById('diagBtn');
   btn.disabled = false;
-  btn.textContent = '🔍 진단하기';
+  btn.textContent = '내 순위 확인하기';
 
   // 최근 매장 새로고침
   loadRecentStores();
@@ -656,7 +753,7 @@ async function reAnalyze(){
 
   document.getElementById('storeName').value = _lastStoreName;
   document.getElementById('placeUrl').value = _lastPlaceUrl;
-  document.getElementById('forceRefresh').checked = true;
+  _forceRefresh = true;  // "다시 분석"은 캐시 무시하고 재크롤
 
   // 분석 유형 유지
   _analysisType = 'place';
@@ -765,7 +862,7 @@ function startLoading(type){
     document.getElementById('lSub').textContent = '블로그 노출 순위를 확인하고 있어요 · 약 1분 소요';
     _renderLSteps(0, L_STEPS_BLOG);
   } else {
-    document.getElementById('lIcon').textContent = '🩺';
+    document.getElementById('lIcon').textContent = '📊';
     document.getElementById('lTitle').textContent = '플레이스 진단 중이에요';
     document.getElementById('lSub').textContent = '키워드를 하나씩 검색하고 있어요 · 1~3분 소요';
     _renderLSteps(0, L_STEPS);
@@ -837,7 +934,7 @@ async function startAnalysis(){
 async function analyzePlaceOnly(){
   const name = document.getElementById('storeName').value.trim();
   const url  = document.getElementById('placeUrl').value.trim();
-  const force= document.getElementById('forceRefresh').checked;
+  const force= _forceRefresh; _forceRefresh = false;  // 1회성: 다시 분석 시에만 true
   const adFlags = {
     ad_place:     document.getElementById('adPlace').checked,
     ad_powerlink: document.getElementById('adPowerlink').checked,
@@ -880,7 +977,7 @@ async function analyzePlaceOnly(){
       document.getElementById('loading-section').style.display='none';
       document.getElementById('input-section').style.display='block';
       document.getElementById('errBox').innerHTML=`<div class="err-box">오류 (${res.status})<br><small>${esc(text.slice(0,400))}</small></div>`;
-      btn.disabled=false; btn.textContent='🔍 진단하기';
+      btn.disabled=false; btn.textContent='내 순위 확인하기';
       return;
     }
     document.getElementById('loading-section').style.display='none';
@@ -897,7 +994,7 @@ async function analyzePlaceOnly(){
     document.getElementById('loading-section').style.display='none';
     document.getElementById('input-section').style.display='block';
     document.getElementById('errBox').innerHTML=`<div class="err-box">요청 실패: ${esc(e.message)}</div>`;
-    btn.disabled=false; btn.textContent='🔍 진단하기';
+    btn.disabled=false; btn.textContent='내 순위 확인하기';
   }
 }
 
@@ -940,7 +1037,7 @@ async function analyzeBlogOnly(){
       document.getElementById('loading-section').style.display='none';
       document.getElementById('input-section').style.display='block';
       document.getElementById('errBox').innerHTML=`<div class="err-box">오류 (${res.status})<br><small>${esc(text.slice(0,400))}</small></div>`;
-      btn.disabled=false; btn.textContent='🔍 진단하기';
+      btn.disabled=false; btn.textContent='내 순위 확인하기';
       return;
     }
     document.getElementById('loading-section').style.display='none';
@@ -957,7 +1054,7 @@ async function analyzeBlogOnly(){
     document.getElementById('loading-section').style.display='none';
     document.getElementById('input-section').style.display='block';
     document.getElementById('errBox').innerHTML=`<div class="err-box">요청 실패: ${esc(e.message)}</div>`;
-    btn.disabled=false; btn.textContent='🔍 진단하기';
+    btn.disabled=false; btn.textContent='내 순위 확인하기';
   }
 }
 
@@ -1833,7 +1930,7 @@ function resetForm(){
   // 진단 버튼 초기화
   const btn = document.getElementById('diagBtn');
   btn.disabled = false;
-  btn.textContent = '🔍 진단하기';
+  btn.textContent = '내 순위 확인하기';
   // 블로그 분석 상태 초기화
   _blogAnalyzed = false;
   _prevAnalysis = null;
