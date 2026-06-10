@@ -386,11 +386,12 @@ async def get_store_details(page, url):
             // 방문자 리뷰: JSON 우선, DOM 텍스트·Apollo state 폴백
             let visitorReviews = mNum([
                 /"visitorReviewCount"\\s*:\\s*(\\d+)/,
+                /"visitorReviewsTotal"\\s*:\\s*(\\d+)/,
                 /"reviewCount"\\s*:\\s*(\\d+)/,
                 /"visitor_review_count"\\s*:\\s*(\\d+)/,
                 /"totalReviewCount"\\s*:\\s*(\\d+)/,
                 /"placeReviewCount"\\s*:\\s*(\\d+)/
-            ]) ?? domNum([/방문자\\s*리뷰\\s*([\\d,]+)/, /방문자\\s*([\\d,]+)\\s*개/]);
+            ]) ?? domNum([/방문자\\s*리뷰?\\s*([\\d,]+)/, /방문자\\s*([\\d,]+)\\s*개/]);
             if (visitorReviews === null || visitorReviews === undefined) {
                 try {
                     const _st = window.__APOLLO_STATE__;
@@ -404,10 +405,10 @@ async def get_store_details(page, url):
                 } catch(e) {}
             }
 
-            // 블로그 리뷰: DOM 텍스트 우선 (JSON에 키 없음)
+            // 블로그 리뷰: JSON + DOM
             const blogReviews =
-                domNum([/블로그\\s*리뷰\\s*([\\d,]+)/, /블로그([\\d,]+)/, /blog[\\s:]*([\\d,]+)/i]) ||
-                mNum([/"blogCafeReviewCount"\\s*:\\s*(\\d+)/, /"blogReviewCount"\\s*:\\s*(\\d+)/]);
+                mNum([/"cafeBlogReviewsTotal"\\s*:\\s*(\\d+)/, /"blogCafeReviewCount"\\s*:\\s*(\\d+)/, /"blogReviewCount"\\s*:\\s*(\\d+)/]) ||
+                domNum([/블로그\\s*리뷰?\\s*([\\d,]+)/, /블로그([\\d,]+)/, /blog[\\s:]*([\\d,]+)/i]);
 
             // 별점: DOM 텍스트 우선 (1.0~5.0 범위 숫자)
             const starScore =
@@ -419,13 +420,25 @@ async def get_store_details(page, url):
                 domNum([/사진\\s*([\\d,]+)/, /포토\\s*([\\d,]+)/]) ||
                 mNum([/"representativePhotoCount"\\s*:\\s*(\\d+)/, /"photoCount"\\s*:\\s*(\\d+)/, /"imageCount"\\s*:\\s*(\\d+)/]);
 
-            // 최근 리뷰 날짜: JSON 패턴 (없으면 아래 리뷰 탭에서 보강)
-            const latestReview = mStr([
+            // 최근 리뷰 날짜: JSON 패턴 (리뷰 탭 차단 시에도 메인에서 추출 시도)
+            let latestReview = mStr([
                 /"latestVisitorReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
                 /"latestReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
                 /"recentReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
                 /"created"\\s*:\\s*"(20[12]\\d[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/
             ]);
+            // 리뷰 JSON에서 date 필드로 최신 날짜 추출 (리뷰 탭 차단 우회)
+            if (!latestReview) {
+                try {
+                    const pat = /"date"\\s*:\\s*"(202\\d)\\.?(\\d{2})\\.?(\\d{2})\\b/g;
+                    let m, best = null;
+                    while ((m = pat.exec(html)) !== null) {
+                        const d = m[1] + '-' + m[2] + '-' + m[3];
+                        if (!best || d > best) best = d;
+                    }
+                    if (best) latestReview = best.replace(/-/g, '.');
+                } catch(e) {}
+            }
 
             return { visitorReviews, blogReviews, starScore, photoCount, latestReview };
         }''')

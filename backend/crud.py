@@ -326,6 +326,7 @@ def get_latest_analysis_result(
 ) -> dict | None:
     """
     K단계: 특정 매장의 최신 분석 결과를 반환합니다 (재크롤링 없이 즉시 표시용).
+    히스토리 추세 정보(analysis_count, prev_analysis, keyword_history)도 포함.
     """
     record = (
         db.query(models.AnalysisHistory)
@@ -344,6 +345,169 @@ def get_latest_analysis_result(
         result = json.loads(record.result_json)
         result["_from_history"] = True
         result["_analyzed_at"] = record.analyzed_at.isoformat() if record.analyzed_at else None
+
+        # 히스토리 추세 정보 추가 (최근 매장에서 불러올 때도 추세 표시)
+        analysis_count = get_analysis_count(db, place_id, analysis_type)
+        result["analysis_count"] = analysis_count
+
+        # 직전 분석 기록 (현재 레코드 제외)
+        prev_record = (
+            db.query(models.AnalysisHistory)
+            .filter(
+                models.AnalysisHistory.place_id == place_id,
+                models.AnalysisHistory.analysis_type == analysis_type,
+                models.AnalysisHistory.id != record.id,  # 현재 레코드 제외
+            )
+            .order_by(models.AnalysisHistory.analyzed_at.desc())
+            .first()
+        )
+
+        if prev_record:
+            result["prev_analysis"] = {
+                "total_score": prev_record.total_score,
+                "analyzed_at": prev_record.analyzed_at.isoformat() if prev_record.analyzed_at else None,
+                "result_json": prev_record.result_json,
+            }
+            result["prev_analyzed_at"] = prev_record.analyzed_at.strftime("%m/%d") if prev_record.analyzed_at else None
+        else:
+            result["prev_analysis"] = None
+            result["prev_analyzed_at"] = None
+
+        # 키워드별 과거 순위 기록
+        result["keyword_history"] = get_keyword_rank_history(db, place_id, analysis_type, limit=5)
+
         return result
     except:
         return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# M단계: 내 매장 / 경쟁 매장 등록
+# ─────────────────────────────────────────────────────────────────────────────
+
+def register_store(
+    db: Session,
+    anon_id: str,
+    place_id: str,
+    store_name: str,
+    store_type: str,  # 'my' | 'rival'
+) -> models.RegisteredStore | None:
+    """매장을 내 매장 또는 경쟁 매장으로 등록 (중복 방지)"""
+    existing = (
+        db.query(models.RegisteredStore)
+        .filter(
+            models.RegisteredStore.anon_id == anon_id,
+            models.RegisteredStore.place_id == place_id,
+            models.RegisteredStore.store_type == store_type,
+        )
+        .first()
+    )
+    if existing:
+        return existing  # 이미 등록됨
+
+    reg = models.RegisteredStore(
+        anon_id=anon_id,
+        place_id=place_id,
+        store_name=store_name,
+        store_type=store_type,
+    )
+    db.add(reg)
+    db.commit()
+    db.refresh(reg)
+    return reg
+
+
+def unregister_store(
+    db: Session,
+    anon_id: str,
+    place_id: str,
+    store_type: str,
+) -> bool:
+    """매장 등록 해제"""
+    record = (
+        db.query(models.RegisteredStore)
+        .filter(
+            models.RegisteredStore.anon_id == anon_id,
+            models.RegisteredStore.place_id == place_id,
+            models.RegisteredStore.store_type == store_type,
+        )
+        .first()
+    )
+    if record:
+        db.delete(record)
+        db.commit()
+        return True
+    return False
+
+
+def get_registered_stores(
+    db: Session,
+    anon_id: str,
+) -> dict:
+    """
+    내 매장 / 경쟁 매장 목록 조회.
+    각 매장에 최근 분석 결과 정보도 포함.
+    """
+    records = (
+        db.query(models.RegisteredStore)
+        .filter(models.RegisteredStore.anon_id == anon_id)
+        .order_by(models.RegisteredStore.registered_at.desc())
+        .all()
+    )
+
+    my_stores = []
+    rival_stores = []
+
+    for r in records:
+        # 최근 분석 결과 조회
+        latest = get_latest_analysis_result(db, r.place_id, "place")
+
+        info = {
+            "id": r.id,
+            "place_id": r.place_id,
+            "store_name": r.store_name,
+            "store_type": r.store_type,
+            "registered_at": r.registered_at.isoformat() if r.registered_at else None,
+            "total_score": None,
+            "analyzed_at": None,
+            "top_keyword": None,
+            "top_rank": None,
+        }
+
+        if latest:
+            info["total_score"] = latest.get("scores", {}).get("total")
+            info["analyzed_at"] = latest.get("_analyzed_at")
+            # 대표 키워드: 순위가 있는 키워드 중 가장 좋은 것
+            place_results = latest.get("place_results", [])
+            ranked = [p for p in place_results if p.get("rank")]
+            if ranked:
+                best = min(ranked, key=lambda x: x["rank"])
+                info["top_keyword"] = best.get("keyword")
+                info["top_rank"] = best.get("rank")
+
+        if r.store_type == "my":
+            my_stores.append(info)
+        else:
+            rival_stores.append(info)
+
+    return {"my_stores": my_stores, "rival_stores": rival_stores}
+
+
+def get_store_registration_status(
+    db: Session,
+    anon_id: str,
+    place_id: str,
+) -> dict:
+    """특정 매장의 등록 상태 조회"""
+    records = (
+        db.query(models.RegisteredStore)
+        .filter(
+            models.RegisteredStore.anon_id == anon_id,
+            models.RegisteredStore.place_id == place_id,
+        )
+        .all()
+    )
+    return {
+        "is_my": any(r.store_type == "my" for r in records),
+        "is_rival": any(r.store_type == "rival" for r in records),
+    }

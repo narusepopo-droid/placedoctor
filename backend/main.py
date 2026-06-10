@@ -190,12 +190,58 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .recent-store-time{font-size:.75rem;color:var(--gray-400);}
 .recent-stores-empty{font-size:.85rem;color:var(--gray-400);text-align:center;padding:20px 0;}
 
+/* M단계: 내 매장 / 경쟁 매장 섹션 */
+.registered-section{margin-top:24px;padding:0 4px;}
+.registered-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.registered-title{font-size:.95rem;font-weight:700;color:var(--gray-700);}
+.registered-count{font-size:.8rem;color:var(--gray-500);font-weight:500;}
+.registered-desc{font-size:.8rem;color:var(--gray-500);margin-bottom:12px;}
+.registered-list{display:flex;flex-direction:column;gap:10px;}
+.registered-item{background:#fff;border-radius:14px;border:1px solid var(--gray-100);padding:14px 16px;cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative;}
+.registered-item:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08);}
+.registered-item.my-store{border-left:3px solid var(--green);}
+.registered-item.rival-store{border-left:3px solid #f59e0b;}
+.registered-name{font-size:.95rem;font-weight:700;color:var(--gray-800);display:flex;align-items:center;gap:6px;}
+.registered-badge{font-size:.65rem;padding:2px 6px;border-radius:4px;font-weight:600;}
+.registered-badge.my{background:#dcfce7;color:#16a34a;}
+.registered-badge.rival{background:#fef3c7;color:#d97706;}
+.registered-meta{font-size:.8rem;color:var(--gray-500);margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;}
+.registered-rank{font-weight:600;color:var(--green);}
+.registered-score{font-weight:600;}
+.registered-empty{font-size:.85rem;color:var(--gray-400);text-align:center;padding:16px 0;}
+.registered-add-btn{display:inline-flex;align-items:center;gap:4px;padding:8px 14px;border:1px dashed var(--gray-300);border-radius:8px;background:#fff;font-size:.85rem;color:var(--gray-600);cursor:pointer;transition:all .15s;}
+.registered-add-btn:hover{border-color:var(--green);color:var(--green);}
+
+/* M단계: 등록 버튼 (결과 하단) */
+.register-buttons{display:flex;gap:10px;margin-top:20px;padding:16px;background:var(--gray-50);border-radius:12px;}
+.btn-register{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px;border:1px solid var(--gray-200);border-radius:10px;background:#fff;cursor:pointer;transition:all .15s;}
+.btn-register:hover{border-color:var(--green);background:#f0fdf4;}
+.btn-register.registered{border-color:var(--green);background:#f0fdf4;}
+.btn-register-icon{font-size:1.4rem;}
+.btn-register-label{font-size:.85rem;font-weight:600;color:var(--gray-700);}
+.btn-register-hint{font-size:.72rem;color:var(--gray-500);text-align:center;line-height:1.3;}
+.btn-unregister{font-size:.75rem;color:var(--gray-400);text-decoration:underline;cursor:pointer;margin-top:4px;}
+.btn-unregister:hover{color:#dc2626;}
+
+/* O단계: 카드 삭제 버튼 */
+.item-delete-btn{position:absolute;top:8px;right:8px;width:22px;height:22px;border:none;background:var(--gray-100);color:var(--gray-500);border-radius:50%;font-size:1rem;line-height:1;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;}
+.item-delete-btn:hover{background:#fecaca;color:#dc2626;}
+.registered-item,.recent-store-item{position:relative;}
+.recent-stores-header{display:flex;align-items:center;justify-content:space-between;}
+.btn-clear-all{font-size:.75rem;color:var(--gray-400);cursor:pointer;padding:4px 8px;}
+.btn-clear-all:hover{color:#dc2626;}
+
 /* K단계: 결과 상단 버튼 */
 .result-top-actions{display:flex;gap:10px;margin-bottom:16px;}
 .btn-action{flex:1;padding:10px 14px;border:1px solid var(--gray-200);border-radius:8px;background:#fff;font-size:.85rem;font-weight:600;color:var(--gray-700);cursor:pointer;transition:all .15s;}
 .btn-action:hover{background:var(--gray-50);border-color:var(--gray-300);}
 .btn-action.btn-refresh{background:var(--green);color:#fff;border-color:var(--green);}
 .btn-action.btn-refresh:hover{background:#02b350;}
+
+/* N단계: 맨 위로 플로팅 버튼 */
+.btn-scroll-top{position:fixed;bottom:24px;right:20px;width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;border:none;font-size:1.2rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(3,199,90,.35);opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s,transform .15s;z-index:100;}
+.btn-scroll-top.visible{opacity:1;visibility:visible;}
+.btn-scroll-top:hover{transform:scale(1.1);}
 
 /* 4-AXIS CARDS */
 .axis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
@@ -308,6 +354,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .dots span:nth-child(3){animation-delay:.26s;}
 @keyframes db{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
 .l-tip{background:var(--green-bg);border-radius:10px;padding:12px 14px;font-size:.8rem;color:#374151;line-height:1.6;text-align:left;}
+.btn-stop{margin-top:16px;padding:10px 24px;background:#fff;border:1px solid var(--gray-300);border-radius:8px;font-size:.85rem;color:var(--gray-600);cursor:pointer;transition:all .15s;}
+.btn-stop:hover{background:var(--gray-50);border-color:var(--gray-400);}
 
 /* TABS */
 .tabs{display:flex;gap:0;margin-top:14px;background:#fff;border-radius:var(--radius);border:var(--card-border);overflow:hidden;}
@@ -362,7 +410,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </head>
 <body>
 <div class="header">
-  <div class="logo"><span class="logo-icon">📊</span>플레이스랭킹<span class="logo-sub">네이버 플레이스 순위 분석</span></div>
+  <div class="logo" onclick="goHome()" style="cursor:pointer;"><span class="logo-icon">📊</span>플레이스랭킹<span class="logo-sub">네이버 플레이스 순위 분석</span></div>
   <span class="header-badge">무료</span>
 </div>
 <div class="main">
@@ -374,7 +422,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="landing" id="landing">
       <section class="hero">
         <span class="hero-icon">🏆</span>
-        <h1>내 가게, 네이버에서<br><span class="accent">몇 위</span>인지 아세요?</h1>
+        <h1>내 매장, 네이버에서<br><span class="accent">몇 위</span>인지 아세요?</h1>
         <p class="hero-sub">플레이스 순위 · 블로그 노출 · 경쟁사까지<br>1분 만에 무료로 확인하세요.</p>
         <button class="hero-cta" onclick="scrollToSearch()">내 순위 확인하기</button>
         <div class="hero-note">가입 없이 바로 · 네이버 URL만 있으면 OK</div>
@@ -383,7 +431,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <section class="lp-section">
         <div class="lp-section-title">무엇을 알 수 있나요</div>
         <div class="value-grid">
-          <div class="value-card"><span class="v-icon">📍</span><div class="v-title">플레이스 순위</div><div class="v-desc">키워드별 내 가게 순위</div></div>
+          <div class="value-card"><span class="v-icon">📍</span><div class="v-title">플레이스 순위</div><div class="v-desc">키워드별 내 매장 순위</div></div>
           <div class="value-card"><span class="v-icon">📝</span><div class="v-title">블로그 노출</div><div class="v-desc">블로그 검색 노출 현황</div></div>
           <div class="value-card"><span class="v-icon">📈</span><div class="v-title">변화 추적</div><div class="v-desc">지난 분석 대비 순위 변화</div></div>
           <div class="value-card"><span class="v-icon">⚔️</span><div class="v-title">경쟁사 비교</div><div class="v-desc">1위 매장과의 격차</div></div>
@@ -419,7 +467,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </section>
 
       <div class="search-divider" id="searchStart">
-        <div class="sd-title">내 가게 순위, 지금 확인</div>
+        <div class="sd-title">내 매장 순위, 지금 확인</div>
         <div class="sd-sub">아래에 매장 정보를 입력하세요</div>
       </div>
     </div>
@@ -458,9 +506,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
     <div id="errBox"></div>
 
+    <!-- M단계: 내 매장 -->
+    <div class="registered-section" id="myStoresSection" style="display:none;">
+      <div class="registered-header">
+        <span class="registered-title">⭐ 내 매장</span>
+        <span class="registered-count" id="myStoresCount"></span>
+      </div>
+      <div class="registered-list" id="myStoresList"></div>
+    </div>
+
+    <!-- M단계: 경쟁 매장 -->
+    <div class="registered-section" id="rivalStoresSection" style="display:none;">
+      <div class="registered-header">
+        <span class="registered-title">👀 옆 매장 몰래보기</span>
+        <span class="registered-count" id="rivalStoresCount"></span>
+      </div>
+      <div class="registered-desc">경쟁 매장 순위를 슬쩍 지켜보세요</div>
+      <div class="registered-list" id="rivalStoresList"></div>
+    </div>
+
     <!-- K단계: 최근 본 매장 -->
     <div class="recent-stores-section" id="recentStoresSection" style="display:none;">
-      <div class="recent-stores-header">최근 본 매장</div>
+      <div class="recent-stores-header">
+        <span>🕐 최근 본 매장</span>
+        <span class="btn-clear-all" onclick="clearAllRecentStores()">전체 지우기</span>
+      </div>
       <div class="recent-stores-list" id="recentStoresList"></div>
     </div>
   </div>
@@ -475,6 +545,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="l-pct" id="lPct">0%</div>
       <div class="l-steps" id="lSteps"></div>
       <div class="l-tip" id="lTip"></div>
+      <button class="btn-stop" onclick="goHome()">중지하기</button>
     </div>
   </div>
 
@@ -482,8 +553,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div id="result">
     <!-- K단계: 결과 화면 상단 재검색 버튼 -->
     <div class="result-top-actions">
-      <button class="btn-action" onclick="goBackToSearch()">← 다른 매장 검색</button>
-      <button class="btn-action btn-refresh" onclick="reAnalyze()">🔄 다시 분석</button>
+      <button class="btn-action" onclick="goBackToSearch()">← 홈으로</button>
     </div>
 
     <!-- 공통 헤더: 매장명 + 종합점수 (탭 위에 항상 표시) -->
@@ -563,7 +633,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="blog-start-icon">📝</div>
         <div class="blog-start-title">블로그 노출 분석</div>
         <div class="blog-start-desc">
-          우리 가게를 태그한 블로그가 검색 몇 위에 노출되는지 분석해요.<br>
+          우리 매장를 태그한 블로그가 검색 몇 위에 노출되는지 분석해요.<br>
           상위 5개 키워드 기준 · 약 60초 소요
         </div>
         <button class="btn-blog-analyze" id="btnBlogAnalyze" onclick="startBlogAnalysis()">🔍 블로그 노출 분석하기</button>
@@ -585,9 +655,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="blog-summary" id="blogSummary"></div>
       </div>
     </div>
+
+    <!-- M단계: 등록 버튼 -->
+    <div class="register-buttons" id="registerButtons">
+      <div class="btn-register" id="btnRegisterMy" onclick="registerStore('my')">
+        <span class="btn-register-icon">⭐</span>
+        <span class="btn-register-label">내 매장으로 등록</span>
+        <span class="btn-register-hint">매주 순위 변화를 알려드려요<br>(곧 출시)</span>
+      </div>
+      <div class="btn-register" id="btnRegisterRival" onclick="registerStore('rival')">
+        <span class="btn-register-icon">👀</span>
+        <span class="btn-register-label">경쟁 매장으로 등록</span>
+        <span class="btn-register-hint">옆 매장 순위를 슬쩍 지켜보세요</span>
+      </div>
+    </div>
   </div>
 
 </div>
+
+<!-- N단계: 맨 위로 플로팅 버튼 -->
+<button class="btn-scroll-top" id="btnScrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
 <script>
 // ── 상태 ──────────────────────────────────────────────────────────────────────
 const CIRC = 2 * Math.PI * 66; // ≈ 414.7
@@ -600,7 +688,10 @@ let _prevAnalysis = null;     // 직전 분석 결과 (비교용)
 let _anonId = null;
 let _lastStoreName = '';
 let _lastPlaceUrl = '';
-let _forceRefresh = false;  // L단계: 강제 재크롤 체크박스 제거 → "다시 분석"에서만 내부적으로 true
+let _forceRefresh = false;  // L단계: 강제 재크롤 체크박스 제거
+
+// N단계: 분석 중단용 AbortController
+let _analysisAbortController = null;
 
 // K단계: 익명 ID 발급/조회
 function getOrCreateAnonId(){
@@ -629,25 +720,70 @@ function renderRecentStores(stores){
   const section = document.getElementById('recentStoresSection');
   const list = document.getElementById('recentStoresList');
 
-  if(!stores || stores.length === 0){
+  // O단계: 숨긴 매장 필터링 + 최근 10개만
+  const hidden = getHiddenRecentStores();
+  const filtered = stores.filter(s => !hidden.includes(s.place_id)).slice(0, 10);
+
+  if(!filtered || filtered.length === 0){
     section.style.display = 'none';
     return;
   }
 
   section.style.display = 'block';
-  list.innerHTML = stores.map(s => {
+  list.innerHTML = filtered.map(s => {
     const score = s.total_score != null ? `<span class="recent-store-score">${Math.round(s.total_score)}점</span>` : '';
     const time = formatRelativeTime(s.analyzed_at);
     const addr = s.address ? s.address.split(' ').slice(0,3).join(' ') : '';
-    return `<div class="recent-store-item" onclick="loadHistoryResult('${esc(s.place_id)}', '${esc(s.store_name)}')">
-      <div class="recent-store-name">${esc(s.store_name)}</div>
-      <div class="recent-store-meta">
-        <span>${esc(addr)}</span>
-        ${score}
-        <span class="recent-store-time">${time}</span>
+    return `<div class="recent-store-item">
+      <button class="item-delete-btn" onclick="event.stopPropagation(); hideRecentStore('${esc(s.place_id)}')" title="삭제">×</button>
+      <div onclick="loadHistoryResult('${esc(s.place_id)}', '${esc(s.store_name)}')">
+        <div class="recent-store-name">${esc(s.store_name)}</div>
+        <div class="recent-store-meta">
+          <span>${esc(addr)}</span>
+          ${score}
+          <span class="recent-store-time">${time}</span>
+        </div>
       </div>
     </div>`;
   }).join('');
+}
+
+// O단계: 최근 본 매장 숨기기 (localStorage)
+function getHiddenRecentStores(){
+  try{
+    return JSON.parse(localStorage.getItem('hidden_recent_stores') || '[]');
+  }catch(e){
+    return [];
+  }
+}
+
+function hideRecentStore(placeId){
+  const hidden = getHiddenRecentStores();
+  if(!hidden.includes(placeId)){
+    hidden.push(placeId);
+    // 최대 50개까지만 저장 (오래된 것 자동 정리)
+    if(hidden.length > 50) hidden.shift();
+    localStorage.setItem('hidden_recent_stores', JSON.stringify(hidden));
+  }
+  loadRecentStores();  // 목록 새로고침
+}
+
+function clearAllRecentStores(){
+  if(!confirm('최근 본 매장 목록을 전체 지울까요?')) return;
+  // 현재 표시된 모든 매장을 숨김 처리
+  const section = document.getElementById('recentStoresList');
+  const items = section.querySelectorAll('.recent-store-item');
+  const hidden = getHiddenRecentStores();
+  items.forEach(item => {
+    const btn = item.querySelector('.item-delete-btn');
+    if(btn){
+      const onclick = btn.getAttribute('onclick');
+      const match = onclick.match(/hideRecentStore\('([^']+)'\)/);
+      if(match) hidden.push(match[1]);
+    }
+  });
+  localStorage.setItem('hidden_recent_stores', JSON.stringify([...new Set(hidden)]));
+  loadRecentStores();
 }
 
 function formatRelativeTime(isoStr){
@@ -660,6 +796,199 @@ function formatRelativeTime(isoStr){
   if(diff < 86400) return Math.floor(diff/3600) + '시간 전';
   if(diff < 172800) return '어제';
   return d.toLocaleDateString('ko-KR', {month:'numeric', day:'numeric'});
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// M단계: 내 매장 / 경쟁 매장 등록
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function loadRegisteredStores(){
+  if(!_anonId) return;
+  try{
+    const res = await fetch('/registered-stores/' + _anonId);
+    if(!res.ok) return;
+    const data = await res.json();
+    renderRegisteredStores(data.my_stores || [], data.rival_stores || []);
+  }catch(e){
+    console.log('등록 매장 로드 실패:', e);
+  }
+}
+
+function renderRegisteredStores(myStores, rivalStores){
+  // 내 매장
+  const mySection = document.getElementById('myStoresSection');
+  const myList = document.getElementById('myStoresList');
+  const myCount = document.getElementById('myStoresCount');
+
+  if(myStores.length > 0){
+    mySection.style.display = 'block';
+    myCount.textContent = '관리 중 ' + myStores.length + '곳';
+    myList.innerHTML = myStores.map(s => {
+      const rankText = s.top_rank ? `${s.top_keyword} ${s.top_rank}위` : '';
+      const scoreText = s.total_score != null ? `${Math.round(s.total_score)}점` : '';
+      const time = formatRelativeTime(s.analyzed_at);
+      return `<div class="registered-item my-store">
+        <button class="item-delete-btn" onclick="event.stopPropagation(); deleteRegisteredStore('${esc(s.place_id)}', 'my', '${esc(s.store_name)}')" title="삭제">×</button>
+        <div onclick="loadHistoryResult('${esc(s.place_id)}', '${esc(s.store_name)}')">
+          <div class="registered-name">${esc(s.store_name)} <span class="registered-badge my">관리 중</span></div>
+          <div class="registered-meta">
+            ${rankText ? `<span class="registered-rank">${rankText}</span>` : ''}
+            ${scoreText ? `<span class="registered-score">${scoreText}</span>` : ''}
+            ${time ? `<span>${time}</span>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    mySection.style.display = 'none';
+  }
+
+  // 경쟁 매장
+  const rivalSection = document.getElementById('rivalStoresSection');
+  const rivalList = document.getElementById('rivalStoresList');
+  const rivalCount = document.getElementById('rivalStoresCount');
+
+  if(rivalStores.length > 0){
+    rivalSection.style.display = 'block';
+    rivalCount.textContent = rivalStores.length + '곳';
+    rivalList.innerHTML = rivalStores.map(s => {
+      const rankText = s.top_rank ? `${s.top_keyword} ${s.top_rank}위` : '';
+      const scoreText = s.total_score != null ? `${Math.round(s.total_score)}점` : '';
+      const time = formatRelativeTime(s.analyzed_at);
+      return `<div class="registered-item rival-store">
+        <button class="item-delete-btn" onclick="event.stopPropagation(); deleteRegisteredStore('${esc(s.place_id)}', 'rival', '${esc(s.store_name)}')" title="삭제">×</button>
+        <div onclick="loadHistoryResult('${esc(s.place_id)}', '${esc(s.store_name)}')">
+          <div class="registered-name">${esc(s.store_name)} <span class="registered-badge rival">경쟁</span></div>
+          <div class="registered-meta">
+            ${rankText ? `<span class="registered-rank">${rankText}</span>` : ''}
+            ${scoreText ? `<span class="registered-score">${scoreText}</span>` : ''}
+            ${time ? `<span>${time}</span>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    rivalSection.style.display = 'none';
+  }
+}
+
+// O단계: 등록 매장 삭제
+async function deleteRegisteredStore(placeId, storeType, storeName){
+  const typeLabel = storeType === 'my' ? '내 매장' : '경쟁 매장';
+  if(!confirm(`"${storeName}"을(를) ${typeLabel}에서 뺄까요?`)) return;
+
+  try{
+    const params = new URLSearchParams({
+      anon_id: _anonId,
+      place_id: placeId,
+      store_type: storeType,
+    });
+    const res = await fetch('/unregister-store?' + params.toString(), {method: 'DELETE'});
+    if(res.ok){
+      loadRegisteredStores();  // 목록 새로고침
+    }
+  }catch(e){
+    console.log('삭제 실패:', e);
+  }
+}
+
+// 등록 상태 확인 및 버튼 업데이트
+async function updateRegisterButtons(placeId){
+  if(!_anonId || !placeId) return;
+  try{
+    const res = await fetch(`/store-registration-status/${_anonId}/${placeId}`);
+    if(!res.ok) return;
+    const status = await res.json();
+
+    const btnMy = document.getElementById('btnRegisterMy');
+    const btnRival = document.getElementById('btnRegisterRival');
+
+    if(status.is_my){
+      btnMy.classList.add('registered');
+      btnMy.innerHTML = `
+        <span class="btn-register-icon">✓</span>
+        <span class="btn-register-label">내 매장 등록됨</span>
+        <span class="btn-unregister" onclick="event.stopPropagation(); unregisterStore('my')">등록 해제</span>
+      `;
+    } else {
+      btnMy.classList.remove('registered');
+      btnMy.innerHTML = `
+        <span class="btn-register-icon">⭐</span>
+        <span class="btn-register-label">내 매장으로 등록</span>
+        <span class="btn-register-hint">매주 순위 변화를 알려드려요<br>(곧 출시)</span>
+      `;
+    }
+
+    if(status.is_rival){
+      btnRival.classList.add('registered');
+      btnRival.innerHTML = `
+        <span class="btn-register-icon">✓</span>
+        <span class="btn-register-label">경쟁 매장 등록됨</span>
+        <span class="btn-unregister" onclick="event.stopPropagation(); unregisterStore('rival')">등록 해제</span>
+      `;
+    } else {
+      btnRival.classList.remove('registered');
+      btnRival.innerHTML = `
+        <span class="btn-register-icon">👀</span>
+        <span class="btn-register-label">경쟁 매장으로 등록</span>
+        <span class="btn-register-hint">옆 매장 순위를 슬쩍 지켜보세요</span>
+      `;
+    }
+  }catch(e){
+    console.log('등록 상태 확인 실패:', e);
+  }
+}
+
+async function registerStore(storeType){
+  const d = window._diagData;
+  if(!d || !d.place_id){
+    alert('매장 정보를 찾을 수 없습니다.');
+    return;
+  }
+  if(!_anonId){
+    alert('잠시 후 다시 시도해주세요.');
+    return;
+  }
+
+  try{
+    const params = new URLSearchParams({
+      anon_id: _anonId,
+      place_id: d.place_id,
+      store_name: d.store_name || '',
+      store_type: storeType,
+    });
+    const res = await fetch('/register-store?' + params.toString(), {method: 'POST'});
+    if(!res.ok) throw new Error('등록 실패');
+
+    // 버튼 상태 업데이트 (alert 대신 상태 변화로 피드백)
+    await updateRegisterButtons(d.place_id);
+    // 등록 매장 목록도 새로고침
+    loadRegisteredStores();
+  }catch(e){
+    console.log('등록 실패:', e);
+  }
+}
+
+async function unregisterStore(storeType){
+  const d = window._diagData;
+  if(!d || !d.place_id || !_anonId) return;
+
+  const typeLabel = storeType === 'my' ? '내 매장' : '경쟁 매장';
+  if(!confirm(`${typeLabel} 등록을 해제할까요?`)) return;
+
+  try{
+    const params = new URLSearchParams({
+      anon_id: _anonId,
+      place_id: d.place_id,
+      store_type: storeType,
+    });
+    const res = await fetch('/unregister-store?' + params.toString(), {method: 'DELETE'});
+    if(!res.ok) throw new Error('해제 실패');
+
+    await updateRegisterButtons(d.place_id);
+  }catch(e){
+    alert('등록 해제에 실패했습니다.');
+  }
 }
 
 // K단계: 저장된 결과 즉시 표시 (place + blog 둘 다)
@@ -700,6 +1029,8 @@ async function loadHistoryResult(placeId, storeName){
     _historyBlogRendered = false;  // 히스토리 블로그 렌더링 플래그 초기화
 
     renderResult(placeData);
+    // M단계: 등록 버튼 상태 업데이트
+    if(placeData.place_id) updateRegisterButtons(placeData.place_id);
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(e){
     alert('저장된 분석 결과를 불러올 수 없습니다. 새로 분석해주세요.');
@@ -712,6 +1043,17 @@ function scrollToSearch(){
   const el = document.getElementById('searchStart') || document.getElementById('searchFormCard');
   if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
   setTimeout(function(){ var s=document.getElementById('storeName'); if(s) s.focus({preventScroll:true}); }, 450);
+}
+
+// N단계: 홈으로 (로고 클릭, 중지하기에서도 사용)
+function goHome(){
+  // 분석 중이면 중단
+  if(_analysisAbortController){
+    _analysisAbortController.abort();
+    _analysisAbortController = null;
+  }
+  stopLoading();
+  goBackToSearch();
 }
 
 function goBackToSearch(){
@@ -729,7 +1071,8 @@ function goBackToSearch(){
   btn.disabled = false;
   btn.textContent = '내 순위 확인하기';
 
-  // 최근 매장 새로고침
+  // M단계: 등록 매장 + 최근 매장 새로고침
+  loadRegisteredStores();
   loadRecentStores();
 
   window.scrollTo({top:0,behavior:'smooth'});
@@ -767,6 +1110,7 @@ async function reAnalyze(){
 document.addEventListener('DOMContentLoaded', () => {
   // K단계: 익명 ID 발급 + 최근 매장 로드
   _anonId = getOrCreateAnonId();
+  loadRegisteredStores();  // M단계: 내 매장 / 경쟁 매장 먼저
   loadRecentStores();
 
   document.querySelectorAll('.analysis-type-btn').forEach(btn => {
@@ -777,6 +1121,13 @@ document.addEventListener('DOMContentLoaded', () => {
       // 플레이스 분석 시에만 광고 체크박스 표시
       document.getElementById('adFieldsWrap').style.display = _analysisType === 'place' ? 'block' : 'none';
     });
+  });
+
+  // N단계: 스크롤 시 맨위로 버튼 표시
+  const scrollBtn = document.getElementById('btnScrollTop');
+  window.addEventListener('scroll', () => {
+    if(window.scrollY > 300) scrollBtn.classList.add('visible');
+    else scrollBtn.classList.remove('visible');
   });
 });
 
@@ -828,7 +1179,7 @@ const L_STEPS = [
   { label:'키워드 순위 분석 중',  icon:'📊', desc:'검색 키워드 30개를 하나씩 확인하고 있어요 (가장 오래 걸려요)', ms:80000 },
   { label:'리뷰·별점 수집 중',   icon:'⭐', desc:'방문자 리뷰, 블로그 리뷰, 별점 데이터를 모으고 있어요', ms:15000 },
   { label:'경쟁사 비교 중',      icon:'🏆', desc:'같은 키워드 1위 매장 정보를 분석하고 있어요',         ms:15000 },
-  { label:'블로그 분석 중',      icon:'📝', desc:'우리 가게 태그한 블로그 순위를 확인하고 있어요',       ms:70000 },
+  { label:'블로그 분석 중',      icon:'📝', desc:'우리 매장 태그한 블로그 순위를 확인하고 있어요',       ms:70000 },
   { label:'점수 계산 중',        icon:'✅', desc:'4축 진단 점수를 계산하고 있어요 — 거의 다 됐어요!',    ms:999999 },
 ];
 const L_TIPS = [
@@ -962,15 +1313,20 @@ async function analyzePlaceOnly(){
 
   const MIN_SHOW_MS = 1500;
 
+  // N단계: AbortController로 중지 가능하게
+  _analysisAbortController = new AbortController();
+
   try{
     const [res] = await Promise.all([
       fetch('/diagnose',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({store_name:name,place_url:url,force_refresh:force,anon_id:_anonId,...adFlags})
+        body: JSON.stringify({store_name:name,place_url:url,force_refresh:force,anon_id:_anonId,...adFlags}),
+        signal: _analysisAbortController.signal
       }),
       new Promise(r=>setTimeout(r, MIN_SHOW_MS))
     ]);
+    _analysisAbortController = null;
     const text = await res.text();
     stopLoading();
     if(!res.ok){
@@ -988,9 +1344,14 @@ async function analyzePlaceOnly(){
     switchTab('place');
     // K단계: 최근 매장 목록 새로고침
     loadRecentStores();
+    // M단계: 등록 버튼 상태 업데이트
+    if(data.place_id) updateRegisterButtons(data.place_id);
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(e){
+    _analysisAbortController = null;
     stopLoading();
+    // N단계: 중지한 경우 에러 표시 안 함
+    if(e.name === 'AbortError') return;
     document.getElementById('loading-section').style.display='none';
     document.getElementById('input-section').style.display='block';
     document.getElementById('errBox').innerHTML=`<div class="err-box">요청 실패: ${esc(e.message)}</div>`;
@@ -1022,15 +1383,20 @@ async function analyzeBlogOnly(){
 
   const MIN_SHOW_MS = 1500;
 
+  // N단계: AbortController
+  _analysisAbortController = new AbortController();
+
   try{
     const [res] = await Promise.all([
       fetch('/analyze-blog-standalone',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({store_name:name,place_url:url,anon_id:_anonId})
+        body: JSON.stringify({store_name:name,place_url:url,anon_id:_anonId}),
+        signal: _analysisAbortController.signal
       }),
       new Promise(r=>setTimeout(r, MIN_SHOW_MS))
     ]);
+    _analysisAbortController = null;
     const text = await res.text();
     stopLoading();
     if(!res.ok){
@@ -1050,7 +1416,9 @@ async function analyzeBlogOnly(){
     loadRecentStores();
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(e){
+    _analysisAbortController = null;
     stopLoading();
+    if(e.name === 'AbortError') return;
     document.getElementById('loading-section').style.display='none';
     document.getElementById('input-section').style.display='block';
     document.getElementById('errBox').innerHTML=`<div class="err-box">요청 실패: ${esc(e.message)}</div>`;
@@ -1165,7 +1533,7 @@ function renderAnalysisHistoryInfo(d, type){
     el.style.display = 'block';
   } else if(count > 1){
     const typeLabel = type === 'place' ? '플레이스' : '블로그';
-    let info = `이 가게 ${typeLabel} ${count}번째 분석`;
+    let info = `이 매장 ${typeLabel} ${count}번째 분석`;
     if(prevDate){
       info += ` · 지난 분석 ${prevDate}`;
     }
@@ -1296,18 +1664,27 @@ function buildContentCard(d, score){
 
 function buildActivityCard(d, score){
   const lr = d.latest_review_date;
-  let dayStr='-', dayScore=null;
+  let dayStr='정보 없음', dayScore=null, diff=null;
   if(lr){
-    const diff=Math.floor((Date.now()-new Date(lr.replace(/[.]/g,'-')))/86400000);
+    diff=Math.floor((Date.now()-new Date(lr.replace(/[.]/g,'-')))/86400000);
     dayStr=diff<=0?'오늘':`${diff}일 전`;
     dayScore=diff<=7?100:diff<=30?80:diff<=90?55:diff<=180?30:10;
   }
-  // 리뷰 활동: 처음 ~10개 중 30일 이내 개수로 백엔드가 산출한 라벨 (활발/보통/한산/거의 없음)
-  const act=d.review_activity;
-  const actScore=act==null?null:act==='활발'?100:act==='보통'?70:act==='한산'?45:25;
+  // 리뷰 활동: 백엔드 라벨 있으면 사용, 없으면 최근 리뷰 날짜로 추론
+  let act=d.review_activity;
+  let actScore=null;
+  if(act){
+    actScore=act==='활발'?100:act==='보통'?70:act==='한산'?45:25;
+  } else if(diff!==null){
+    // 최근 리뷰 날짜 기반 추론: 7일내=활발, 30일내=보통, 90일내=한산, 그외=거의없음
+    if(diff<=7){ act='활발'; actScore=100; }
+    else if(diff<=30){ act='보통'; actScore=70; }
+    else if(diff<=90){ act='한산'; actScore=45; }
+    else { act='거의 없음'; actScore=25; }
+  }
   return axisCard('🔥','최근활동',score,[
     detailRow('최근 리뷰', dayStr, dayScore),
-    detailRow('리뷰 활동', act??'-', actScore),
+    detailRow('리뷰 활동', act??'정보 없음', actScore),
     detailRow('정보 최신성', d.address?'최신':'미확인', d.address?80:30),
   ].join(''));
 }
@@ -1635,12 +2012,12 @@ function renderBlogResults(blogResults){
   // 요약
   let summaryText = '';
   if(totalMatched > 0){
-    summaryText = `✅ ${blogResults.length}개 키워드 중 총 ${totalMatched}개 블로그가 우리 가게를 태그했어요.`;
+    summaryText = `✅ ${blogResults.length}개 키워드 중 총 ${totalMatched}개 블로그가 우리 매장를 태그했어요.`;
     if(bestRank !== null){
       summaryText += ` 최고 순위는 '${bestKw}'에서 ${bestRank}위예요.`;
     }
   } else {
-    summaryText = `📋 ${blogResults.length}개 키워드 모두 우리 가게를 태그한 블로그가 10위 안에 없어요.<br>블로그 마케팅(체험단, 협찬)을 시작하면 노출이 늘어나요.`;
+    summaryText = `📋 ${blogResults.length}개 키워드 모두 우리 매장를 태그한 블로그가 10위 안에 없어요.<br>블로그 마케팅(체험단, 협찬)을 시작하면 노출이 늘어나요.`;
   }
   summary.innerHTML = `<p class="blog-summary-text">${summaryText}</p>`;
 }
@@ -1740,12 +2117,12 @@ function renderBlogResultsWithComparison(blogResults, prevBlogMap, kwHistory){
 
   let summaryText = '';
   if(totalMatched > 0){
-    summaryText = `✅ ${blogResults.length}개 키워드 중 총 ${totalMatched}개 블로그가 우리 가게를 태그했어요.`;
+    summaryText = `✅ ${blogResults.length}개 키워드 중 총 ${totalMatched}개 블로그가 우리 매장를 태그했어요.`;
     if(bestRank !== null){
       summaryText += ` 최고 순위는 '${bestKw}'에서 ${bestRank}위예요.`;
     }
   } else {
-    summaryText = `📋 ${blogResults.length}개 키워드 모두 우리 가게를 태그한 블로그가 10위 안에 없어요.<br>블로그 마케팅(체험단, 협찬)을 시작하면 노출이 늘어나요.`;
+    summaryText = `📋 ${blogResults.length}개 키워드 모두 우리 매장를 태그한 블로그가 10위 안에 없어요.<br>블로그 마케팅(체험단, 협찬)을 시작하면 노출이 늘어나요.`;
   }
   summary.innerHTML = `<p class="blog-summary-text">${summaryText}</p>`;
 }
@@ -2349,3 +2726,50 @@ def get_history_result_all(place_id: str, db: Session = Depends(get_db)):
         "place": place_result,
         "blog": blog_result,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# M단계: 내 매장 / 경쟁 매장 등록
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.post("/register-store", tags=["M단계"])
+def register_store_endpoint(
+    anon_id: str,
+    place_id: str,
+    store_name: str,
+    store_type: str,
+    db: Session = Depends(get_db),
+):
+    """매장을 내 매장(my) 또는 경쟁 매장(rival)으로 등록"""
+    if store_type not in ("my", "rival"):
+        raise HTTPException(status_code=400, detail="store_type은 'my' 또는 'rival'이어야 합니다")
+    result = crud.register_store(db, anon_id, place_id, store_name, store_type)
+    return {"success": True, "id": result.id if result else None}
+
+
+@app.delete("/unregister-store", tags=["M단계"])
+def unregister_store_endpoint(
+    anon_id: str,
+    place_id: str,
+    store_type: str,
+    db: Session = Depends(get_db),
+):
+    """매장 등록 해제"""
+    success = crud.unregister_store(db, anon_id, place_id, store_type)
+    return {"success": success}
+
+
+@app.get("/registered-stores/{anon_id}", tags=["M단계"])
+def get_registered_stores_endpoint(anon_id: str, db: Session = Depends(get_db)):
+    """내 매장 / 경쟁 매장 목록 조회"""
+    return crud.get_registered_stores(db, anon_id)
+
+
+@app.get("/store-registration-status/{anon_id}/{place_id}", tags=["M단계"])
+def get_store_registration_status_endpoint(
+    anon_id: str,
+    place_id: str,
+    db: Session = Depends(get_db),
+):
+    """특정 매장의 등록 상태 조회 (내 매장/경쟁 매장 여부)"""
+    return crud.get_store_registration_status(db, anon_id, place_id)

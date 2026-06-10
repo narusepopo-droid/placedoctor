@@ -139,3 +139,15 @@ class AnalysisHistory(Base):
     total_score    = Column(Float, nullable=True)  # 플레이스 분석 시 종합점수
     result_json    = Column(Text, nullable=True)   # 키워드별 순위 등 전체 결과 JSON
     anon_id        = Column(String(36), index=True, nullable=True)  # K단계: 익명 식별자 (UUID)
+
+
+class RegisteredStore(Base):
+    """M단계: 내 매장 / 경쟁 매장 등록"""
+    __tablename__ = "registered_stores"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    anon_id       = Column(String(36), index=True, nullable=False)
+    place_id      = Column(String(20), index=True, nullable=False)
+    store_name    = Column(String(200), nullable=False)
+    store_type    = Column(String(10), nullable=False)  # 'my' | 'rival'
+    registered_at = Column(DateTime(timezone=True), default=_now)

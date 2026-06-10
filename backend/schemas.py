@@ -88,3 +88,29 @@ class RecentStore(BaseModel):
 
 class RecentStoresResponse(BaseModel):
     stores: List[RecentStore] = []
+
+
+# M단계: 내 매장 / 경쟁 매장 등록
+class RegisterStoreRequest(BaseModel):
+    anon_id: str
+    place_id: str
+    store_name: str
+    store_type: str  # 'my' | 'rival'
+
+
+class RegisteredStoreInfo(BaseModel):
+    id: int
+    place_id: str
+    store_name: str
+    store_type: str
+    registered_at: Optional[str] = None
+    # 추가 정보 (최근 분석 결과에서)
+    total_score: Optional[float] = None
+    analyzed_at: Optional[str] = None
+    top_keyword: Optional[str] = None
+    top_rank: Optional[int] = None
+
+
+class RegisteredStoresResponse(BaseModel):
+    my_stores: List[RegisteredStoreInfo] = []
+    rival_stores: List[RegisteredStoreInfo] = []
