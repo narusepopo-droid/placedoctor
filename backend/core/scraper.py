@@ -427,26 +427,18 @@ async def get_store_details(page, url):
                 /"recentReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
                 /"created"\\s*:\\s*"(20[12]\\d[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/
             ]);
-            // 리뷰 JSON에서 date 필드로 최신 날짜 추출 (리뷰 탭 차단 우회)
-            if (!latestReview) {
-                try {
-                    const pat = /"date"\\s*:\\s*"(202\\d)\\.?(\\d{2})\\.?(\\d{2})\\b/g;
-                    let m, best = null;
-                    while ((m = pat.exec(html)) !== null) {
-                        const d = m[1] + '-' + m[2] + '-' + m[3];
-                        if (!best || d > best) best = d;
-                    }
-                    if (best) latestReview = best.replace(/-/g, '.');
-                } catch(e) {}
-            }
-
+            // B단계: 메인페이지 "date" 전역 스캔 제거 — 추천/고정 리뷰의 옛 날짜를
+            // 최신 리뷰로 잘못 잡아 최근활동 점수를 왜곡시켰음(예: 7개월 전 날짜).
+            // 최신 리뷰 날짜는 아래 리뷰 탭(최신순 맨 위)에서만 신뢰해 가져온다.
             return { visitorReviews, blogReviews, starScore, photoCount, latestReview };
         }''')
         visitor_reviews  = review_data.get("visitorReviews")
         blog_reviews     = review_data.get("blogReviews")
         star_score       = review_data.get("starScore")
         photo_count      = review_data.get("photoCount")
-        latest_review_date = review_data.get("latestReview")
+        # B단계: 메인페이지 날짜는 신뢰도 낮아 미사용. 최신 리뷰 날짜는 리뷰 탭(최신순 맨 위)에서만
+        # 설정한다. 리뷰 탭이 차단/실패하면 None으로 둔다(거짓 옛 날짜보다 "수집 실패"가 정확).
+        latest_review_date = None
 
         # 블로그리뷰·사진수·별점이 없으면 모바일 페이지에서 보완
         if (blog_reviews is None or photo_count is None or star_score is None) and p_id:
@@ -555,9 +547,9 @@ async def get_store_details(page, url):
                         f"  리뷰활동: 처음 {len(recent10)}개 중 30일이내 {c}개 → {review_activity} "
                         f"(경과일 샘플 {recent10})"
                     )
-                    if not latest_review_date:
-                        d = _today - _td(days=min(review_days))
-                        latest_review_date = d.strftime("%Y.%m.%d")
+                    # 리뷰 탭 최신순 맨 위(가장 최근) = min(경과일). latest_review_date의 유일 신뢰 소스.
+                    d = _today - _td(days=min(review_days))
+                    latest_review_date = d.strftime("%Y.%m.%d")
             except Exception:
                 pass
 

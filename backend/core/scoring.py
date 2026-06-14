@@ -127,8 +127,15 @@ def calculate_ad_score(ad_flags: dict | None) -> tuple[int, str]:
     return AD_SOME_SCORE, "일부 집행 · 부족"
 
 
-def calculate_total(seo: int, content: int, activity: int, ad: int) -> int:
-    """4축 가중 평균 종합 점수."""
+def calculate_total(seo: int, content: int, activity, ad: int) -> int:
+    """4축 가중 평균 종합 점수.
+
+    activity가 None이면(= 리뷰 활동 수집 실패, B단계) 최근활동 축을 빼고
+    나머지 3축(seo/content/ad)을 재정규화한다. 거짓 낮은 활동 점수가 총점을 깎지 않게.
+    """
+    if activity is None:
+        w = SEO_WEIGHT + CONTENT_WEIGHT + AD_WEIGHT
+        return round((seo * SEO_WEIGHT + content * CONTENT_WEIGHT + ad * AD_WEIGHT) / w)
     return round(
         seo * SEO_WEIGHT + content * CONTENT_WEIGHT
         + activity * ACTIVITY_WEIGHT + ad * AD_WEIGHT
@@ -145,7 +152,7 @@ def apply_ad_flags(scores: dict, ad_flags: dict | None) -> dict:
     scores["ad_label"] = ad_label
     scores["total"] = calculate_total(
         scores.get("seo", 0), scores.get("content", 0),
-        scores.get("activity", 0), ad_score,
+        scores.get("activity"), ad_score,  # activity None(수집실패)이면 calculate_total이 재정규화
     )
     return scores
 
@@ -214,14 +221,18 @@ def calculate_scores(store_data: dict, competitor_data: dict = None,
     info_fresh_frac = 1.0 if store_data.get("address") else 0.4
     info_fresh_pt = info_fresh_frac * ACTIVITY_INFO_MAX
 
-    if recent30 is not None:
+    # B단계: 리뷰 활동을 전혀 수집 못 한 경우(최근 리뷰 날짜 None + 30일 리뷰수 None,
+    # 보통 m.place 차단) 거짓 낮은 점수 대신 activity=None → 총점에서 제외(재정규화)하고
+    # 화면에 "수집 중" 중립 표시. 리뷰 신호 일부라도 있으면 정상 계산.
+    if days is None and recent30 is None:
+        activity = None
+    elif recent30 is not None:
         recent30_pt = _frac_ge(recent30, RECENT30_FRACS) * ACTIVITY_RECENT30_MAX
-        activity = round(recency_pt + recent30_pt + info_fresh_pt)
+        activity = min(100, round(recency_pt + recent30_pt + info_fresh_pt))
     else:
-        # 30일 리뷰수 미수집: 나머지(최근 리뷰 날짜 + 정보 최신성)로 100점 환산
+        # 30일 리뷰수만 미수집: 나머지(최근 리뷰 날짜 + 정보 최신성)로 100점 환산
         possible = ACTIVITY_RECENCY_MAX + ACTIVITY_INFO_MAX
-        activity = round((recency_pt + info_fresh_pt) / possible * 100)
-    activity = min(100, activity)
+        activity = min(100, round((recency_pt + info_fresh_pt) / possible * 100))
 
     # ── 키워드광고(ad) = 체크박스 입력 ──────────────────────────────────────
     ad_score, ad_label = calculate_ad_score(ad_flags)

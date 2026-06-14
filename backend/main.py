@@ -1612,7 +1612,7 @@ function renderAxisCards(d, sc){
   const axes = [
     buildSeoCard(d, sc.seo??0),
     buildContentCard(d, sc.content??0),
-    buildActivityCard(d, sc.activity??0),
+    buildActivityCard(d, sc.activity),
     buildAdCard(d, sc),
   ];
   grid.innerHTML = axes.join('');
@@ -1663,6 +1663,19 @@ function buildContentCard(d, score){
 }
 
 function buildActivityCard(d, score){
+  // B단계: 리뷰 활동 수집 실패(score=null, 보통 m.place 일시 차단) → 거짓 낮은 점수 대신
+  // 중립 표시. 이 경우 종합점수에서도 최근활동 축은 제외됨(백엔드 재정규화).
+  if(score == null){
+    return `<div class="axis-card">
+      <div class="axis-head"><span class="axis-icon">🔥</span><span class="axis-name">최근활동</span></div>
+      <div class="axis-score" style="color:var(--gray-400);font-size:1.05rem;font-weight:700">리뷰 활동 정보 수집 중</div>
+      <div class="detail-list">
+        <div class="detail-row"><span class="detail-label">최근 리뷰</span><div class="detail-val"><span class="detail-num" style="color:var(--gray-400)">잠시 후 다시 확인</span></div></div>
+        <div class="detail-row"><span class="detail-label">정보 최신성</span><div class="detail-val"><span class="detail-num">${d.address?'최신':'미확인'}</span></div></div>
+      </div>
+      <div style="font-size:.72rem;color:var(--gray-400);margin-top:10px;line-height:1.55">네이버 리뷰 페이지 접근이 일시 제한돼 최근활동을 종합점수에서 제외했어요. 잠시 후 다시 분석하면 반영돼요.</div>
+    </div>`;
+  }
   const lr = d.latest_review_date;
   let dayStr='정보 없음', dayScore=null, diff=null;
   if(lr){
@@ -2130,7 +2143,10 @@ function renderBlogResultsWithComparison(blogResults, prevBlogMap, kwHistory){
 // ── 닥터 코멘트 ───────────────────────────────────────────────────────────────
 function renderComment(d, sc){
   const lines=[];
-  const seo=sc.seo??0, con=sc.content??0, act=sc.activity??0;
+  const seo=sc.seo??0, con=sc.content??0;
+  // B단계: activity가 null(리뷰활동 수집 실패)이면 강점/약점 분석에서 제외 (거짓 0점으로 약점 오판 방지)
+  const axisPairs=[['seo',seo],['content',con]];
+  if(sc.activity!=null) axisPairs.push(['activity',sc.activity]);
   const vr=d.visitor_reviews, ss=d.star_score;
   const allKws=d.place_results||[];
   const rankedKws=allKws.filter(k=>k.rank);
@@ -2161,15 +2177,15 @@ function renderComment(d, sc){
   else if(vr!=null&&vr>=100)       strength=`방문자 리뷰 ${fmt(vr)}개로 콘텐츠 기반이 탄탄해요.`;
   else if(rankedKws.length>=5)     strength=`${rankedKws.length}개 키워드에서 노출되고 있어 기본기는 갖춰져 있어요.`;
   else{
-    const best=Math.max(seo,con,act);
-    const k=seo===best?'seo':con===best?'content':'activity';
+    const bestPair=axisPairs.reduce((a,b)=>b[1]>a[1]?b:a);
+    const k=bestPair[0], best=bestPair[1];
     strength = best>=50 ? `${AX[k]} 쪽은 비교적 잘 관리되고 있어요.`
                         : `아직 시작 단계지만, 손볼 곳이 명확해 개선 여지가 큰 매장이에요.`;
   }
   lines.push('✅ '+strength);
 
   // 3) 핵심 약점 (가장 낮은 축)
-  const weak=[['seo',seo],['content',con],['activity',act]].sort((a,b)=>a[1]-b[1])[0];
+  const weak=axisPairs.slice().sort((a,b)=>a[1]-b[1])[0];
   const weakKey=weak[0], weakVal=weak[1];
   const weakReason={
     seo:'주요 키워드 노출이 부족해요',
