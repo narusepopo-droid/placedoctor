@@ -219,6 +219,36 @@ python restart.py
 
 ---
 
+## 배포(Deployment) 정보
+
+| 항목 | 값 |
+|------|-----|
+| 서버 | AWS EC2 Ubuntu 24.04 t3.small (서울 리전) |
+| IP | 54.180.91.222 |
+| 도메인 | https://placeranking.com (가비아, DNS A @/www → 54.180.91.222) |
+| DB | PostgreSQL 16, placedoctor |
+| 상시구동 | systemd `placeranking.service` |
+| 웹서버 | nginx 80/443 → 127.0.0.1:8000 |
+| HTTPS | certbot (만료 2026-09-13, 자동갱신) |
+
+### 서버 접속
+
+```bash
+ssh -i placeranking-key.pem ubuntu@54.180.91.222
+```
+
+### 코드 업데이트 (배포)
+
+```bash
+cd placedoctor
+git pull
+sudo systemctl restart placeranking
+```
+
+> **주의**: 서버에서 uvicorn은 `backend.main:app`으로 실행 (placedoctor 폴더 안에서, 상위 아님)
+
+---
+
 ## 다음 작업 (A/B 묶음)
 
 ### ✅ A 묶음 — 데이터·로직 (완료)
