@@ -724,7 +724,9 @@ async def _fetch_place_ranking(page, keyword, safe_mode=True):
     except Exception:
         pass
 
-    for _ in range(12):
+    # Q단계: 스크롤 12→4회 축소 (상위 위주로 충분, ~3초/키워드 절약). 우리 매장이 4회로 안 잡히면
+    # 아래 2페이지 폴백 또는 rank None(graceful)로 처리됨. 하위노출 정확도 문제 시 6회로 상향.
+    for _ in range(4):
         await page.evaluate(_SCROLL_JS)
         await page.wait_for_timeout(350)
 
@@ -755,28 +757,9 @@ async def _fetch_place_ranking(page, keyword, safe_mode=True):
         except Exception:
             pass
 
-    # map.naver.com Apollo state에서 businesses.total 추출 (search.naver에 데이터 없을 때 최후 폴백)
-    if not businesses_total:
-        try:
-            map_url = f"https://map.naver.com/p/search/{encoded_kw}?type=all"
-            await page.goto(map_url, wait_until="domcontentloaded", timeout=12000)
-            await page.wait_for_timeout(2500)
-            # 메인 컨텍스트 시도
-            businesses_total = await page.evaluate(_BUSINESSES_TOTAL_JS)
-            # 프레임 순회 (pcmap iframe 대응)
-            if not businesses_total:
-                for frame in page.frames:
-                    try:
-                        bt = await asyncio.wait_for(frame.evaluate(_BUSINESSES_TOTAL_JS), timeout=2.0)
-                        if bt:
-                            businesses_total = bt
-                            break
-                    except Exception:
-                        pass
-            if businesses_total:
-                logger.info(f"  [{keyword}] map.naver businesses.total={businesses_total}")
-        except Exception:
-            pass
+    # Q단계: map.naver businesses_total 폴백 제거 (키워드당 goto+2.5초 ≈ 6초, 거의 매번 발동했지만
+    # 결과도 자주 None이고 점수에는 전혀 안 씀 = 등급 뱃지 전용). search.naver 1차 시도만 유지.
+    # businesses_total None이면 그 키워드는 등급 뱃지 없음(graceful) — 점수·순위·경쟁사 선정 영향 없음.
 
     # 데스크탑 결과 없을 때만 모바일 재시도
     if not ranked_ids:
