@@ -7,7 +7,8 @@ PlaceDoctor 핵심 엔진 — 네이버 플레이스 순위 검색 및 상세정
   - collect_blog_results        → 그대로
   - inspect_blog_post           → 그대로
   - check_blog_ranking_deep     → 그대로
-  + find_competitor             (2단계 신규: 1위 경쟁사 자동 탐색)
+  + _build_competitor_compare   (P단계: S/A급 1위아닌 키워드 최대3 비교, 검색결과 재사용)
+  + _fetch_place_name           (P단계: 경쟁사 1위 매장 이름만 가볍게 — map 타이틀)
   + diagnose_store              (진단 래퍼, 2단계: 경쟁사·점수 포함)
 """
 
@@ -729,6 +730,7 @@ async def _fetch_place_ranking(page, keyword, safe_mode=True):
 
     raw = await page.evaluate(_PLACE_RANK_JS)
     ranked_ids = raw.get('ranked_ids', [])
+    names = raw.get('names', {})  # 보통 {} (검색카드 이름수집은 불안정해 미사용 — 경쟁사 이름은 _fetch_place_name 폴백)
 
     # 등록업체 총수 수집 — 메인 페이지 → iframe 프레임 순으로 시도
     businesses_total = None
@@ -803,7 +805,7 @@ async def _fetch_place_ranking(page, keyword, safe_mode=True):
             return ids;
         }''')
 
-    return ranked_ids, p_url, businesses_total
+    return ranked_ids, p_url, businesses_total, names
 
 
 async def check_place_rank(page, keyword, place_id, safe_mode=True):
@@ -811,16 +813,23 @@ async def check_place_rank(page, keyword, place_id, safe_mode=True):
     네이버 플레이스에서 keyword 검색 시 place_id 매장의 순위를 반환합니다.
 
     Returns:
-        (int | None, int | None): (순위 1~30위, 경쟁업체 총수). 30위 밖/미발견이면 순위 None.
+        (rank, businesses_total, first_id, first_name)
+        - rank: 내 순위 1~30위, 30위 밖/미발견이면 None
+        - businesses_total: 경쟁업체 총수 (등급 산출용)
+        - first_id/first_name: 이 키워드 검색 1위 매장의 place_id·이름 (P단계 경쟁사 비교용,
+          검색결과에서 같이 수집 → 추가 요청 0). 이름 미수집 시 first_name=None.
     """
     if not place_id:
         logger.warning(f"[{keyword}] place_id 없음")
-        return None, None
+        return None, None, None, None
 
     logger.info(f"  검색: '{keyword}'")
-    p_ids, p_url, bt = await _fetch_place_ranking(page, keyword, safe_mode)
+    p_ids, p_url, bt, names = await _fetch_place_ranking(page, keyword, safe_mode)
     # 등록업체수(businesses_total) 실제 수집값을 키워드별로 명시 — None이면 수집 실패
     logger.info(f"  [등록업체수] '{keyword}' → businesses_total: {bt}")
+    # P단계: 이 키워드의 1위 매장 (검색결과 맨 위) — 경쟁사 비교용
+    first_id   = p_ids[0] if p_ids else None
+    first_name = names.get(first_id) if first_id else None
 
     # 2페이지 폴백 (1페이지에 없을 때)
     if place_id and place_id not in p_ids:
@@ -838,7 +847,7 @@ async def check_place_rank(page, keyword, place_id, safe_mode=True):
                 r2 = _p2_ids.index(place_id) + 16
                 if r2 <= 30:
                     logger.info(f"  [{keyword}] 2페이지 {r2}위 검출")
-                    return r2, bt
+                    return r2, bt, first_id, first_name
         except Exception as fe:
             logger.warning(f"  [{keyword}] 2페이지 폴백 오류: {fe}")
 
@@ -847,8 +856,8 @@ async def check_place_rank(page, keyword, place_id, safe_mode=True):
         rank_num = p_ids.index(place_id) + 1
         if rank_num <= 30:
             logger.info(f"  [{keyword}] → {rank_num}위")
-            return rank_num, bt
-    return None, bt
+            return rank_num, bt, first_id, first_name
+    return None, bt, first_id, first_name
 
 
 # ── 블로그 순위 수집 (플마에서 검증된 로직 그대로) ────────────────────────────
@@ -1294,58 +1303,108 @@ async def check_blog_ranking_deep(page, inspect_page, keyword, store_name, place
         return [{"status": "추적오류", "rank": None, "title": "", "blog_link": "", "score": 0, "reasons": [str(e)[:80]]}]
 
 
-# ── 경쟁사 자동 탐색 ──────────────────────────────────────────────────────────
+# ── 경쟁사 비교 (P단계) ───────────────────────────────────────────────────────
+# 기존 find_competitor(경쟁사 get_store_details 전체 크롤 → 504 유발)는 제거.
+# 대신 내 매장 키워드 검색 결과를 재사용해 가볍게 비교한다.
 
-async def find_competitor(page, detail_page, keyword, my_place_id) -> dict:
+def _calc_grades(place_results: list) -> dict:
+    """프론트 calcGrades와 동일 규칙: businesses_total 상대 백분율로 키워드 등급(S/A/B/C).
+
+    businesses_total이 클수록(경쟁업체 많을수록) 가치 높은 키워드 → 상위 등급.
+    Returns {keyword: 'S'|'A'|'B'|'C'}. businesses_total None인 키워드는 등급 없음.
     """
-    keyword 검색 결과 1위 매장을 찾아 상세정보 및 격차를 반환합니다.
+    valid = [r for r in place_results if r.get("businesses_total") is not None]
+    if not valid:
+        return {}
+    valid = sorted(valid, key=lambda r: r["businesses_total"], reverse=True)
+    n = len(valid)
+    grades = {}
+    for i, r in enumerate(valid):
+        pct = i / (n - 1) if n > 1 else 0
+        if i == 0 or pct < 0.10:
+            g = "S"
+        elif pct < 0.35:
+            g = "A"
+        elif pct < 0.70:
+            g = "B"
+        else:
+            g = "C"
+        grades[r["keyword"]] = g
+    return grades
 
-    Returns:
-        {
-          "competitor_id":    str | None,
-          "competitor_rank":  int,          # 보통 1
-          "my_rank":          int | None,
-          "details":          dict,         # get_store_details() 결과
-          "gap": {
-            "visitor_reviews": int | None,  # 경쟁사 - 우리 (양수면 뒤처짐)
-            "blog_reviews":    int | None,
-            "rank":            int | None,  # 우리순위 - 1 (양수면 뒤처짐)
-          }
-        }
+
+def _build_competitor_compare(place_results: list, my_place_id: str) -> dict:
+    """P단계 경쟁사 비교 데이터.
+
+    - S급 우선 → A급, 그 키워드에서 내가 1위가 아닌 것 중 상위(S먼저, businesses_total 큰 순) 최대 3개.
+    - 각 카드: 키워드/등급/내 순위/1위 매장 이름·id/격차(계단). 1위 매장 이름은 검색결과에서 수집.
+
+    status:
+      'ok'        → cards 있음
+      'no_sa'     → S/A급 키워드 자체가 없음 (상위 노출 키워드 부재)
+      'all_first' → S/A급 키워드가 있으나 전부 내가 1위 (칭찬)
     """
-    ranked_ids, _, _bt = await _fetch_place_ranking(page, keyword, safe_mode=True)
-    if not ranked_ids:
-        return {"competitor_id": None, "competitor_rank": None,
-                "my_rank": None, "details": {}, "gap": {}}
+    grades = _calc_grades(place_results)
+    rmap = {r["keyword"]: r for r in place_results}
+    sa = [kw for kw in grades if grades[kw] in ("S", "A")]
+    if not sa:
+        return {"status": "no_sa", "cards": [], "first_place_keywords": []}
 
-    my_rank = (ranked_ids.index(my_place_id) + 1) if my_place_id in ranked_ids else None
-    competitor_id = ranked_ids[0] if ranked_ids[0] != my_place_id else (
-        ranked_ids[1] if len(ranked_ids) > 1 else None
-    )
-    competitor_rank = ranked_ids.index(competitor_id) + 1 if competitor_id else None
+    first_place = [kw for kw in sa if rmap.get(kw, {}).get("rank") == 1]
+    # 비교 후보: S/A이면서 내가 1위가 아닌 키워드 (rank != 1; rank None=순위권 밖도 포함)
+    cand = [kw for kw in sa if rmap.get(kw, {}).get("rank") != 1]
+    if not cand:
+        return {"status": "all_first", "cards": [], "first_place_keywords": first_place}
 
-    comp_details = {}
-    if competitor_id:
-        logger.info(f"  경쟁사 탐색: place_id={competitor_id}")
-        comp_url = f"https://map.naver.com/p/entry/place/{competitor_id}"
-        comp_details = await get_store_details(detail_page, comp_url)
+    grade_order = {"S": 0, "A": 1}
+    cand.sort(key=lambda kw: (grade_order.get(grades[kw], 9),
+                              -(rmap[kw].get("businesses_total") or 0)))
+    cards = []
+    for kw in cand[:3]:
+        r = rmap[kw]
+        my_rank = r.get("rank")
+        cards.append({
+            "keyword":         kw,
+            "grade":           grades[kw],
+            "my_rank":         my_rank,
+            "competitor_id":   r.get("first_id"),
+            "competitor_name": r.get("first_name") or None,
+            "competitor_rank": 1,
+            "gap":             (my_rank - 1) if my_rank else None,
+        })
+    logger.info(f"  [경쟁사 비교] S/A {len(sa)}개 중 비교 {len(cards)}개: "
+                f"{[(c['keyword'], c['grade'], c['my_rank']) for c in cards]}")
+    return {"status": "ok", "cards": cards, "first_place_keywords": first_place}
 
-    def _gap(comp_val, my_val):
-        if comp_val is None or my_val is None:
-            return None
-        return comp_val - my_val
 
-    return {
-        "competitor_id":   competitor_id,
-        "competitor_rank": competitor_rank,
-        "my_rank":         my_rank,
-        "details":         comp_details,
-        "gap": {
-            "visitor_reviews": _gap(comp_details.get("visitor_reviews"), None),  # 우리 값은 호출측에서 채움
-            "blog_reviews":    _gap(comp_details.get("blog_reviews"), None),
-            "rank":            (my_rank - 1) if my_rank else None,
-        }
-    }
+async def _fetch_place_name(page, place_id: str) -> str | None:
+    """place_id의 매장명만 가볍게 가져온다 (map entry 타이틀). 리뷰/키워드 등 무거운 수집 없음.
+
+    경쟁사 비교 카드의 1위 매장 이름용. 선정된 경쟁사(≤3개)에만 호출.
+    map.naver만 사용(m.place 안 건드림 → 리뷰 차단과 무관).
+    ※ map.naver 타이틀은 처음 '장소' 플레이스홀더 → JS 로드 후 "{매장명} - 네이버지도"로 갱신되므로
+       갱신될 때까지 대기한 뒤 읽는다.
+    """
+    try:
+        await page.goto(f"https://map.naver.com/p/entry/place/{place_id}",
+                        wait_until="domcontentloaded", timeout=10000)
+        try:
+            await page.wait_for_function(
+                "() => { const t = document.title || ''; "
+                "const n = t.split(' - 네이버')[0].trim(); "
+                "return t.includes('네이버지도') && n && n !== '장소' && n.length >= 2; }",
+                timeout=6000,
+            )
+        except Exception:
+            await page.wait_for_timeout(1500)
+        title = (await page.title()) or ""
+        # "백세돼지국밥 - 네이버지도" / "백세돼지국밥 : 네이버" 형태 → 앞부분만
+        name = title.split(" - 네이버")[0].split(" : ")[0].split(" - ")[0].strip()
+        if name and name not in ("장소", "네이버지도", "네이버 지도") and "네이버" not in name and len(name) <= 40:
+            return name
+    except Exception:
+        pass
+    return None
 
 
 # ── 매장 정보만 간단히 가져오기 (블로그 단독 분석용) ─────────────────────────────
@@ -1381,7 +1440,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
           "store_name", "place_id", "address", "category",
           "visitor_reviews", "blog_reviews", "star_score", "photo_count", "latest_review_date",
           "keywords_used", "place_results",
-          "competitor": { competitor_id, competitor_rank, my_rank, details, gap },
+          "competitor": { status, cards:[{keyword,grade,my_rank,competitor_name,competitor_rank,gap}], first_place_keywords },
           "scores":     { seo, content, activity, ad, total, detail },
         }
     """
@@ -1438,10 +1497,11 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
             logger.info(f"  {i:2d}. {kw}")
         logger.info("=" * 60)
 
-        # ── 병렬 키워드 순위 검색 + 경쟁사 탐색 동시 실행 ─────────────────
-        # 페이지 풀: N_WORKERS개 (키워드 검색) + 1개 (경쟁사 상세정보 전용)
+        # ── 병렬 키워드 순위 검색 ─────────────────────────────────────────
+        # P단계: 경쟁사 비교는 이 키워드 검색 결과를 재사용한다(추가 요청 0 = 속도 개선).
+        # 기존엔 경쟁사에 get_store_details(주소·키워드·리뷰·m.place 리뷰탭) 전체 크롤 →
+        # 504 유발. 이제 검색결과에서 1위 매장 id·이름만 같이 받아 가볍게 비교.
         # 모든 페이지에 navigator.webdriver 삭제 적용 (차단 우회 핵심)
-        comp_detail_page = await create_stealth_page(context)
         search_pages = [await create_stealth_page(context) for _ in range(N_WORKERS)]
         page_pool: asyncio.Queue = asyncio.Queue()
         for p in search_pages:
@@ -1450,68 +1510,41 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
         async def _rank_task(kw: str) -> dict:
             pg = await page_pool.get()
             try:
-                r, bt = await check_place_rank(pg, kw, place_id)
-                return {"keyword": kw, "rank": r, "businesses_total": bt}
+                r, bt, first_id, first_name = await check_place_rank(pg, kw, place_id)
+                return {"keyword": kw, "rank": r, "businesses_total": bt,
+                        "first_id": first_id, "first_name": first_name}
             finally:
                 await page_pool.put(pg)
 
-        # 경쟁사 탐색: 1순위 키워드로 시작, 풀에서 페이지 빌려 쓰다 반납
-        async def _comp_task() -> dict:
-            if not target_keywords or not place_id:
-                return {}
-            pg = await page_pool.get()  # 키워드 검색 첫 배치가 시작되면 바로 가용
-            try:
-                return await find_competitor(pg, comp_detail_page, target_keywords[0], place_id)
-            except Exception as e:
-                logger.warning(f"경쟁사 탐색 실패: {e}")
-                return {}
-            finally:
-                await page_pool.put(pg)
+        # 키워드 순위 동시 검색 (경쟁사 비교는 이 결과 재사용 → 별도 탐색 없음)
+        place_results = list(await asyncio.gather(*[_rank_task(kw) for kw in target_keywords]))
 
-        # 키워드 검색과 경쟁사 탐색을 한 번에 동시 실행
-        all_results = await asyncio.gather(
-            *[_rank_task(kw) for kw in target_keywords],
-            _comp_task(),
-        )
-        place_results = list(all_results[:-1])
-        competitor    = all_results[-1] or {}
+        # ── 경쟁사 비교 (P단계): S/A급 + 내가 1위 아닌 키워드 상위 최대 3개 ──────
+        competitor = _build_competitor_compare(place_results, place_id)
 
-        # 경쟁사 없으면 순위가 나온 첫 키워드로 폴백 (추가 탐색)
-        if not competitor.get("competitor_id") and place_id:
-            best_kw = next((r["keyword"] for r in place_results if r["rank"]), None)
-            if best_kw and best_kw != (target_keywords[0] if target_keywords else None):
+        # 1위 매장 이름이 검색결과에서 안 잡힌 카드만, 가벼운 title fetch 폴백(≤3, 리뷰/키워드 안 건드림)
+        missing = [c for c in competitor.get("cards", [])
+                   if not c.get("competitor_name") and c.get("competitor_id")]
+        if missing:
+            async def _name_task(card: dict):
+                pg = await page_pool.get()
                 try:
-                    fb_pg = await page_pool.get()
-                    competitor = await find_competitor(fb_pg, comp_detail_page, best_kw, place_id)
-                    await page_pool.put(fb_pg)
-                except Exception as e:
-                    logger.warning(f"경쟁사 폴백 탐색 실패: {e}")
-
-        # gap에 우리 매장 리뷰 수 반영
-        if competitor.get("competitor_id"):
-            my_visitor = details.get("visitor_reviews")
-            my_blog    = details.get("blog_reviews")
-            comp_d     = competitor.get("details", {})
-            competitor["gap"]["visitor_reviews"] = (
-                (comp_d.get("visitor_reviews") or 0) - (my_visitor or 0)
-                if (comp_d.get("visitor_reviews") is not None or my_visitor is not None) else None
-            )
-            competitor["gap"]["blog_reviews"] = (
-                (comp_d.get("blog_reviews") or 0) - (my_blog or 0)
-                if (comp_d.get("blog_reviews") is not None or my_blog is not None) else None
-            )
+                    card["competitor_name"] = await _fetch_place_name(pg, card["competitor_id"])
+                except Exception:
+                    pass
+                finally:
+                    await page_pool.put(pg)
+            await asyncio.gather(*[_name_task(c) for c in missing])
 
         # ── 블로그 분석은 별도 API로 분리 (diagnose_store에서 제거) ─────────
-        # analyze_blog_ranking() 함수를 별도 호출해야 함
         blog_results = []
 
-        # ── 점수 계산 ───────────────────────────────────────────────────────
+        # ── 점수 계산 (경쟁사는 점수에 영향 없음 — competitor_data 미사용) ──────
         store_data_for_score = {
             **details,
             "place_results": place_results,
         }
-        scores = calculate_scores(store_data_for_score, competitor.get("details"),
-                                  ad_flags=ad_flags)
+        scores = calculate_scores(store_data_for_score, ad_flags=ad_flags)
 
         return {
             "store_name":         store_name,

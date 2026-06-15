@@ -77,18 +77,17 @@ def save_diagnosis(db: Session, result: dict, place_url: str) -> models.Store:
         if kw not in existing_kws:
             db.add(models.Keyword(store_id=store.id, keyword=kw, auto_generated=True))
 
+    # P단계: competitor는 {status, cards:[...]} 구조. 첫 비교 카드를 스냅샷으로 저장(있으면).
     comp = result.get("competitor", {})
-    if comp.get("competitor_id"):
-        best_kw = next(
-            (p["keyword"] for p in result.get("place_results", []) if p.get("rank")), ""
-        )
-        comp_d = comp.get("details", {})
+    comp_cards = comp.get("cards") or []
+    if comp_cards and comp_cards[0].get("competitor_id"):
+        c0 = comp_cards[0]
         db.add(models.Competitor(
             store_id=store.id,
-            keyword=best_kw,
-            competitor_place_id=comp["competitor_id"],
-            rank=comp.get("competitor_rank"),
-            visitor_reviews=comp_d.get("visitor_reviews"),
+            keyword=c0.get("keyword", ""),
+            competitor_place_id=c0["competitor_id"],
+            rank=c0.get("competitor_rank"),
+            visitor_reviews=None,  # P단계: 경쟁사 리뷰 미수집(속도 개선 — get_store_details 제거)
         ))
 
     scores = result.get("scores", {})
