@@ -16,6 +16,7 @@ import asyncio
 import logging
 import random
 import re
+import time
 import urllib.parse
 
 from playwright.async_api import async_playwright
@@ -1430,15 +1431,20 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
     N_WORKERS  = 4   # 동시 검색 페이지 수 (네이버 차단 방지: 3~4 이하 유지)
     MAX_KW     = 30  # 상위 우선순위 키워드 (역·동 두 지역 키워드 모두 포함, N_WORKERS=4 기준)
 
+    _t0 = time.perf_counter()  # ⏱ Q단계 타이밍: 전체 시작
     playwright, browser, context = await create_browser()
     try:
         # 모든 페이지에 navigator.webdriver 삭제 적용 (차단 우회 핵심)
         detail_page = await create_stealth_page(context)
+        _t_browser = time.perf_counter()  # ⏱ 브라우저 기동 완료
 
         # ── 우리 매장 상세정보 ──────────────────────────────────────────────
         details = {}
         if place_url:
             details = await get_store_details(detail_page, place_url)
+        _t_detail = time.perf_counter()  # ⏱ get_store_details 완료
+        logger.info(f"⏱ [타이밍] 브라우저 기동: {_t_browser - _t0:.1f}s | "
+                    f"get_store_details(우리매장): {_t_detail - _t_browser:.1f}s")
 
         place_id          = details.get("place_id")
         address           = details.get("address", "")
@@ -1500,7 +1506,12 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
                 await page_pool.put(pg)
 
         # 키워드 순위 동시 검색 (경쟁사 비교는 이 결과 재사용 → 별도 탐색 없음)
+        _t_rank_start = time.perf_counter()  # ⏱ 랭킹 시작
         place_results = list(await asyncio.gather(*[_rank_task(kw) for kw in target_keywords]))
+        _t_rank = time.perf_counter()  # ⏱ 랭킹 완료
+        logger.info(f"⏱ [타이밍] 랭킹 {len(target_keywords)}개(병렬 {N_WORKERS}): "
+                    f"{_t_rank - _t_rank_start:.1f}s "
+                    f"(키워드당 평균 {(_t_rank - _t_rank_start) / max(1, len(target_keywords)):.1f}s)")
 
         # ── 경쟁사 비교 (P단계): S/A급 + 내가 1위 아닌 키워드 상위 최대 3개 ──────
         competitor = _build_competitor_compare(place_results, place_id)
@@ -1518,6 +1529,11 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
                 finally:
                     await page_pool.put(pg)
             await asyncio.gather(*[_name_task(c) for c in missing])
+        _t_names = time.perf_counter()  # ⏱ 경쟁사 이름 완료
+        logger.info(f"⏱ [타이밍] 경쟁사 이름 {len(missing)}개: {_t_names - _t_rank:.1f}s | "
+                    f"★ 총 소요: {_t_names - _t0:.1f}s "
+                    f"(브라우저 {_t_browser - _t0:.1f} + 상세 {_t_detail - _t_browser:.1f} "
+                    f"+ 랭킹 {_t_rank - _t_rank_start:.1f} + 이름 {_t_names - _t_rank:.1f})")
 
         # ── 블로그 분석은 별도 API로 분리 (diagnose_store에서 제거) ─────────
         blog_results = []
