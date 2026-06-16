@@ -246,6 +246,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-action:hover{background:var(--gray-50);border-color:var(--gray-300);}
 .btn-action.btn-refresh{background:var(--green);color:#fff;border-color:var(--green);}
 .btn-action.btn-refresh:hover{background:#02b350;}
+.btn-action.btn-reanalyze{background:var(--green);color:#fff;border-color:var(--green);}
+.btn-action.btn-reanalyze:hover{background:#02b350;}
 
 /* N단계: 맨 위로 플로팅 버튼 */
 .btn-scroll-top{position:fixed;bottom:24px;right:20px;width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;border:none;font-size:1.2rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(3,199,90,.35);opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s,transform .15s;z-index:100;}
@@ -640,6 +642,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <!-- K단계: 결과 화면 상단 재검색 버튼 -->
     <div class="result-top-actions">
       <button class="btn-action" onclick="goBackToSearch()">← 홈으로</button>
+      <button class="btn-action btn-reanalyze" onclick="reAnalyze()">🔄 다시 분석</button>
     </div>
 
     <!-- 공통 헤더: 매장명 + 종합점수 (탭 위에 항상 표시) -->
