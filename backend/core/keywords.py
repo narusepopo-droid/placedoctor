@@ -152,8 +152,9 @@ _TOKEN_EXPANSIONS = {
 
 
 def _find_tokens_in_kw(kw, locations):
-    """keywordList 항목에서 지역 제거 후 의도 토큰 추출 (포함 검색)"""
+    """keywordList 항목에서 지역 제거 후 의도 토큰 추출 (포함 검색) — 플마 1:1 동일"""
     remaining = kw.strip()
+    # 지역 접두어 제거 (긴 것 우선)
     for loc in sorted(locations, key=len, reverse=True):
         if loc and len(loc) >= 2 and remaining.startswith(loc):
             remaining = remaining[len(loc):]
@@ -161,18 +162,12 @@ def _find_tokens_in_kw(kw, locations):
     if len(remaining) < 2:
         return []
     remaining_lower = remaining.lower()
-    found = []
-
-    # 1) 사전 매칭 (기존 로직 유지 - 회귀 방지)
-    dict_found = [t for t in _INTENT_TOKENS if len(t) >= 2 and t.lower() in remaining_lower]
-    dict_found = [t for t in dict_found if not any(t != o and o.endswith(t) for o in dict_found)]
-    found.extend(dict_found)
-
-    # 2) 지역 제거 후 남은 전체 문자열도 토큰으로 추가 (대형베이커리카페 같은 복합어 지원)
-    # 단, 8글자 이상 긴 복합어는 제외 (과학영재고입시사고력유아수학 같은 SEO 합성어)
-    if re.match(r'^[가-힣]+$', remaining) and remaining not in found and 3 <= len(remaining) <= 7:
-        found.append(remaining)
-
+    found = [t for t in _INTENT_TOKENS if len(t) >= 2 and t.lower() in remaining_lower]
+    # 더 긴 토큰의 부분 문자열인 짧은 토큰 제거 (예: "고양이호텔" 있으면 "호텔" 단독 제거)
+    found = [t for t in found if not any(t != o and o.endswith(t) for o in found)]
+    # 사전에 없으면 버림 (5자 이하 단순어만 fallback 허용 — "아침점심저녁특선" 같은 장문 복합어 차단)
+    if not found and len(remaining) <= 5:
+        found = [remaining]
     return list(dict.fromkeys(found))
 
 
@@ -249,16 +244,13 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
 
     _BAD_PATTERNS = re.compile(r'영업중|영업종료|영업시간|\d{3,}|에영업|시에|분에|\d+시\d*분|휴무|정기휴무|임시휴무|특가|이벤트|한정|첫방문|할인쿠폰|프로모션|레귤러|수퍼스페셜|디럭스|스탠다드|스위트룸|싱글룸|더블룸|트윈룸|\d+만원(?!대)|지인소개|기간증정|\d+회(?:추가|증정)|뭉칠수록|혜택최대')
     _bone_kw_pat = re.compile(r'뼈국밥|뼈해장국|뼈다귀|돼지뼈')
+    # 플마와 1:1 동일: 8글자/10글자 필터 제거 (긴 키워드도 검색 대상)
     clean_official = [tag for tag in official_keywords
                       if not _BAD_PATTERNS.search(tag) and not _bone_kw_pat.search(tag)
-                      and len(tag) <= 15
-                      and not (len(tag) >= 8 and ' ' not in tag)]
-    # kw_list_raw: 위치·의도 토큰 추출용 (길이 필터 미적용)
-    # kw_list: 직접 검색어 시드용 (10자 이상 붙임말 제외 — 검색 노이즈 방지)
-    kw_list_raw = [k.strip() for k in (keyword_list or [])
-                   if k and len(k.strip()) >= 2 and not _BAD_PATTERNS.search(k)]
-    kw_list = [k for k in kw_list_raw
-               if not (len(k) >= 10 and ' ' not in k)]
+                      and len(tag) <= 15]
+    kw_list = [k.strip() for k in (keyword_list or [])
+               if k and len(k.strip()) >= 2 and not _BAD_PATTERNS.search(k)]
+    kw_list_raw = kw_list  # 플마 호환: 별도 필터 없음
 
     # ── keywordList에서 추가 지역 토큰 추출 ──
     for kw in kw_list_raw:
@@ -485,8 +477,8 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
 
     deduped.sort(key=sort_weight, reverse=True)
 
-    # R단계: 공백 제외 9글자 초과 키워드 제거 (실효성 낮은 긴 키워드 정리)
-    deduped = [k for k in deduped if len(k.replace(' ', '')) <= 9]
+    # 플마 호환: 9글자 필터 제거 (정확도 우선, 긴 키워드도 검색)
+    # R단계 필터는 속도보다 정확도가 더 중요하므로 제거
 
     return deduped[:100]
 
