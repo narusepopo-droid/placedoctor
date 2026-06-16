@@ -375,6 +375,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-stop{margin-top:16px;padding:10px 24px;background:#fff;border:1px solid var(--gray-300);border-radius:8px;font-size:.85rem;color:var(--gray-600);cursor:pointer;transition:all .15s;}
 .btn-stop:hover{background:var(--gray-50);border-color:var(--gray-400);}
 
+/* R단계: 게임형 UI */
+.game-score-wrap{text-align:center;margin-bottom:20px;padding:16px;background:linear-gradient(135deg,#ecfdf5 0%,#d1fae5 100%);border-radius:12px;}
+.game-score-label{font-size:.75rem;color:var(--gray-500);margin-bottom:4px;font-weight:500;}
+.game-score-num{font-size:2.8rem;font-weight:800;color:var(--green);line-height:1;transition:transform .2s,color .2s;}
+.game-score-num.bump{transform:scale(1.15);color:#059669;}
+.game-score-delta{font-size:1rem;font-weight:700;color:var(--green);margin-top:4px;min-height:24px;transition:opacity .3s;}
+.game-score-delta.show{animation:deltaFade .8s ease-out forwards;}
+@keyframes deltaFade{0%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-10px);}}
+
+.kw-popup-area{min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:16px;position:relative;}
+.kw-popup{text-align:center;animation:kwPop .5s ease-out forwards;}
+.kw-popup .kw-text{font-size:1.3rem;font-weight:700;color:var(--gray-800);margin-bottom:6px;}
+.kw-popup .kw-rank{font-size:1.1rem;font-weight:600;color:var(--gray-600);}
+.kw-popup .kw-rank.top{font-size:1.4rem;color:var(--green);font-weight:800;}
+.kw-popup .kw-reaction{font-size:1.2rem;margin-top:4px;animation:reactionBounce .4s ease-out;}
+@keyframes kwPop{0%{opacity:0;transform:scale(1.4);}60%{transform:scale(0.95);}100%{opacity:1;transform:scale(1);}}
+@keyframes reactionBounce{0%{transform:scale(0.5);}50%{transform:scale(1.2);}100%{transform:scale(1);}}
+
 /* TABS */
 .tabs{display:flex;gap:0;margin-top:14px;background:#fff;border-radius:var(--radius);border:var(--card-border);overflow:hidden;}
 .tab-btn{flex:1;padding:14px 10px;background:#fff;border:none;font-size:.9rem;font-weight:600;color:var(--gray-600);cursor:pointer;transition:all .2s;border-bottom:3px solid transparent;}
@@ -553,12 +571,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
   </div>
 
-  <!-- LOADING -->
+  <!-- LOADING (R단계: 게임형 UI) -->
   <div id="loading-section">
     <div class="l-card">
       <span class="l-pulse" id="lIcon">📊</span>
       <div class="l-title" id="lTitle">플레이스 진단 중이에요</div>
-      <div class="l-sub" id="lSub">키워드를 하나씩 검색하고 있어요 · 1~3분 소요</div>
+      <div class="l-sub" id="lSub">키워드를 하나씩 검색하고 있어요</div>
+
+      <!-- R단계: 점수 게이지 (게임머니 획득 연출) -->
+      <div class="game-score-wrap" id="gameScoreWrap" style="display:none;">
+        <div class="game-score-label">플레이스 지수</div>
+        <div class="game-score-num" id="gameScoreNum">0</div>
+        <div class="game-score-delta" id="gameScoreDelta"></div>
+      </div>
+
+      <!-- R단계: 키워드 등장 영역 -->
+      <div class="kw-popup-area" id="kwPopupArea"></div>
+
       <div class="l-bar-wrap"><div class="l-bar" id="lBar"></div></div>
       <div class="l-pct" id="lPct">0%</div>
       <div class="l-steps" id="lSteps"></div>
@@ -1340,6 +1369,10 @@ async function analyzePlaceOnly(){
     ad_blog: adFlags.ad_blog,
   });
 
+  // R단계: 게임 점수 상태
+  let _gameScore = 0;
+  let _maxScore = 100;  // complete 이벤트에서 실제 종합점수로 갱신
+
   let eventSource = null;
   try {
     eventSource = new EventSource('/diagnose-stream?' + params.toString());
@@ -1347,17 +1380,72 @@ async function analyzePlaceOnly(){
     eventSource.addEventListener('started', (e) => {
       const d = JSON.parse(e.data);
       console.log('[SSE] started:', d);
-      // 1단계에서는 단순히 로그만 (2단계에서 게임 UI 연출)
+      // R단계: 게임 UI 초기화
+      _gameScore = 0;
+      document.getElementById('gameScoreWrap').style.display = 'block';
+      document.getElementById('gameScoreNum').textContent = '0';
+      document.getElementById('gameScoreDelta').textContent = '';
+      document.getElementById('kwPopupArea').innerHTML = '';
+      document.getElementById('lSub').textContent = `${d.total_keywords}개 키워드 분석 중...`;
     });
 
     eventSource.addEventListener('keyword', (e) => {
       const d = JSON.parse(e.data);
       console.log('[SSE] keyword:', d.keyword, 'rank:', d.rank, 'progress:', d.progress + '/' + d.total);
-      // 1단계: 로딩 진행률 업데이트
+
+      // R단계: 진행률 바 업데이트
       if(d.total > 0) {
         const pct = Math.min(95, Math.round((d.progress / d.total) * 90));
-        const bar = document.getElementById('loadingBar');
+        const bar = document.getElementById('lBar');
+        const pctEl = document.getElementById('lPct');
         if(bar) bar.style.width = pct + '%';
+        if(pctEl) pctEl.textContent = pct + '%';
+      }
+
+      // R단계: 키워드 팝업 + 리액션
+      const area = document.getElementById('kwPopupArea');
+      const rank = d.rank;
+      let reaction = '';
+      let rankClass = '';
+      if(rank !== null) {
+        if(rank === 1) { reaction = '오~! 🎉'; rankClass = 'top'; }
+        else if(rank <= 3) { reaction = 'Nice! 👍'; rankClass = 'top'; }
+        else if(rank <= 5) { reaction = 'Good!'; rankClass = 'top'; }
+        // 그 이하는 담백하게 (부정 표현 금지)
+      }
+
+      const popup = document.createElement('div');
+      popup.className = 'kw-popup';
+      popup.innerHTML = `
+        <div class="kw-text">${esc(d.keyword)}</div>
+        <div class="kw-rank ${rankClass}">${rank !== null ? rank + '위' : '순위 없음'}</div>
+        ${reaction ? `<div class="kw-reaction">${reaction}</div>` : ''}
+      `;
+      area.innerHTML = '';
+      area.appendChild(popup);
+
+      // R단계: 점수 차오르기 (천장 규칙)
+      const scoreDelta = d.score_delta || 0;
+      if(scoreDelta > 0) {
+        const newScore = Math.min(_gameScore + scoreDelta, _maxScore);
+        const actualDelta = newScore - _gameScore;
+        _gameScore = newScore;
+
+        const numEl = document.getElementById('gameScoreNum');
+        const deltaEl = document.getElementById('gameScoreDelta');
+
+        // 점수 업데이트 + bump 애니메이션
+        numEl.textContent = _gameScore;
+        numEl.classList.add('bump');
+        setTimeout(() => numEl.classList.remove('bump'), 200);
+
+        // +N 표시
+        if(actualDelta > 0) {
+          deltaEl.textContent = '+' + actualDelta;
+          deltaEl.classList.remove('show');
+          void deltaEl.offsetWidth;  // reflow
+          deltaEl.classList.add('show');
+        }
       }
     });
 
@@ -1366,14 +1454,29 @@ async function analyzePlaceOnly(){
       stopLoading();
       const data = JSON.parse(e.data);
       _prevAnalysis = data.prev_analysis || null;
-      document.getElementById('loading-section').style.display='none';
-      renderResult(data);
-      document.getElementById('result').style.display='block';
-      switchTab('place');
-      loadRecentStores();
-      if(data.place_id) updateRegisterButtons(data.place_id);
-      btn.disabled=false; btn.textContent='내 순위 확인하기';
-      window.scrollTo({top:0,behavior:'smooth'});
+
+      // R단계: 최종 점수로 안착 (천장 = 실제 종합점수)
+      const finalScore = data.scores?.total || 0;
+      _maxScore = finalScore;
+      _gameScore = finalScore;
+      const numEl = document.getElementById('gameScoreNum');
+      if(numEl) {
+        numEl.textContent = finalScore;
+        numEl.classList.add('bump');
+        setTimeout(() => numEl.classList.remove('bump'), 200);
+      }
+
+      // 약간의 딜레이 후 결과 화면 전환 (완료 느낌)
+      setTimeout(() => {
+        document.getElementById('loading-section').style.display='none';
+        renderResult(data);
+        document.getElementById('result').style.display='block';
+        switchTab('place');
+        loadRecentStores();
+        if(data.place_id) updateRegisterButtons(data.place_id);
+        btn.disabled=false; btn.textContent='내 순위 확인하기';
+        window.scrollTo({top:0,behavior:'smooth'});
+      }, 800);
     });
 
     eventSource.addEventListener('error', (e) => {
