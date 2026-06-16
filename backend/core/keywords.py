@@ -152,7 +152,7 @@ _TOKEN_EXPANSIONS = {
 
 
 def _find_tokens_in_kw(kw, locations):
-    """keywordList 항목에서 지역 제거 후 의도 토큰 추출 (포함 검색) — E묶음 버전 (플마보다 우수)"""
+    """keywordList 항목에서 지역 제거 후 의도 토큰 추출 (포함 검색)"""
     remaining = kw.strip()
     for loc in sorted(locations, key=len, reverse=True):
         if loc and len(loc) >= 2 and remaining.startswith(loc):
@@ -163,7 +163,7 @@ def _find_tokens_in_kw(kw, locations):
     remaining_lower = remaining.lower()
     found = []
 
-    # 1) 사전 매칭
+    # 1) 사전 매칭 (기존 로직 유지 - 회귀 방지)
     dict_found = [t for t in _INTENT_TOKENS if len(t) >= 2 and t.lower() in remaining_lower]
     dict_found = [t for t in dict_found if not any(t != o and o.endswith(t) for o in dict_found)]
     found.extend(dict_found)
@@ -249,7 +249,6 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
 
     _BAD_PATTERNS = re.compile(r'영업중|영업종료|영업시간|\d{3,}|에영업|시에|분에|\d+시\d*분|휴무|정기휴무|임시휴무|특가|이벤트|한정|첫방문|할인쿠폰|프로모션|레귤러|수퍼스페셜|디럭스|스탠다드|스위트룸|싱글룸|더블룸|트윈룸|\d+만원(?!대)|지인소개|기간증정|\d+회(?:추가|증정)|뭉칠수록|혜택최대')
     _bone_kw_pat = re.compile(r'뼈국밥|뼈해장국|뼈다귀|돼지뼈')
-    # E묶음 버전: 8글자/10글자 필터 유지 (플마보다 우수한 노이즈 제거)
     clean_official = [tag for tag in official_keywords
                       if not _BAD_PATTERNS.search(tag) and not _bone_kw_pat.search(tag)
                       and len(tag) <= 15
@@ -485,111 +484,4 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
             deduped.append(k)
 
     deduped.sort(key=sort_weight, reverse=True)
-
-    # 플마 호환: 9글자 필터 제거 (정확도 우선, 긴 키워드도 검색)
-    # R단계 필터는 속도보다 정확도가 더 중요하므로 제거
-
     return deduped[:100]
-
-
-def generate_blog_keywords(store_name: str, address: str, category: str,
-                          menu_hints: list[str] = None) -> list[str]:
-    """
-    블로그 분석용 키워드 생성.
-    플마 스타일로 "{지역} {메뉴/업종}" 형태의 구체적 키워드를 생성합니다.
-
-    예: 감동식당 노원본점, 등갈비찜 →
-        ["노원역 등갈비", "노원역 돼지등갈비찜", "상계동 갈비찜", "노원구 등갈비", ...]
-    """
-    keywords = []
-
-    # 1. 지역 추출
-    locations = []
-    clean_name = store_name.strip()
-
-    # 지점명에서 지역 추출 (노원본점 → 노원)
-    for suffix in ["본점", "직영점", "지점", "점"]:
-        if clean_name.endswith(suffix):
-            loc_match = re.search(r'([가-힣a-zA-Z0-9]+)' + suffix + r'$', clean_name)
-            if loc_match:
-                loc = loc_match.group(1).split()[-1]
-                if len(loc) >= 2:
-                    locations.append(f"{loc}역")  # 역 먼저 추가
-                    locations.append(loc)
-            break
-
-    # 주소에서 지역 추출
-    if address:
-        addr_tokens = address.replace(",", " ").split()
-        for token in addr_tokens:
-            if token.endswith("구") and len(token) > 1:
-                gu = token[:-1]
-                locations.append(token)  # 노원구
-                if len(gu) >= 2:
-                    locations.append(gu)  # 노원
-            elif token.endswith("동") and len(token) > 2:
-                locations.append(token)  # 상계동
-            elif token.endswith("역") and len(token) > 1:
-                locations.append(token)
-
-    # 중복 제거 및 정리
-    locations = list(dict.fromkeys([l for l in locations if l and len(l) >= 2]))
-
-    # 2. 업종/메뉴 키워드 추출
-    menu_keywords = []
-
-    # 외부에서 전달된 메뉴 힌트
-    if menu_hints:
-        menu_keywords.extend(menu_hints)
-
-    # 카테고리에서 업종 추출
-    if category:
-        cat_lower = category.lower()
-        # 육류/고기 관련
-        if "육류" in cat_lower or "고기" in cat_lower:
-            menu_keywords.extend(["등갈비", "돼지등갈비찜", "갈비찜", "고기집"])
-        if "등갈비" in cat_lower:
-            menu_keywords.extend(["등갈비", "등갈비찜", "돼지등갈비찜", "갈비찜"])
-        if "갈비" in cat_lower:
-            menu_keywords.extend(["갈비찜", "갈비", "등갈비"])
-        if "삼겹" in cat_lower:
-            menu_keywords.extend(["삼겹살", "고기집"])
-        if "국밥" in cat_lower:
-            menu_keywords.extend(["국밥", "돼지국밥", "순대국밥"])
-
-    # 매장명에서 업종 힌트 추출
-    name_lower = store_name.lower()
-    if "갈비" in name_lower or "감동" in name_lower:
-        # 감동식당은 등갈비찜 전문점
-        menu_keywords.extend(["등갈비", "돼지등갈비찜", "갈비찜", "등갈비찜"])
-    if "국밥" in name_lower:
-        menu_keywords.extend(["국밥", "돼지국밥", "순대국밥"])
-    if "삼겹" in name_lower:
-        menu_keywords.extend(["삼겹살", "고기집"])
-    if "치킨" in name_lower:
-        menu_keywords.extend(["치킨", "치킨맛집"])
-    if "족발" in name_lower or "보쌈" in name_lower:
-        menu_keywords.extend(["족발", "보쌈", "족발맛집"])
-
-    # 기본 메뉴 키워드
-    menu_keywords.append("맛집")
-
-    menu_keywords = list(dict.fromkeys(menu_keywords))
-
-    # 3. 조합 생성: {지역} {메뉴} - 역 키워드 우선
-    # 역 > 동 > 구 순으로 지역 정렬
-    def loc_priority(loc):
-        if loc.endswith("역"): return 0
-        if loc.endswith("동"): return 1
-        if loc.endswith("구"): return 2
-        return 3
-
-    locations.sort(key=loc_priority)
-
-    for loc in locations:
-        for menu in menu_keywords:
-            kw = f"{loc} {menu}"
-            if kw not in keywords:
-                keywords.append(kw)
-
-    return keywords[:20]  # 최대 20개
