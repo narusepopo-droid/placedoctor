@@ -275,6 +275,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .comp-bar-bg{flex:1;height:22px;background:var(--gray-100);border-radius:6px;overflow:hidden;}
 .comp-bar{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:8px;transition:width 1s ease;font-size:.75rem;font-weight:700;color:#fff;white-space:nowrap;min-width:32px;}
 .comp-gap{margin-top:8px;font-size:.82rem;color:var(--red);font-weight:600;}
+/* P단계: 경쟁사 비교 반응형 카드 (PC 가로 최대3 / 모바일 세로) */
+.comp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px;}
+.comp-card2{border:1px solid var(--gray-200);border-radius:12px;padding:16px 14px;display:flex;flex-direction:column;gap:9px;}
+.comp-grade{align-self:flex-start;font-size:.68rem;font-weight:700;color:#fff;padding:3px 9px;border-radius:6px;}
+.comp-kw{font-size:.98rem;font-weight:700;color:var(--gray-900);}
+.comp-vs{display:flex;align-items:flex-end;gap:8px;}
+.comp-vs-me,.comp-vs-rival{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0;}
+.comp-vs-rival{text-align:right;}
+.comp-vs-lbl{font-size:.72rem;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.comp-vs-rank{font-size:1.2rem;font-weight:800;line-height:1.1;}
+.comp-vs-rival .comp-vs-rank{color:var(--gray-700);}
+.comp-vs-sep{font-size:.72rem;color:var(--gray-400);font-weight:700;flex-shrink:0;padding-bottom:2px;}
+.comp-gap2{font-size:.82rem;font-weight:700;}
+.comp-ment{font-size:.78rem;color:var(--gray-600);line-height:1.5;background:var(--gray-50);border-radius:8px;padding:9px 11px;}
+.comp-note{font-size:.88rem;color:var(--gray-700);line-height:1.6;}
+.comp-praise{font-size:.92rem;font-weight:700;color:var(--green-d);line-height:1.6;}
+.comp-fp-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.comp-fp-kw{font-size:.78rem;font-weight:600;color:var(--green-d);background:var(--green-bg);border:1px solid #bbf7d0;border-radius:6px;padding:3px 9px;}
 
 /* KEYWORDS */
 .kw-list{display:flex;flex-direction:column;gap:8px;}
@@ -778,7 +796,7 @@ function clearAllRecentStores(){
     const btn = item.querySelector('.item-delete-btn');
     if(btn){
       const onclick = btn.getAttribute('onclick');
-      const match = onclick.match(/hideRecentStore\('([^']+)'\)/);
+      const match = onclick.match(/hideRecentStore\\('([^']+)'\\)/);
       if(match) hidden.push(match[1]);
     }
   });
@@ -1612,7 +1630,7 @@ function renderAxisCards(d, sc){
   const axes = [
     buildSeoCard(d, sc.seo??0),
     buildContentCard(d, sc.content??0),
-    buildActivityCard(d, sc.activity??0),
+    buildActivityCard(d, sc.activity),
     buildAdCard(d, sc),
   ];
   grid.innerHTML = axes.join('');
@@ -1663,6 +1681,19 @@ function buildContentCard(d, score){
 }
 
 function buildActivityCard(d, score){
+  // B단계: 리뷰 활동 수집 실패(score=null, 보통 m.place 일시 차단) → 거짓 낮은 점수 대신
+  // 중립 표시. 이 경우 종합점수에서도 최근활동 축은 제외됨(백엔드 재정규화).
+  if(score == null){
+    return `<div class="axis-card">
+      <div class="axis-head"><span class="axis-icon">🔥</span><span class="axis-name">최근활동</span></div>
+      <div class="axis-score" style="color:var(--gray-400);font-size:1.05rem;font-weight:700">리뷰 활동 정보 수집 중</div>
+      <div class="detail-list">
+        <div class="detail-row"><span class="detail-label">최근 리뷰</span><div class="detail-val"><span class="detail-num" style="color:var(--gray-400)">잠시 후 다시 확인</span></div></div>
+        <div class="detail-row"><span class="detail-label">정보 최신성</span><div class="detail-val"><span class="detail-num">${d.address?'최신':'미확인'}</span></div></div>
+      </div>
+      <div style="font-size:.72rem;color:var(--gray-400);margin-top:10px;line-height:1.55">네이버 리뷰 페이지 접근이 일시 제한돼 최근활동을 종합점수에서 제외했어요. 잠시 후 다시 분석하면 반영돼요.</div>
+    </div>`;
+  }
   const lr = d.latest_review_date;
   let dayStr='정보 없음', dayScore=null, diff=null;
   if(lr){
@@ -1704,73 +1735,66 @@ function buildAdCard(d, sc){
   return axisCard('📣','키워드광고',score, rows + label + note);
 }
 
-// ── 경쟁사 비교 ───────────────────────────────────────────────────────────────
+// ── 경쟁사 비교 (P단계: S/A급 1위아닌 키워드 최대3 카드 + 통찰 멘트) ──────────────
 function renderCompetitor(d){
-  const comp=d.competitor||{}, compD=comp.details||{};
-  if(!comp.competitor_id){document.getElementById('compCard').style.display='none';return;}
-  document.getElementById('compCard').style.display='block';
+  const comp=d.competitor||{};
+  const cardEl=document.getElementById('compCard');
+  const rowsEl=document.getElementById('compRows');
+  const status=comp.status;
 
-  const baseKw=(d.keywords_used||[])[0]||'';
-  const myBestRank=(d.place_results||[]).reduce((b,k)=>k.rank&&k.rank<(b||999)?k.rank:b,null);
-  const compRank=comp.competitor_rank||1;
-
-  const myVr=d.visitor_reviews??0, cVr=compD.visitor_reviews??0;
-  const myBr=d.blog_reviews??0,    cBr=compD.blog_reviews??0;
-
-  // 순위 점수: 1위=100, 계단당 -10 (10위 초과=0)
-  const rankScore=r=>r?Math.max(0,110-r*10):0;
-  const myRS=rankScore(myBestRank), cRS=rankScore(compRank);
-
-  // 간이 리뷰파워 점수 (visitor 60% + blog 40%)
-  function revPow(vr,br){
-    return Math.round(Math.min(vr,500)/500*60+Math.min(br,300)/300*40);
+  // S/A급 키워드 자체가 없음 → 간접 자극 + 방안 안내
+  if(status==='no_sa'){
+    cardEl.style.display='block';
+    rowsEl.innerHTML=`<p class="comp-note">아직 S·A급 상위 키워드가 없어 경쟁사 비교가 어려워요. 상위 노출되는 키워드를 늘리면 경쟁 위치를 파악할 수 있어요.</p>`;
+    return;
   }
-  const myRP=revPow(myVr,myBr), cRP=revPow(cVr,cBr);
+  // S/A급 키워드 전부 내가 1위 → 칭찬
+  if(status==='all_first'){
+    cardEl.style.display='block';
+    const kws=(comp.first_place_keywords||[]).map(k=>`<span class="comp-fp-kw">${esc(k)} 1위</span>`).join('');
+    rowsEl.innerHTML=`<p class="comp-praise">주요 키워드에서 모두 1위예요! 잘하고 계세요 👏</p><div class="comp-fp-list">${kws}</div>`;
+    return;
+  }
 
-  const isUs1st = comp.my_rank === 1;
-  const compLabel = compRank + '위';
+  const cards=comp.cards||[];
+  if(!cards.length){ cardEl.style.display='none'; return; }
+  cardEl.style.display='block';
 
-  function compRow(label,myVal,cVal,maxVal,myTxt,cTxt){
-    const mp=(myVal/Math.max(maxVal,1)*100).toFixed(0);
-    const cp=(cVal/Math.max(maxVal,1)*100).toFixed(0);
-    return `<div>
-      <div class="comp-label">${label}</div>
-      <div class="comp-bar-wrap">
-        <div class="comp-tag" style="color:var(--green)">우리</div>
-        <div class="comp-bar-bg"><div class="comp-bar" style="width:${mp}%;background:var(--green)">${myTxt}</div></div>
+  const html=cards.map(c=>{
+    const gradeLabel = c.grade==='S' ? 'S급 키워드' : 'A급 키워드';
+    const gradeBg    = c.grade==='S' ? 'background:#22c55e' : 'background:#3b82f6';
+    const myRankTxt  = c.my_rank ? `${c.my_rank}위` : '순위권 밖';
+    const compName   = c.competitor_name || '1위 매장';
+    const gap        = c.gap;
+
+    // 색·멘트 (추정·여지 표현, 광고 티 X). 근소=주황(희망)/큰차이=빨강(주의)
+    let tone, ment;
+    if(gap!=null && gap<=2){
+      tone='#f97316';
+      ment=`${esc(compName)}와는 근소한 차이 — 약간의 최적화로 역전 가능해요`;
+    } else if(gap!=null && gap<=5){
+      tone='#f97316';
+      ment=`${esc(compName)}은(는) 플레이스 광고나 상위노출 작업을 진행 중인 것으로 보여요`;
+    } else {
+      tone='#ef4444';
+      ment=`${esc(compName)}은(는) 리뷰·키워드 관리에 꾸준히 투자하거나 광고를 병행하는 것으로 분석돼요`;
+    }
+    const gapTxt = gap!=null ? `${gap}계단 차이` : '아직 순위권 밖';
+
+    return `<div class="comp-card2">
+      <div class="comp-grade" style="${gradeBg}">${gradeLabel}</div>
+      <div class="comp-kw">${esc(c.keyword)}</div>
+      <div class="comp-vs">
+        <div class="comp-vs-me"><span class="comp-vs-lbl">내 매장</span><span class="comp-vs-rank" style="color:${tone}">${myRankTxt}</span></div>
+        <div class="comp-vs-sep">vs</div>
+        <div class="comp-vs-rival"><span class="comp-vs-lbl">${esc(compName)}</span><span class="comp-vs-rank">1위</span></div>
       </div>
-      <div class="comp-bar-wrap" style="margin-top:4px">
-        <div class="comp-tag" style="color:var(--gray-600)">${compLabel}</div>
-        <div class="comp-bar-bg"><div class="comp-bar" style="width:${cp}%;background:var(--gray-400)">${cTxt}</div></div>
-      </div>
+      <div class="comp-gap2" style="color:${tone}">${gapTxt}</div>
+      <div class="comp-ment">${ment}</div>
     </div>`;
-  }
+  }).join('');
 
-  let rows='';
-  if(baseKw){
-    const headerTxt = isUs1st
-      ? `🥇 당신은 1위! '${esc(baseKw)}' 검색 2위 매장과 비교`
-      : `'${esc(baseKw)}' 검색 1위 매장과 비교`;
-    rows+=`<p style="font-size:.8rem;color:var(--gray-600);margin:0 0 12px;">${headerTxt}</p>`;
-  }
-
-  rows+=compRow('플레이스 순위', myRS, cRS, 100,
-    myBestRank?myBestRank+'위':'미노출', compRank+'위');
-
-  const brGap=cBr-myBr;
-  rows+=compRow('블로그 리뷰', myBr, cBr, Math.max(myBr,cBr,1),
-    fmt(myBr)+'개', fmt(cBr)+'개');
-  if(brGap>0) rows+=`<p class="comp-gap">▼ 블로그 리뷰 ${fmt(brGap)}개 뒤처져 있어요</p>`;
-
-  const vrGap=cVr-myVr;
-  rows+=compRow('방문자 리뷰', myVr, cVr, Math.max(myVr,cVr,1),
-    fmt(myVr)+'개', fmt(cVr)+'개');
-  if(vrGap>0) rows+=`<p class="comp-gap">▼ 방문자 리뷰 ${fmt(vrGap)}개 뒤처져 있어요</p>`;
-
-  rows+=compRow('리뷰 파워', myRP, cRP, Math.max(myRP,cRP,1),
-    myRP+'점', cRP+'점');
-
-  document.getElementById('compRows').innerHTML=rows;
+  rowsEl.innerHTML=`<div class="comp-grid">${html}</div>`;
 }
 
 // ── 순위 숫자 색 ──────────────────────────────────────────────────────────────
@@ -2130,7 +2154,10 @@ function renderBlogResultsWithComparison(blogResults, prevBlogMap, kwHistory){
 // ── 닥터 코멘트 ───────────────────────────────────────────────────────────────
 function renderComment(d, sc){
   const lines=[];
-  const seo=sc.seo??0, con=sc.content??0, act=sc.activity??0;
+  const seo=sc.seo??0, con=sc.content??0;
+  // B단계: activity가 null(리뷰활동 수집 실패)이면 강점/약점 분석에서 제외 (거짓 0점으로 약점 오판 방지)
+  const axisPairs=[['seo',seo],['content',con]];
+  if(sc.activity!=null) axisPairs.push(['activity',sc.activity]);
   const vr=d.visitor_reviews, ss=d.star_score;
   const allKws=d.place_results||[];
   const rankedKws=allKws.filter(k=>k.rank);
@@ -2161,15 +2188,15 @@ function renderComment(d, sc){
   else if(vr!=null&&vr>=100)       strength=`방문자 리뷰 ${fmt(vr)}개로 콘텐츠 기반이 탄탄해요.`;
   else if(rankedKws.length>=5)     strength=`${rankedKws.length}개 키워드에서 노출되고 있어 기본기는 갖춰져 있어요.`;
   else{
-    const best=Math.max(seo,con,act);
-    const k=seo===best?'seo':con===best?'content':'activity';
+    const bestPair=axisPairs.reduce((a,b)=>b[1]>a[1]?b:a);
+    const k=bestPair[0], best=bestPair[1];
     strength = best>=50 ? `${AX[k]} 쪽은 비교적 잘 관리되고 있어요.`
                         : `아직 시작 단계지만, 손볼 곳이 명확해 개선 여지가 큰 매장이에요.`;
   }
   lines.push('✅ '+strength);
 
   // 3) 핵심 약점 (가장 낮은 축)
-  const weak=[['seo',seo],['content',con],['activity',act]].sort((a,b)=>a[1]-b[1])[0];
+  const weak=axisPairs.slice().sort((a,b)=>a[1]-b[1])[0];
   const weakKey=weak[0], weakVal=weak[1];
   const weakReason={
     seo:'주요 키워드 노출이 부족해요',
