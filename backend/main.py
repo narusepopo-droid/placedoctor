@@ -15,14 +15,14 @@ if not _pkg_logger.handlers:
     _pkg_logger.setLevel(logging.INFO)
     _pkg_logger.propagate = False
 
-from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from .database import engine, get_db
 from .models import Base
 from . import crud, schemas
-from .core.scraper import diagnose_store, analyze_blog_ranking
+from .core.scraper import diagnose_store, diagnose_store_stream, analyze_blog_ranking
 from .core.scoring import apply_ad_flags
 
 # ── Windows ProactorEventLoop 전용 스레드 ────────────────────────────────────
@@ -1299,11 +1299,11 @@ async function startAnalysis(){
   }
 }
 
-// ── 플레이스 분석 ─────────────────────────────────────────────────────────────
+// ── 플레이스 분석 (R단계: SSE 스트리밍) ──────────────────────────────────────
 async function analyzePlaceOnly(){
   const name = document.getElementById('storeName').value.trim();
   const url  = document.getElementById('placeUrl').value.trim();
-  const force= _forceRefresh; _forceRefresh = false;  // 1회성: 다시 분석 시에만 true
+  const force= _forceRefresh; _forceRefresh = false;
   const adFlags = {
     ad_place:     document.getElementById('adPlace').checked,
     ad_powerlink: document.getElementById('adPowerlink').checked,
@@ -1312,7 +1312,6 @@ async function analyzePlaceOnly(){
   };
   if(!name||!url){alert('매장명과 URL을 입력해주세요.');return;}
 
-  // K단계: 마지막 분석 정보 저장 + 히스토리 데이터 초기화
   _lastStoreName = name;
   _lastPlaceUrl = url;
   _historyPlaceData = null;
@@ -1329,47 +1328,79 @@ async function analyzePlaceOnly(){
   startLoading('place');
   window.scrollTo({top:0,behavior:'smooth'});
 
-  const MIN_SHOW_MS = 1500;
+  // R단계: SSE로 실시간 스트리밍
+  const params = new URLSearchParams({
+    store_name: name,
+    place_url: url,
+    force_refresh: force,
+    anon_id: _anonId || '',
+    ad_place: adFlags.ad_place,
+    ad_powerlink: adFlags.ad_powerlink,
+    ad_local: adFlags.ad_local,
+    ad_blog: adFlags.ad_blog,
+  });
 
-  // N단계: AbortController로 중지 가능하게
-  _analysisAbortController = new AbortController();
+  let eventSource = null;
+  try {
+    eventSource = new EventSource('/diagnose-stream?' + params.toString());
 
-  try{
-    const [res] = await Promise.all([
-      fetch('/diagnose',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({store_name:name,place_url:url,force_refresh:force,anon_id:_anonId,...adFlags}),
-        signal: _analysisAbortController.signal
-      }),
-      new Promise(r=>setTimeout(r, MIN_SHOW_MS))
-    ]);
-    _analysisAbortController = null;
-    const text = await res.text();
-    stopLoading();
-    if(!res.ok){
+    eventSource.addEventListener('started', (e) => {
+      const d = JSON.parse(e.data);
+      console.log('[SSE] started:', d);
+      // 1단계에서는 단순히 로그만 (2단계에서 게임 UI 연출)
+    });
+
+    eventSource.addEventListener('keyword', (e) => {
+      const d = JSON.parse(e.data);
+      console.log('[SSE] keyword:', d.keyword, 'rank:', d.rank, 'progress:', d.progress + '/' + d.total);
+      // 1단계: 로딩 진행률 업데이트
+      if(d.total > 0) {
+        const pct = Math.min(95, Math.round((d.progress / d.total) * 90));
+        const bar = document.getElementById('loadingBar');
+        if(bar) bar.style.width = pct + '%';
+      }
+    });
+
+    eventSource.addEventListener('complete', (e) => {
+      eventSource.close();
+      stopLoading();
+      const data = JSON.parse(e.data);
+      _prevAnalysis = data.prev_analysis || null;
+      document.getElementById('loading-section').style.display='none';
+      renderResult(data);
+      document.getElementById('result').style.display='block';
+      switchTab('place');
+      loadRecentStores();
+      if(data.place_id) updateRegisterButtons(data.place_id);
+      btn.disabled=false; btn.textContent='내 순위 확인하기';
+      window.scrollTo({top:0,behavior:'smooth'});
+    });
+
+    eventSource.addEventListener('error', (e) => {
+      eventSource.close();
+      stopLoading();
+      let msg = '연결 오류';
+      try { const d = JSON.parse(e.data); msg = d.message || msg; } catch(x){}
       document.getElementById('loading-section').style.display='none';
       document.getElementById('input-section').style.display='block';
-      document.getElementById('errBox').innerHTML=`<div class="err-box">오류 (${res.status})<br><small>${esc(text.slice(0,400))}</small></div>`;
+      document.getElementById('errBox').innerHTML=`<div class="err-box">분석 오류: ${esc(msg)}</div>`;
       btn.disabled=false; btn.textContent='내 순위 확인하기';
-      return;
-    }
-    document.getElementById('loading-section').style.display='none';
-    const data = JSON.parse(text);
-    _prevAnalysis = data.prev_analysis || null;  // 직전 분석 결과
-    renderResult(data);
-    document.getElementById('result').style.display='block';
-    switchTab('place');
-    // K단계: 최근 매장 목록 새로고침
-    loadRecentStores();
-    // M단계: 등록 버튼 상태 업데이트
-    if(data.place_id) updateRegisterButtons(data.place_id);
-    window.scrollTo({top:0,behavior:'smooth'});
-  }catch(e){
-    _analysisAbortController = null;
+    });
+
+    eventSource.onerror = (e) => {
+      // SSE 연결 자체 실패
+      if(eventSource.readyState === EventSource.CLOSED) return;
+      eventSource.close();
+      stopLoading();
+      document.getElementById('loading-section').style.display='none';
+      document.getElementById('input-section').style.display='block';
+      document.getElementById('errBox').innerHTML=`<div class="err-box">서버 연결 실패. 잠시 후 다시 시도해주세요.</div>`;
+      btn.disabled=false; btn.textContent='내 순위 확인하기';
+    };
+
+  } catch(e) {
+    if(eventSource) eventSource.close();
     stopLoading();
-    // N단계: 중지한 경우 에러 표시 안 함
-    if(e.name === 'AbortError') return;
     document.getElementById('loading-section').style.display='none';
     document.getElementById('input-section').style.display='block';
     document.getElementById('errBox').innerHTML=`<div class="err-box">요청 실패: ${esc(e.message)}</div>`;
@@ -2370,6 +2401,195 @@ def index():
 @app.get("/health", tags=["시스템"])
 def health():
     return {"status": "ok"}
+
+
+# ── R단계: SSE 스트리밍 진단 엔드포인트 ─────────────────────────────────────
+@app.get("/diagnose-stream", tags=["진단"])
+async def diagnose_stream_endpoint(
+    store_name: str,
+    place_url: str,
+    ad_place: bool = False,
+    ad_powerlink: bool = False,
+    ad_local: bool = False,
+    ad_blog: bool = False,
+    anon_id: str = None,
+    force_refresh: bool = False,
+    db: Session = Depends(get_db),
+):
+    """
+    SSE(Server-Sent Events)로 분석 결과를 실시간 스트리밍합니다.
+    - started: 분석 시작 즉시 (504 방지)
+    - keyword: 키워드 순위 하나씩
+    - complete: 최종 결과
+    """
+    import json as json_module
+
+    place_id = _extract_place_id(place_url)
+    ad_flags = {
+        "place": ad_place,
+        "powerlink": ad_powerlink,
+        "local": ad_local,
+        "blog": ad_blog,
+    }
+
+    # 직전 분석 기록 조회
+    prev_analysis = None
+    analysis_count = 0
+    prev_analyzed_at = None
+    keyword_history = {}
+    if place_id:
+        prev_record = crud.get_previous_analysis(db, place_id, "place")
+        if prev_record:
+            prev_analysis = {
+                "total_score": prev_record.total_score,
+                "analyzed_at": prev_record.analyzed_at.isoformat() if prev_record.analyzed_at else None,
+                "result_json": prev_record.result_json,
+            }
+            prev_analyzed_at = prev_record.analyzed_at.strftime("%m/%d") if prev_record.analyzed_at else None
+        analysis_count = crud.get_analysis_count(db, place_id, "place")
+        keyword_history = crud.get_keyword_rank_history(db, place_id, "place", limit=5)
+
+    # 캐시 체크 (force_refresh가 아니고 캐시 있으면 complete만 바로 전송)
+    if place_id and not force_refresh:
+        cached = crud.get_cached_result(db, place_id)
+        if cached:
+            cached_place_id = cached.get("place_id") or place_id
+            if cached_place_id:
+                try:
+                    crud.save_analysis_history(
+                        db,
+                        place_id=cached_place_id,
+                        store_name=cached.get("store_name", store_name),
+                        analysis_type="place",
+                        total_score=cached.get("scores", {}).get("total"),
+                        result_json=json_module.dumps(cached, ensure_ascii=False),
+                        anon_id=anon_id,
+                    )
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"히스토리 저장 실패(캐시): {e}")
+
+            cached["cached"] = True
+            cached["ad_flags"] = ad_flags
+            cached["prev_analysis"] = prev_analysis
+            cached["prev_analyzed_at"] = prev_analyzed_at
+            cached["analysis_count"] = crud.get_analysis_count(db, cached_place_id, "place") if cached_place_id else analysis_count
+            cached["keyword_history"] = crud.get_keyword_rank_history(db, cached_place_id, "place", limit=5) if cached_place_id else keyword_history
+            apply_ad_flags(cached.get("scores", {}), ad_flags)
+
+            async def cached_generator():
+                # 캐시 히트 시에도 started → complete 흐름 유지
+                yield f"event: started\ndata: {json_module.dumps({'total_keywords': len(cached.get('keywords_used', [])), 'store_name': store_name, 'place_id': cached_place_id, 'cached': True}, ensure_ascii=False)}\n\n"
+                yield f"event: complete\ndata: {json_module.dumps(cached, ensure_ascii=False)}\n\n"
+
+            return StreamingResponse(
+                cached_generator(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",  # nginx 버퍼링 끄기
+                },
+            )
+
+    # 스레드 안전 큐로 실시간 이벤트 전달
+    import queue
+    event_queue = queue.Queue()
+
+    async def run_stream_to_queue():
+        """proactor 루프에서 실행, 이벤트를 큐에 넣음"""
+        try:
+            async for event in diagnose_store_stream(store_name, place_url, ad_flags=ad_flags):
+                event_queue.put(event)
+            event_queue.put(None)  # 종료 신호
+        except Exception as e:
+            import traceback
+            event_queue.put({"type": "error", "message": str(e), "traceback": traceback.format_exc()})
+            event_queue.put(None)
+
+    # proactor 루프에서 스트리밍 시작 (비동기)
+    asyncio.run_coroutine_threadsafe(run_stream_to_queue(), _proactor_loop)
+
+    async def event_generator():
+        try:
+            while True:
+                # 큐에서 이벤트 꺼내기 (blocking, 타임아웃 1초)
+                try:
+                    event = await asyncio.get_running_loop().run_in_executor(
+                        None, lambda: event_queue.get(timeout=1.0)
+                    )
+                except queue.Empty:
+                    continue
+
+                if event is None:  # 종료 신호
+                    break
+
+                event_type = event.get("type", "message")
+
+                if event_type == "error":
+                    yield f"event: error\ndata: {json_module.dumps(event, ensure_ascii=False)}\n\n"
+                    break
+
+                if event_type == "complete":
+                    # 최종 결과에 히스토리 정보 추가
+                    result = event.get("result", {})
+                    result_place_id = result.get("place_id") or place_id
+
+                    # 히스토리 저장
+                    if result_place_id:
+                        try:
+                            crud.save_analysis_history(
+                                db,
+                                place_id=result_place_id,
+                                store_name=result.get("store_name", store_name),
+                                analysis_type="place",
+                                total_score=result.get("scores", {}).get("total"),
+                                result_json=json_module.dumps(result, ensure_ascii=False),
+                                anon_id=anon_id,
+                            )
+                        except Exception as e:
+                            import logging
+                            logging.getLogger(__name__).warning(f"히스토리 저장 실패: {e}")
+
+                        # 직전 기록 재조회
+                        prev_record2 = crud.get_previous_analysis(db, result_place_id, "place")
+                        if prev_record2:
+                            result["prev_analysis"] = {
+                                "total_score": prev_record2.total_score,
+                                "analyzed_at": prev_record2.analyzed_at.isoformat() if prev_record2.analyzed_at else None,
+                                "result_json": prev_record2.result_json,
+                            }
+                            result["prev_analyzed_at"] = prev_record2.analyzed_at.strftime("%m/%d") if prev_record2.analyzed_at else None
+                        result["analysis_count"] = crud.get_analysis_count(db, result_place_id, "place")
+                        result["keyword_history"] = crud.get_keyword_rank_history(db, result_place_id, "place", limit=5)
+
+                    result["cached"] = False
+
+                    # DB 저장
+                    try:
+                        crud.save_diagnosis(db, result, place_url)
+                    except Exception as e:
+                        import logging
+                        logging.getLogger(__name__).warning(f"DB 저장 실패: {e}")
+
+                    yield f"event: complete\ndata: {json_module.dumps(result, ensure_ascii=False)}\n\n"
+                else:
+                    yield f"event: {event_type}\ndata: {json_module.dumps(event, ensure_ascii=False)}\n\n"
+
+        except Exception as e:
+            import traceback
+            error_data = {"type": "error", "message": str(e), "traceback": traceback.format_exc()}
+            yield f"event: error\ndata: {json_module.dumps(error_data, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # nginx 버퍼링 끄기
+        },
+    )
 
 
 @app.post("/diagnose", tags=["진단"])

@@ -1428,8 +1428,8 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
           "scores":     { seo, content, activity, ad, total, detail },
         }
     """
-    N_WORKERS  = 4   # 동시 검색 페이지 수 (네이버 차단 방지: 3~4 이하 유지)
-    MAX_KW     = 30  # 상위 우선순위 키워드 (역·동 두 지역 키워드 모두 포함, N_WORKERS=4 기준)
+    N_WORKERS  = 2   # R단계: t3.small 측정상 2워커 최적 (4·6은 CPU 경합으로 더 느림)
+    MAX_KW     = 30  # 상위 우선순위 키워드 (역·동 두 지역 키워드 모두 포함)
 
     _t0 = time.perf_counter()  # ⏱ Q단계 타이밍: 전체 시작
     playwright, browser, context = await create_browser()
@@ -1563,6 +1563,180 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
             "competitor":         competitor,
             "scores":             scores,
             "ad_flags":           ad_flags or {},
+        }
+    finally:
+        await close_browser(playwright, browser)
+
+
+# ── R단계: SSE 스트리밍용 진단 함수 ─────────────────────────────────────────
+async def diagnose_store_stream(
+    store_name: str,
+    place_url: str = "",
+    ad_flags: dict | None = None,
+    keywords: list[str] | None = None,
+):
+    """
+    diagnose_store의 SSE 스트리밍 버전.
+    키워드 순위가 나올 때마다 yield로 즉시 전송.
+
+    Yields:
+        dict: {"type": "started"|"keyword"|"complete", ...}
+    """
+    N_WORKERS = 2
+    MAX_KW = 30
+
+    _t0 = time.perf_counter()
+    playwright, browser, context = await create_browser()
+    try:
+        detail_page = await create_stealth_page(context)
+
+        # ── 우리 매장 상세정보 ──
+        details = {}
+        if place_url:
+            details = await get_store_details(detail_page, place_url)
+
+        place_id = details.get("place_id")
+        address = details.get("address", "")
+        category = details.get("category", "")
+        menu_items = details.get("menu_items", [])
+        official_keywords = details.get("official_keywords", [])
+        nearby_station = details.get("nearby_station", "")
+        keyword_list = details.get("keyword_list", [])
+
+        if keywords:
+            target_keywords = keywords[:MAX_KW]
+        else:
+            target_keywords = generate_keywords(
+                store_name=store_name,
+                category=category,
+                address=address,
+                menu_items=menu_items,
+                official_keywords=official_keywords,
+                nearby_station=nearby_station,
+                keyword_list=keyword_list,
+            )[:MAX_KW]
+
+        # ⭐ started 이벤트 즉시 전송 (504 방지 핵심)
+        yield {
+            "type": "started",
+            "total_keywords": len(target_keywords),
+            "store_name": store_name,
+            "place_id": place_id,
+        }
+
+        # ── 병렬 키워드 순위 검색 (하나씩 yield) ──
+        search_pages = [await create_stealth_page(context) for _ in range(N_WORKERS)]
+        page_pool: asyncio.Queue = asyncio.Queue()
+        for p in search_pages:
+            await page_pool.put(p)
+
+        place_results = []
+        results_queue: asyncio.Queue = asyncio.Queue()
+
+        async def _rank_task(kw: str, idx: int):
+            pg = await page_pool.get()
+            try:
+                r, bt, first_id, first_name = await check_place_rank(pg, kw, place_id)
+                result = {"keyword": kw, "rank": r, "businesses_total": bt,
+                          "first_id": first_id, "first_name": first_name}
+                await results_queue.put((idx, result))
+            except Exception as e:
+                logger.warning(f"[{kw}] 순위 검색 실패: {e}")
+                await results_queue.put((idx, {"keyword": kw, "rank": None, "businesses_total": None,
+                                                "first_id": None, "first_name": None}))
+            finally:
+                await page_pool.put(pg)
+
+        # 모든 태스크 시작
+        tasks = [asyncio.create_task(_rank_task(kw, i)) for i, kw in enumerate(target_keywords)]
+
+        # 결과가 나올 때마다 yield
+        completed = 0
+        total = len(target_keywords)
+        results_map = {}
+
+        while completed < total:
+            idx, result = await results_queue.get()
+            results_map[idx] = result
+            completed += 1
+
+            # 순위별 가상 점수 (게임 연출용)
+            rank = result.get("rank")
+            if rank is not None:
+                if rank <= 3:
+                    score_delta = 2
+                elif rank <= 10:
+                    score_delta = 1
+                else:
+                    score_delta = 0
+            else:
+                score_delta = 0
+
+            yield {
+                "type": "keyword",
+                "keyword": result["keyword"],
+                "rank": rank,
+                "businesses_total": result.get("businesses_total"),
+                "score_delta": score_delta,
+                "progress": completed,
+                "total": total,
+            }
+
+        # 태스크 완료 대기
+        await asyncio.gather(*tasks)
+
+        # 순서대로 정렬
+        place_results = [results_map[i] for i in range(total)]
+
+        # ── 경쟁사 비교 ──
+        competitor = _build_competitor_compare(place_results, place_id)
+        missing = [c for c in competitor.get("cards", [])
+                   if not c.get("competitor_name") and c.get("competitor_id")]
+        if missing:
+            async def _name_task(card: dict):
+                pg = await page_pool.get()
+                try:
+                    card["competitor_name"] = await _fetch_place_name(pg, card["competitor_id"])
+                except Exception:
+                    pass
+                finally:
+                    await page_pool.put(pg)
+            await asyncio.gather(*[_name_task(c) for c in missing])
+
+        blog_results = []
+
+        # ── 점수 계산 ──
+        store_data_for_score = {
+            **details,
+            "place_results": place_results,
+        }
+        scores = calculate_scores(store_data_for_score, ad_flags=ad_flags)
+
+        _t_total = time.perf_counter() - _t0
+        logger.info(f"⏱ [SSE 스트리밍] 총 소요: {_t_total:.1f}s")
+
+        # ⭐ complete 이벤트 (최종 결과)
+        yield {
+            "type": "complete",
+            "result": {
+                "store_name": store_name,
+                "place_id": place_id,
+                "address": address,
+                "category": category,
+                "visitor_reviews": details.get("visitor_reviews"),
+                "blog_reviews": details.get("blog_reviews"),
+                "star_score": details.get("star_score"),
+                "photo_count": details.get("photo_count"),
+                "latest_review_date": details.get("latest_review_date"),
+                "review_activity": details.get("review_activity"),
+                "recent_30d_reviews": details.get("recent_30d_reviews"),
+                "keywords_used": target_keywords,
+                "place_results": place_results,
+                "blog_results": blog_results,
+                "competitor": competitor,
+                "scores": scores,
+                "ad_flags": ad_flags or {},
+            }
         }
     finally:
         await close_browser(playwright, browser)

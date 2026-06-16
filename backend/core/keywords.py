@@ -484,6 +484,10 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
             deduped.append(k)
 
     deduped.sort(key=sort_weight, reverse=True)
+
+    # R단계: 공백 제외 9글자 초과 키워드 제거 (실효성 낮은 긴 키워드 정리)
+    deduped = [k for k in deduped if len(k.replace(' ', '')) <= 9]
+
     return deduped[:100]
 
 
