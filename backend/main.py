@@ -176,7 +176,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .kw-trend .up{color:#16a34a;}
 .kw-trend .down{color:#dc2626;}
 .kw-trend .same{color:var(--gray-400);}
+.kw-trend .kw-date{font-size:.65rem;color:var(--gray-400);margin-right:2px;}
 .kw-first{font-size:.72rem;color:var(--gray-400);margin-left:4px;}
+/* S단계: 날짜별 순위 흐름 */
+.kw-trend-flow{display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:.72rem;}
+.kw-trend-flow.up .trend-rank:last-child{color:#16a34a;font-weight:700;}
+.kw-trend-flow.down .trend-rank:last-child{color:#dc2626;font-weight:700;}
+.trend-item{display:inline-flex;flex-direction:column;align-items:center;gap:1px;}
+.trend-date{font-size:.6rem;color:var(--gray-400);}
+.trend-rank{font-size:.72rem;color:var(--gray-600);}
+.trend-arrow{color:var(--gray-300);font-size:.65rem;margin:0 2px;}
 
 /* K단계: 최근 본 매장 */
 .recent-stores-section{margin-top:24px;padding:0 4px;}
@@ -393,6 +402,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 @keyframes kwPop{0%{opacity:0;transform:scale(1.4);}60%{transform:scale(0.95);}100%{opacity:1;transform:scale(1);}}
 @keyframes reactionBounce{0%{transform:scale(0.5);}50%{transform:scale(1.2);}100%{transform:scale(1);}}
 
+/* S단계: 실제 진행률 표시 */
+.l-progress-text{font-size:.9rem;color:var(--gray-500);margin-bottom:4px;}
+.l-progress-count{font-size:1.8rem;font-weight:800;color:var(--green);margin-bottom:16px;}
+.l-progress-count span{transition:transform .15s;}
+
+/* S단계: 상위 키워드 칩 누적 */
+.top-kw-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px;min-height:32px;}
+.top-kw-chip{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:20px;font-size:.82rem;font-weight:600;animation:chipIn .4s ease-out;}
+.top-kw-chip .chip-rank{font-weight:700;margin-right:2px;}
+.top-kw-chip.rank-1{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;border:1px solid #fcd34d;}
+.top-kw-chip.rank-2-3{background:linear-gradient(135deg,#f3f4f6,#e5e7eb);color:#374151;border:1px solid #d1d5db;}
+.top-kw-chip.rank-4-5{background:linear-gradient(135deg,#fed7aa,#fdba74);color:#9a3412;border:1px solid #fb923c;}
+.top-kw-chip.rank-6-10{background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb;}
+@keyframes chipIn{0%{opacity:0;transform:scale(0.5) translateY(10px);}100%{opacity:1;transform:scale(1) translateY(0);}}
+
+/* S단계: 분석 중 펄스 (키워드 사이 생동감) */
+.kw-analyzing{text-align:center;padding:20px;}
+.kw-analyzing-icon{font-size:2rem;animation:analyzePulse 1.2s ease-in-out infinite;}
+.kw-analyzing-text{font-size:.9rem;color:var(--gray-500);margin-top:8px;}
+.kw-analyzing-dots{display:inline-flex;gap:3px;margin-left:4px;}
+.kw-analyzing-dots span{width:5px;height:5px;background:var(--green);border-radius:50%;animation:dotBounce .6s ease-in-out infinite;}
+.kw-analyzing-dots span:nth-child(2){animation-delay:.1s;}
+.kw-analyzing-dots span:nth-child(3){animation-delay:.2s;}
+@keyframes analyzePulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.1);opacity:.7;}}
+@keyframes dotBounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-4px);}}
+
 /* TABS */
 .tabs{display:flex;gap:0;margin-top:14px;background:#fff;border-radius:var(--radius);border:var(--card-border);overflow:hidden;}
 .tab-btn{flex:1;padding:14px 10px;background:#fff;border:none;font-size:.9rem;font-weight:600;color:var(--gray-600);cursor:pointer;transition:all .2s;border-bottom:3px solid transparent;}
@@ -576,7 +611,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="l-card">
       <span class="l-pulse" id="lIcon">📊</span>
       <div class="l-title" id="lTitle">플레이스 진단 중이에요</div>
-      <div class="l-sub" id="lSub">키워드를 하나씩 검색하고 있어요</div>
+      <!-- S단계: 실제 진행률 표시 (가짜 5단계 제거) -->
+      <div class="l-progress-text" id="lProgressText">키워드 분석 중</div>
+      <div class="l-progress-count" id="lProgressCount"><span id="lProgressCur">0</span> / <span id="lProgressTotal">30</span></div>
 
       <!-- R단계: 점수 게이지 (게임머니 획득 연출) -->
       <div class="game-score-wrap" id="gameScoreWrap" style="display:none;">
@@ -585,12 +622,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="game-score-delta" id="gameScoreDelta"></div>
       </div>
 
+      <!-- S단계: 상위 키워드 칩 누적 영역 -->
+      <div class="top-kw-chips" id="topKwChips"></div>
+
       <!-- R단계: 키워드 등장 영역 -->
       <div class="kw-popup-area" id="kwPopupArea"></div>
 
       <div class="l-bar-wrap"><div class="l-bar" id="lBar"></div></div>
       <div class="l-pct" id="lPct">0%</div>
-      <div class="l-steps" id="lSteps"></div>
       <div class="l-tip" id="lTip"></div>
       <button class="btn-stop" onclick="goHome()">중지하기</button>
     </div>
@@ -1253,21 +1292,26 @@ function startLoading(type){
   document.getElementById('lPct').textContent='0%';
   document.getElementById('lTip').textContent=L_TIPS[Math.floor(Math.random()*L_TIPS.length)];
 
+  // S단계: 실제 진행률 UI 초기화
+  document.getElementById('lProgressCur').textContent = '0';
+  document.getElementById('lProgressTotal').textContent = '...';
+  document.getElementById('topKwChips').innerHTML = '';
+  document.getElementById('kwPopupArea').innerHTML = '';
+  document.getElementById('gameScoreWrap').style.display = 'none';
+
   // 분석 유형에 따라 로딩 화면 텍스트 변경
   if(type === 'blog'){
     document.getElementById('lIcon').textContent = '📝';
     document.getElementById('lTitle').textContent = '블로그 분석 중이에요';
-    document.getElementById('lSub').textContent = '블로그 노출 순위를 확인하고 있어요 · 약 1분 소요';
-    _renderLSteps(0, L_STEPS_BLOG);
+    document.getElementById('lProgressText').textContent = '블로그 순위 분석 중';
   } else {
     document.getElementById('lIcon').textContent = '📊';
     document.getElementById('lTitle').textContent = '플레이스 진단 중이에요';
-    document.getElementById('lSub').textContent = '키워드를 하나씩 검색하고 있어요 · 1~3분 소요';
-    _renderLSteps(0, L_STEPS);
+    document.getElementById('lProgressText').textContent = '키워드 분석 중';
   }
 
+  // S단계: 가짜 단계 애니메이션 제거, 진행률 바만 유지
   _animateLBar();
-  _lTimer=setInterval(()=>_advanceLStep(type==='blog'?L_STEPS_BLOG:L_STEPS),1000);
 }
 
 function stopLoading(){
@@ -1386,14 +1430,31 @@ async function analyzePlaceOnly(){
       document.getElementById('gameScoreNum').textContent = '0';
       document.getElementById('gameScoreDelta').textContent = '';
       document.getElementById('kwPopupArea').innerHTML = '';
-      document.getElementById('lSub').textContent = `${d.total_keywords}개 키워드 분석 중...`;
+      // S단계: 실제 진행률 초기화
+      document.getElementById('lProgressTotal').textContent = d.total_keywords;
+      document.getElementById('lProgressCur').textContent = '0';
+      document.getElementById('topKwChips').innerHTML = '';
+      // S단계: 분석 중 펄스 표시
+      _showAnalyzingPulse();
     });
+
+    // S단계: 분석 중 펄스 표시 함수
+    function _showAnalyzingPulse() {
+      const area = document.getElementById('kwPopupArea');
+      area.innerHTML = `
+        <div class="kw-analyzing">
+          <div class="kw-analyzing-icon">🔍</div>
+          <div class="kw-analyzing-text">다음 키워드 분석 중<span class="kw-analyzing-dots"><span></span><span></span><span></span></span></div>
+        </div>
+      `;
+    }
 
     eventSource.addEventListener('keyword', (e) => {
       const d = JSON.parse(e.data);
       console.log('[SSE] keyword:', d.keyword, 'rank:', d.rank, 'progress:', d.progress + '/' + d.total);
 
-      // R단계: 진행률 바 업데이트
+      // S단계: 실제 진행률 업데이트
+      document.getElementById('lProgressCur').textContent = d.progress;
       if(d.total > 0) {
         const pct = Math.min(95, Math.round((d.progress / d.total) * 90));
         const bar = document.getElementById('lBar');
@@ -1411,7 +1472,6 @@ async function analyzePlaceOnly(){
         if(rank === 1) { reaction = '오~! 🎉'; rankClass = 'top'; }
         else if(rank <= 3) { reaction = 'Nice! 👍'; rankClass = 'top'; }
         else if(rank <= 5) { reaction = 'Good!'; rankClass = 'top'; }
-        // 그 이하는 담백하게 (부정 표현 금지)
       }
 
       const popup = document.createElement('div');
@@ -1424,6 +1484,30 @@ async function analyzePlaceOnly(){
       area.innerHTML = '';
       area.appendChild(popup);
 
+      // S단계: 상위 10위 이내 키워드 칩 누적
+      if(rank !== null && rank <= 10) {
+        const chipsArea = document.getElementById('topKwChips');
+        let chipClass = 'rank-6-10';
+        if(rank === 1) chipClass = 'rank-1';
+        else if(rank <= 3) chipClass = 'rank-2-3';
+        else if(rank <= 5) chipClass = 'rank-4-5';
+
+        const chip = document.createElement('span');
+        chip.className = `top-kw-chip ${chipClass}`;
+        chip.innerHTML = `<span class="chip-rank">${rank}위</span>${esc(d.keyword)}`;
+        chipsArea.appendChild(chip);
+      }
+
+      // S단계: 1초 후 분석 중 펄스로 전환 (마지막 키워드 아닐 때)
+      if(d.progress < d.total) {
+        setTimeout(() => {
+          // 다음 키워드가 이미 도착했으면 무시
+          if(area.querySelector('.kw-popup')) {
+            _showAnalyzingPulse();
+          }
+        }, 1200);
+      }
+
       // R단계: 점수 차오르기 (천장 규칙)
       const scoreDelta = d.score_delta || 0;
       if(scoreDelta > 0) {
@@ -1434,16 +1518,14 @@ async function analyzePlaceOnly(){
         const numEl = document.getElementById('gameScoreNum');
         const deltaEl = document.getElementById('gameScoreDelta');
 
-        // 점수 업데이트 + bump 애니메이션
         numEl.textContent = _gameScore;
         numEl.classList.add('bump');
         setTimeout(() => numEl.classList.remove('bump'), 200);
 
-        // +N 표시
         if(actualDelta > 0) {
           deltaEl.textContent = '+' + actualDelta;
           deltaEl.classList.remove('show');
-          void deltaEl.offsetWidth;  // reflow
+          void deltaEl.offsetWidth;
           deltaEl.classList.add('show');
         }
       }
@@ -2057,36 +2139,48 @@ function renderKeywords(expanded, prevRankMap, kwHistory){
 }
 
 // J단계: 키워드 히스토리 추세 문자열 생성
+// S단계: 날짜별 대표 1개만 표시 (같은 날 중복 제거) + 날짜 표기
 function buildKeywordTrend(keyword, currentRank, kwHistory){
   const history = kwHistory[keyword];
   if(!history || history.length === 0){
-    // 첫 분석
     return '<span class="kw-first">(첫 분석)</span>';
   }
 
-  // 과거 기록이 1개면 직전 비교만
-  if(history.length === 1){
-    const prev = history[0];
+  // S단계: 같은 날짜 중복 제거 (날짜별 마지막 기록만 = 가장 최근)
+  const byDate = {};
+  for(const h of history){
+    byDate[h.date] = h;  // 같은 날짜면 덮어씀 (마지막 = 가장 최근)
+  }
+  const dedupedHistory = Object.values(byDate);
+
+  // 과거 기록이 1개면 직전 비교만 (날짜 포함)
+  if(dedupedHistory.length === 1){
+    const prev = dedupedHistory[0];
+    const dateStr = prev.date ? `<span class="kw-date">${prev.date}</span>` : '';
     if(prev.rank == null && currentRank == null) return '';
     if(prev.rank == null) return '<span class="kw-trend"><span class="up">NEW</span></span>';
-    if(currentRank == null) return `<span class="kw-trend"><span class="down">놓침</span> (전: ${prev.rank}위)</span>`;
+    if(currentRank == null) return `<span class="kw-trend">${dateStr}<span class="down">놓침</span> (전: ${prev.rank}위)</span>`;
 
     const diff = prev.rank - currentRank;
     if(diff > 0){
-      return `<span class="kw-trend"><span class="up">▲${diff}</span> (전: ${prev.rank}위)</span>`;
+      return `<span class="kw-trend"><span class="up">▲${diff}</span> (전: ${dateStr}${prev.rank}위)</span>`;
     } else if(diff < 0){
-      return `<span class="kw-trend"><span class="down">▼${Math.abs(diff)}</span> (전: ${prev.rank}위)</span>`;
+      return `<span class="kw-trend"><span class="down">▼${Math.abs(diff)}</span> (전: ${dateStr}${prev.rank}위)</span>`;
     } else {
-      return `<span class="kw-trend"><span class="same">-</span> (전: ${prev.rank}위)</span>`;
+      return `<span class="kw-trend"><span class="same">-</span> (전: ${dateStr}${prev.rank}위)</span>`;
     }
   }
 
-  // 과거 기록이 2개 이상이면 추세 나열: "13위 → 9위 → 2위"
-  const ranks = history.map(h => h.rank != null ? h.rank + '위' : '놓침');
-  ranks.push(currentRank != null ? currentRank + '위' : '놓침');
+  // S단계: 과거 기록 2개 이상 → 날짜별 가로 나열 (날짜 위, 순위 아래)
+  // 형태: "6/15  6/16  지금"
+  //       " 1위 → 2위 → 1위"
+  const dateLabels = dedupedHistory.map(h => h.date || '');
+  dateLabels.push('지금');
+  const rankLabels = dedupedHistory.map(h => h.rank != null ? h.rank + '위' : '놓침');
+  rankLabels.push(currentRank != null ? currentRank + '위' : '놓침');
 
-  // 최근 2개로 상승/하락 판단
-  const lastPrev = history[history.length - 1];
+  // 상승/하락 판단
+  const lastPrev = dedupedHistory[dedupedHistory.length - 1];
   let cls = 'same';
   if(lastPrev.rank != null && currentRank != null){
     if(lastPrev.rank > currentRank) cls = 'up';
@@ -2097,7 +2191,10 @@ function buildKeywordTrend(keyword, currentRank, kwHistory){
     cls = 'down';
   }
 
-  return `<span class="kw-trend"><span class="${cls}">${ranks.join(' → ')}</span></span>`;
+  // 가로 흐름 (날짜 + 순위)
+  const flow = dateLabels.map((d, i) => `<span class="trend-item"><span class="trend-date">${d}</span><span class="trend-rank">${rankLabels[i]}</span></span>`).join('<span class="trend-arrow">→</span>');
+
+  return `<span class="kw-trend-flow ${cls}">${flow}</span>`;
 }
 function toggleKw(){ renderKeywords(!_kwExpanded); }
 
