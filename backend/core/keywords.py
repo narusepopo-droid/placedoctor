@@ -462,31 +462,40 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                 combined = f"{loc} {food_kw}".strip() if loc else food_kw
                 kws.append(combined)
 
-    # ── 중복 제거 + 정렬 (지역명 우선, 역 키워드 후순위) ────────────────────────────
+    # ── 중복 제거 + 정렬 (구체적 지역 우선, 역 후순위) ─────────────────────────────
     _kl_text = ''.join(kw_list_raw)
 
-    # 지역 기본명 추출 (동탄역 → 동탄, 선릉역 → 선릉, 잠실역 → 잠실)
-    base_locations = set()
+    # 시/도 레벨은 낮은 우선순위 (화성, 서울, 수원 등)
+    city_level = set()
+    specific_locs = []  # 구체적 지역 (동탄구, 동탄, 영천동 등)
     for loc in locations:
-        if loc and loc.endswith('역') and len(loc) > 1:
-            base_locations.add(loc[:-1])  # 동탄역 → 동탄
-        elif loc:
-            base_locations.add(loc)
+        if not loc:
+            continue
+        # 첫 번째 토큰은 보통 시/도 레벨
+        if len(specific_locs) == 0 and (loc.endswith('시') or len(loc) == 2):
+            city_level.add(loc)
+        else:
+            specific_locs.append(loc)
 
     def sort_weight(kw):
         if kw in set(kw_list): return 1000
         w = 0
 
-        # 역 키워드는 후순위 (동탄 > 동탄역)
-        has_station = "역" in kw
-        has_base = any(base in kw for base in base_locations if not kw.count(base + "역"))
+        # 시/도 레벨 지역은 낮은 점수
+        for city in city_level:
+            if city in kw:
+                w += 5
+                break
 
-        if has_station:
-            w += 10  # 역 키워드 낮은 점수
-        elif has_base:
-            w += 30  # 기본 지역명 높은 점수
-        elif "동" in kw or "구" in kw:
-            w += 20
+        # 구체적 지역 (동탄구, 동탄, 영천동) 높은 점수
+        for loc in specific_locs:
+            if loc in kw:
+                # 역 키워드는 후순위 (동탄 > 동탄역)
+                if loc.endswith('역'):
+                    w += 15
+                else:
+                    w += 30
+                break
 
         for loc in locations:
             if loc and len(loc) >= 3 and loc in kw and loc in _kl_text:
