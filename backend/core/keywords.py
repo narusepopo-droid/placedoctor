@@ -462,14 +462,15 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                 combined = f"{loc} {food_kw}".strip() if loc else food_kw
                 kws.append(combined)
 
-    # ── 중복 제거 + 정렬 ───────────────────────────────────────────────────────
-    _kl_text = ''.join(kw_list_raw)  # 길이 필터 전 원본 텍스트로 지역 보너스 판별
+    # ── 중복 제거 + 정렬 (역/동/구 균등 분배) ─────────────────────────────────────
+    _kl_text = ''.join(kw_list_raw)
     def sort_weight(kw):
         if kw in set(kw_list): return 1000
         w = 0
-        if "역" in kw: w += 30
+        # 역/동/구 동일 가중치 (균등 분배)
+        if "역" in kw: w += 20
         elif "동" in kw: w += 20
-        elif "구" in kw: w += 10
+        elif "구" in kw: w += 20
         for loc in locations:
             if loc and len(loc) >= 3 and loc in kw and loc in _kl_text:
                 w += 15
@@ -484,4 +485,32 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
             deduped.append(k)
 
     deduped.sort(key=sort_weight, reverse=True)
-    return deduped[:100]
+
+    # 역/동/구 키워드 균등 분배: 각 유형에서 번갈아 가며 선택
+    final = []
+    by_type = {'역': [], '동': [], '구': [], 'other': []}
+    for kw in deduped:
+        if "역" in kw: by_type['역'].append(kw)
+        elif "동" in kw: by_type['동'].append(kw)
+        elif "구" in kw: by_type['구'].append(kw)
+        else: by_type['other'].append(kw)
+
+    # keywordList 원본 먼저
+    kw_set = set(kw_list)
+    for kw in deduped:
+        if kw in kw_set and kw not in final:
+            final.append(kw)
+
+    # 역/동/구에서 라운드로빈으로 추가
+    max_len = max(len(by_type['역']), len(by_type['동']), len(by_type['구']))
+    for i in range(max_len):
+        for t in ['구', '동', '역']:  # 구 먼저 (플마 결과 기준)
+            if i < len(by_type[t]) and by_type[t][i] not in final:
+                final.append(by_type[t][i])
+
+    # 나머지
+    for kw in by_type['other']:
+        if kw not in final:
+            final.append(kw)
+
+    return final[:100]
