@@ -242,18 +242,21 @@ python restart.py
 | 항목 | 값 |
 |------|-----|
 | 서버 | AWS EC2 Ubuntu 24.04 t3.small (서울 리전) |
-| IP | 54.180.91.222 |
-| 도메인 | https://placeranking.com (가비아, DNS A @/www → 54.180.91.222) |
+| IP | **3.37.138.148** (Elastic IP 고정, 2026-06-17). 이전: 54.180.91.222 → 13.125.37.99 → 3.35.233.85(인스턴스는 동일, EIP 부착 전) |
+| 도메인 | https://placeranking.com (가비아, DNS A @/www → 3.37.138.148) |
 | DB | PostgreSQL 16, placedoctor |
 | 상시구동 | systemd `placeranking.service` |
 | 웹서버 | nginx 80/443 → 127.0.0.1:8000 |
 | HTTPS | certbot (만료 2026-09-13, 자동갱신) |
+| 스왑 | 2GB `/swapfile` (2026-06-17 추가, `/etc/fstab` 등록 — 재부팅 유지). t3.small RAM 2GB 보강용 |
 
 ### 서버 접속
 
 ```bash
-ssh -i placeranking-key.pem ubuntu@54.180.91.222
+ssh -i placeranking-key.pem ubuntu@3.37.138.148
 ```
+
+> **IP 변경 주의**: EIP 부착 전에는 인스턴스 재시작마다 퍼블릭 IP가 바뀌어 도메인이 죽었음(DNS는 옛 IP를 가리킴). 2026-06-17 **Elastic IP `3.37.138.148` 고정**으로 해결. 이후 IP 변동 없음.
 
 ### 코드 업데이트 (배포)
 
