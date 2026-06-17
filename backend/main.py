@@ -340,6 +340,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .comment-line{font-size:.88rem;color:var(--gray-800);line-height:1.65;margin-bottom:6px;}
 .comment-line:last-child{margin-bottom:0;}
 
+/* SUBSCRIBE */
+.subscribe-form{display:flex;flex-direction:column;gap:12px;}
+.subscribe-desc{font-size:.85rem;color:var(--gray-600);line-height:1.5;}
+.subscribe-input{width:100%;padding:14px 16px;border:1.5px solid var(--gray-200);border-radius:10px;font-size:1rem;outline:none;transition:border .2s;}
+.subscribe-input:focus{border-color:var(--green);}
+.subscribe-agree{display:flex;align-items:flex-start;gap:8px;font-size:.82rem;color:var(--gray-600);cursor:pointer;line-height:1.45;}
+.subscribe-agree input{margin-top:3px;accent-color:var(--green);}
+.btn-subscribe{width:100%;padding:14px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;transition:background .2s;}
+.btn-subscribe:hover{background:var(--green-d);}
+.btn-subscribe:disabled{background:var(--gray-300);cursor:not-allowed;}
+.subscribe-done{text-align:center;padding:20px 0;}
+.subscribe-done-icon{font-size:2.5rem;margin-bottom:10px;}
+.subscribe-done-text{font-size:1rem;font-weight:700;color:var(--green-d);margin-bottom:4px;}
+.subscribe-done-sub{font-size:.85rem;color:var(--gray-500);}
+
 /* BUTTONS */
 .btn-area{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
 .btn-main{padding:15px;background:var(--green);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
@@ -700,6 +715,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="card">
         <div class="card-title">💬 분석 코멘트</div>
         <div class="comment-box" id="commentBox"></div>
+      </div>
+
+      <!-- 알림 신청 -->
+      <div class="card" id="subscribeCard">
+        <div class="card-title">🔔 매주 순위 알림 받기</div>
+        <div class="subscribe-form" id="subscribeForm">
+          <p class="subscribe-desc">매주 키워드 순위 변화를 카카오 알림톡으로 보내드려요.</p>
+          <input type="tel" id="subscribePhone" class="subscribe-input" placeholder="휴대폰 번호 (예: 01012345678)" maxlength="13">
+          <label class="subscribe-agree">
+            <input type="checkbox" id="subscribeAgree">
+            <span>플레이스랭킹 순위 리포트 알림톡 수신에 동의합니다 (정보성)</span>
+          </label>
+          <button class="btn-subscribe" id="btnSubscribe" onclick="submitSubscribe()">알림 신청하기</button>
+        </div>
+        <div class="subscribe-done" id="subscribeDone" style="display:none;">
+          <div class="subscribe-done-icon">✅</div>
+          <div class="subscribe-done-text">알림 신청이 완료되었습니다!</div>
+          <div class="subscribe-done-sub">매주 순위 변화를 알림톡으로 보내드릴게요.</div>
+        </div>
       </div>
 
       <!-- BUTTONS -->
@@ -2466,6 +2500,53 @@ function handleShare(){
 }
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window._pwaPrompt=e;});
 
+// ── 알림 구독 ────────────────────────────────────────────────────────────────
+async function submitSubscribe(){
+  const phone = document.getElementById('subscribePhone').value.replace(/[^0-9]/g,'');
+  const agreed = document.getElementById('subscribeAgree').checked;
+  const btn = document.getElementById('btnSubscribe');
+
+  if(!agreed){
+    alert('수신 동의에 체크해주세요.');
+    return;
+  }
+  if(phone.length < 10 || phone.length > 11){
+    alert('올바른 휴대폰 번호를 입력해주세요.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '신청 중...';
+
+  try{
+    const res = await fetch('/subscribe', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        store_name: _lastResultData?.store_name || '',
+        phone: phone,
+        store_url: _lastResultData?.place_url || document.getElementById('place_url').value,
+        place_id: _lastResultData?.place_id || null,
+        anon_id: _anonId,
+        agreed: true
+      })
+    });
+    const data = await res.json();
+    if(res.ok){
+      document.getElementById('subscribeForm').style.display = 'none';
+      document.getElementById('subscribeDone').style.display = 'block';
+    } else {
+      alert(data.detail || '신청에 실패했습니다.');
+      btn.disabled = false;
+      btn.textContent = '알림 신청하기';
+    }
+  } catch(e){
+    alert('네트워크 오류가 발생했습니다.');
+    btn.disabled = false;
+    btn.textContent = '알림 신청하기';
+  }
+}
+
 // ── 탭 전환 ──────────────────────────────────────────────────────────────────
 function switchTab(tabId){
   document.querySelectorAll('.tab-btn').forEach(btn=>{
@@ -3223,3 +3304,614 @@ def get_store_registration_status_endpoint(
 ):
     """특정 매장의 등록 상태 조회 (내 매장/경쟁 매장 여부)"""
     return crud.get_store_registration_status(db, anon_id, place_id)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 알림톡 구독 API
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.post("/subscribe", tags=["구독"])
+def subscribe_alarm_endpoint(
+    req: schemas.SubscribeRequest,
+    db: Session = Depends(get_db),
+):
+    """알림톡 구독 신청"""
+    if not req.agreed:
+        raise HTTPException(status_code=400, detail="수신 동의가 필요합니다")
+    if not req.phone or len(req.phone) < 10:
+        raise HTTPException(status_code=400, detail="올바른 전화번호를 입력해주세요")
+
+    sub = crud.subscribe_alarm(
+        db,
+        store_name=req.store_name,
+        phone=req.phone,
+        store_url=req.store_url,
+        place_id=req.place_id,
+        anon_id=req.anon_id,
+    )
+    return {
+        "id": sub.id,
+        "store_name": sub.store_name,
+        "phone": sub.phone[:3] + "****" + sub.phone[-4:] if len(sub.phone) >= 7 else "****",
+        "alarm_on": sub.alarm_on,
+        "message": "알림 신청이 완료되었습니다",
+    }
+
+
+@app.post("/unsubscribe/{subscriber_id}", tags=["구독"])
+def unsubscribe_alarm_endpoint(subscriber_id: int, db: Session = Depends(get_db)):
+    """알림톡 해지"""
+    if crud.unsubscribe_alarm(db, subscriber_id):
+        return {"message": "해지되었습니다"}
+    raise HTTPException(status_code=404, detail="구독 정보를 찾을 수 없습니다")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 관리자 인증 (환경변수 기반 단순 인증)
+# ─────────────────────────────────────────────────────────────────────────────
+import os
+import secrets
+from fastapi import Response, Cookie
+from typing import Optional as Opt
+
+ADMIN_USER = os.getenv("ADMIN_USER", "admin")
+ADMIN_PASS = os.getenv("ADMIN_PASS", "placeranking2026")
+_admin_sessions: dict[str, bool] = {}
+
+
+def _check_admin(session_id: Opt[str]) -> bool:
+    return session_id is not None and _admin_sessions.get(session_id, False)
+
+
+@app.post("/admin/login", tags=["관리자"])
+def admin_login(
+    req: schemas.AdminLoginRequest,
+    response: Response,
+):
+    """관리자 로그인"""
+    if req.username == ADMIN_USER and req.password == ADMIN_PASS:
+        session_id = secrets.token_hex(16)
+        _admin_sessions[session_id] = True
+        response.set_cookie(
+            key="admin_session",
+            value=session_id,
+            httponly=True,
+            max_age=86400,
+            samesite="lax",
+        )
+        return {"success": True}
+    raise HTTPException(status_code=401, detail="인증 실패")
+
+
+@app.post("/admin/logout", tags=["관리자"])
+def admin_logout(
+    response: Response,
+    admin_session: Opt[str] = Cookie(None),
+):
+    """관리자 로그아웃"""
+    if admin_session and admin_session in _admin_sessions:
+        del _admin_sessions[admin_session]
+    response.delete_cookie("admin_session")
+    return {"success": True}
+
+
+@app.get("/admin/check", tags=["관리자"])
+def admin_check(admin_session: Opt[str] = Cookie(None)):
+    """로그인 상태 확인"""
+    return {"logged_in": _check_admin(admin_session)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 관리자 API (인증 필요)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/admin/api/stats", tags=["관리자"])
+def admin_stats(
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """대시보드 통계"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    return crud.get_admin_stats(db)
+
+
+@app.get("/admin/api/recent-analyses", tags=["관리자"])
+def admin_recent_analyses(
+    limit: int = 10,
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """최근 분석 목록"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    return crud.get_recent_analyses(db, limit)
+
+
+@app.get("/admin/api/subscribers", tags=["관리자"])
+def admin_subscribers(
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """구독자 목록 (전화번호 포함 - 관리자 전용)"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    subs = crud.get_all_subscribers(db)
+    return [
+        {
+            "id": s.id,
+            "store_name": s.store_name,
+            "phone": s.phone,
+            "place_id": s.place_id,
+            "alarm_on": s.alarm_on,
+            "created_at": s.created_at.strftime("%m-%d") if s.created_at else None,
+            "last_analyzed_at": s.last_analyzed_at.strftime("%m-%d") if s.last_analyzed_at else None,
+        }
+        for s in subs
+    ]
+
+
+@app.get("/admin/api/subscribers/csv", tags=["관리자"])
+def admin_subscribers_csv(
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """구독자 CSV 다운로드"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    subs = crud.get_all_subscribers(db)
+
+    import io
+    import csv
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["매장명", "연락처", "신청일", "최근진단", "알림상태"])
+    for s in subs:
+        writer.writerow([
+            s.store_name,
+            s.phone,
+            s.created_at.strftime("%Y-%m-%d") if s.created_at else "",
+            s.last_analyzed_at.strftime("%Y-%m-%d") if s.last_analyzed_at else "",
+            "수신중" if s.alarm_on else "해지",
+        ])
+
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=subscribers.csv"},
+    )
+
+
+@app.get("/admin/api/monitored-stores", tags=["관리자"])
+def admin_monitored_stores(
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """모니터링 매장 목록"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    return crud.get_monitored_stores(db)
+
+
+@app.get("/admin/api/alim-templates", tags=["관리자"])
+def admin_alim_templates(
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """알림톡 템플릿 목록"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    templates = crud.get_all_alim_templates(db)
+    return [
+        {
+            "template_key": t.template_key,
+            "extra_text": t.extra_text,
+            "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+        }
+        for t in templates
+    ]
+
+
+@app.post("/admin/api/alim-templates", tags=["관리자"])
+def admin_update_alim_template(
+    req: schemas.AlimTemplateUpdate,
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """알림톡 추가문구 저장"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    tpl = crud.upsert_alim_template(db, req.template_key, req.extra_text)
+    return {"success": True, "template_key": tpl.template_key}
+
+
+@app.post("/admin/api/subscriber/{subscriber_id}/toggle", tags=["관리자"])
+def admin_toggle_subscriber(
+    subscriber_id: int,
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """구독자 알림 상태 토글"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    sub = db.query(crud.models.Subscriber).filter(crud.models.Subscriber.id == subscriber_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="구독자를 찾을 수 없습니다")
+    if sub.alarm_on:
+        crud.unsubscribe_alarm(db, subscriber_id)
+    else:
+        crud.resubscribe_alarm(db, subscriber_id)
+    return {"success": True, "alarm_on": not sub.alarm_on}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 관리자 페이지 HTML
+# ─────────────────────────────────────────────────────────────────────────────
+
+_ADMIN_HTML = """<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>플레이스랭킹 관리자</title>
+<style>
+  :root{
+    --green:#00B894; --green-d:#009B7D; --green-soft:#E6F7F2;
+    --ink:#1A2B3C; --sub:#6B7C8F; --line:#E8EDF1; --bg:#F6F8FA; --white:#fff;
+    --amber:#F0A500; --red:#E06A6A;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    background:var(--bg);color:var(--ink);display:flex;min-height:100vh;font-size:14px;line-height:1.5}
+
+  /* login */
+  .login-wrap{display:flex;align-items:center;justify-content:center;width:100%;min-height:100vh;background:var(--bg)}
+  .login-box{background:#fff;border:1px solid var(--line);border-radius:16px;padding:36px 32px;width:100%;max-width:360px;text-align:center}
+  .login-box h1{font-size:20px;font-weight:800;margin-bottom:8px}
+  .login-box p{color:var(--sub);font-size:13px;margin-bottom:24px}
+  .login-box input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin-bottom:12px}
+  .login-box input:focus{outline:none;border-color:var(--green)}
+  .login-box .btn{width:100%;padding:12px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}
+  .login-box .btn:hover{background:var(--green-d)}
+  .login-box .err{color:var(--red);font-size:12px;margin-top:12px;display:none}
+  .remember-me{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--sub);margin-bottom:14px;cursor:pointer}
+  .remember-me input{accent-color:var(--green)}
+
+  /* sidebar */
+  .side{width:220px;background:var(--white);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;padding:22px 0;flex-shrink:0}
+  .brand{padding:0 24px 22px;font-weight:800;font-size:18px;letter-spacing:-.5px}
+  .brand span{color:var(--green)}
+  .nav button{display:flex;align-items:center;gap:11px;width:100%;border:0;background:none;
+    padding:12px 24px;font-size:14.5px;color:var(--sub);cursor:pointer;text-align:left;font-weight:500;
+    border-left:3px solid transparent;transition:.15s}
+  .nav button:hover{background:#FAFCFD;color:var(--ink)}
+  .nav button.on{color:var(--green-d);background:var(--green-soft);border-left-color:var(--green);font-weight:700}
+  .nav .ico{font-size:16px;width:18px;text-align:center}
+  .side-foot{margin-top:auto;padding:18px 24px 0;border-top:1px solid var(--line);color:var(--sub);font-size:12.5px}
+  .side-foot a{color:var(--sub);cursor:pointer;text-decoration:underline}
+
+  /* main */
+  .app{display:none;flex:1}
+  .main{flex:1;padding:30px 38px;overflow:auto}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px}
+  .head h1{font-size:22px;font-weight:800;letter-spacing:-.6px}
+  .head p{color:var(--sub);font-size:13px;margin-top:4px}
+  .btn{border:0;background:var(--green);color:#fff;padding:9px 16px;border-radius:8px;
+    font-size:13px;font-weight:700;cursor:pointer}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+
+  .page{display:none}
+  .page.on{display:block}
+
+  /* cards */
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:26px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .card .lbl{color:var(--sub);font-size:12.5px;font-weight:600}
+  .card .num{font-size:28px;font-weight:800;margin-top:8px;letter-spacing:-1px}
+  .card .num small{font-size:13px;color:var(--green);font-weight:700;margin-left:6px}
+  .card.hl{background:var(--green-soft);border-color:#BfeBe0}
+
+  .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-bottom:20px}
+  .panel h2{font-size:15px;font-weight:800;margin-bottom:4px}
+  .panel .desc{color:var(--sub);font-size:12.5px;margin-bottom:16px}
+
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:12px;color:var(--sub);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line)}
+  td{padding:13px 12px;border-bottom:1px solid #F1F4F7;font-size:13.5px}
+  tr:last-child td{border-bottom:0}
+  .tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:700}
+  .tag.on{background:var(--green-soft);color:var(--green-d)}
+  .tag.off{background:#F1F4F7;color:var(--sub)}
+  .rank{font-weight:800}
+  .up{color:var(--green)} .down{color:var(--red)} .same{color:var(--sub)}
+
+  /* 알림톡 */
+  .tpl{border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+  .tpl .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .tpl .name{font-weight:800;font-size:13.5px}
+  .locked{background:#F6F8FA;border:1px dashed #D5DEE5;border-radius:9px;padding:13px 15px;
+    font-size:13px;color:#42566A;white-space:pre-line;line-height:1.65}
+  .locked b{color:var(--green-d)}
+  .lockhint{font-size:11.5px;color:var(--sub);margin:7px 2px 12px}
+  .addlbl{font-size:12.5px;font-weight:700;margin:6px 2px}
+  textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:11px 13px;
+    font-family:inherit;font-size:13px;resize:vertical;min-height:74px;color:var(--ink)}
+  .savebar{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+  .saved-msg{color:var(--green-d);font-size:12px;margin-right:auto;display:none}
+
+  @media(max-width:760px){
+    body{flex-direction:column}
+    .side{width:100%;flex-direction:row;flex-wrap:wrap;padding:12px;align-items:center}
+    .brand{padding:0 12px 0 8px}
+    .nav{display:flex;flex:1;overflow:auto}
+    .nav button{padding:9px 12px;border-left:0;border-bottom:3px solid transparent;white-space:nowrap}
+    .nav button.on{border-left:0;border-bottom-color:var(--green)}
+    .side-foot{display:none}
+    .main{padding:20px}
+    .cards{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <h1>플레이스랭킹 관리자</h1>
+    <p>관리자 계정으로 로그인하세요</p>
+    <input type="text" id="loginUser" placeholder="아이디">
+    <input type="password" id="loginPass" placeholder="비밀번호">
+    <label class="remember-me"><input type="checkbox" id="rememberMe" checked> 로그인 유지</label>
+    <button class="btn" onclick="doLogin()">로그인</button>
+    <div class="err" id="loginErr">아이디 또는 비밀번호가 올바르지 않습니다</div>
+  </div>
+</div>
+
+<!-- 앱 -->
+<div class="app" id="appWrap">
+  <aside class="side">
+    <div class="brand">플레이스<span>랭킹</span> <span style="color:var(--sub);font-weight:600;font-size:12px">admin</span></div>
+    <nav class="nav">
+      <button class="on" data-p="dash"><span class="ico">📊</span> 대시보드</button>
+      <button data-p="lead"><span class="ico">👥</span> 회원·리드</button>
+      <button data-p="store"><span class="ico">🏪</span> 매장 모니터링</button>
+      <button data-p="alim"><span class="ico">💬</span> 알림톡 관리</button>
+    </nav>
+    <div class="side-foot"><a onclick="doLogout()">로그아웃</a></div>
+  </aside>
+
+  <main class="main">
+
+    <!-- 대시보드 -->
+    <section class="page on" id="dash">
+      <div class="head"><div><h1>대시보드</h1><p>오늘 기준 한눈에 보기</p></div></div>
+      <div class="cards">
+        <div class="card"><div class="lbl">총 진단 횟수</div><div class="num" id="statTotal">-</div></div>
+        <div class="card"><div class="lbl">등록 매장</div><div class="num" id="statStores">-</div></div>
+        <div class="card hl"><div class="lbl">알림 신청자 (리드)</div><div class="num" id="statSubs">-</div></div>
+        <div class="card"><div class="lbl">이번주 신규 진단</div><div class="num" id="statWeek">-</div></div>
+      </div>
+      <div class="panel">
+        <h2>최근 진단</h2><p class="desc">사장님들이 방금 진단한 매장들</p>
+        <table>
+          <thead><tr><th>매장명</th><th>대표 키워드</th><th>플레이스 지수</th><th>시각</th></tr></thead>
+          <tbody id="recentTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 회원·리드 -->
+    <section class="page" id="lead">
+      <div class="head">
+        <div><h1>회원·리드</h1><p>알림 신청 시 입력한 연락처</p></div>
+        <button class="btn" onclick="downloadCsv()">엑셀 내려받기</button>
+      </div>
+      <div class="panel">
+        <h2>알림 신청자 <span id="subCount">0</span>명</h2><p class="desc">전화번호를 남긴 사장님 목록</p>
+        <table>
+          <thead><tr><th>매장명</th><th>연락처</th><th>신청일</th><th>최근 진단</th><th>알림</th></tr></thead>
+          <tbody id="subTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 매장 모니터링 -->
+    <section class="page" id="store">
+      <div class="head"><div><h1>매장 모니터링</h1><p>"내 매장"으로 등록돼 추적 중인 매장들</p></div></div>
+      <div class="panel">
+        <h2>모니터링 매장 <span id="monitorCount">0</span>곳</h2><p class="desc">대표 키워드 기준 최신 순위</p>
+        <table>
+          <thead><tr><th>매장명</th><th>대표 키워드</th><th>지난주</th><th>이번주</th><th>변화</th></tr></thead>
+          <tbody id="monitorTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 알림톡 관리 -->
+    <section class="page" id="alim">
+      <div class="head"><div><h1>알림톡 관리</h1><p>승인 골격은 고정 · 아래 추가문구만 자유롭게 수정</p></div></div>
+
+      <div class="panel">
+        <h2>① 알림 신청 완료</h2><p class="desc">사장님이 알림을 신청하면 자동 발송</p>
+        <div class="locked">[플레이스랭킹] 순위 알림 신청 완료
+
+<b>#{매장명}</b>님, 순위 모니터링을 시작했어요.
+이제 매주 <b>#{요일}</b>에 플레이스 키워드 순위 변화를 정리해 보내드릴게요.</div>
+        <div class="lockhint">🔒 위 골격은 카카오 승인 영역 (수정 불가). #{ } 자리는 발송 때 자동으로 채워짐.</div>
+        <div class="addlbl">추가문구 (자유 수정)</div>
+        <textarea id="tplSignup"></textarea>
+        <div class="savebar"><span class="saved-msg" id="savedSignup">저장됨</span><button class="btn" onclick="saveTemplate('signup')">저장</button></div>
+      </div>
+
+      <div class="panel">
+        <h2>② 주간 순위 리포트</h2><p class="desc">매주 정해진 요일 자동 발송 (메인)</p>
+        <div class="locked">[플레이스랭킹] <b>#{매장명}</b> 이번주 순위 리포트
+
+대표 키워드 '<b>#{키워드}</b>'
+지난주 <b>#{지난순위}</b>위 → 이번주 <b>#{이번순위}</b>위
+
+전체 키워드와 경쟁 매장 변화는 아래에서 확인하세요.</div>
+        <div class="lockhint">🔒 위 골격은 카카오 승인 영역 (수정 불가).</div>
+        <div class="addlbl">추가문구 (자유 수정)</div>
+        <textarea id="tplWeekly"></textarea>
+        <div class="savebar"><span class="saved-msg" id="savedWeekly">저장됨</span><button class="btn" onclick="saveTemplate('weekly')">저장</button></div>
+      </div>
+
+      <div class="panel">
+        <h2>발송 이력</h2><p class="desc">최근 보낸 알림톡 (연동 후 표시됨)</p>
+        <table>
+          <thead><tr><th>일시</th><th>템플릿</th><th>대상</th><th>상태</th></tr></thead>
+          <tbody id="sendHistory"><tr><td colspan="4" style="color:var(--sub);text-align:center;padding:24px">알림톡 발송 연동 후 이력이 표시됩니다</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+const btns=document.querySelectorAll('.nav button');
+const pages=document.querySelectorAll('.page');
+btns.forEach(b=>b.addEventListener('click',()=>{
+  btns.forEach(x=>x.classList.remove('on'));
+  pages.forEach(p=>p.classList.remove('on'));
+  b.classList.add('on');
+  document.getElementById(b.dataset.p).classList.add('on');
+}));
+
+async function checkAuth(){
+  const r=await fetch('/admin/check');
+  const d=await r.json();
+  if(d.logged_in){
+    document.getElementById('loginWrap').style.display='none';
+    document.getElementById('appWrap').style.display='flex';
+    loadAll();
+  }else{
+    const saved=localStorage.getItem('admin_cred');
+    if(saved){
+      try{
+        const cred=JSON.parse(saved);
+        const ar=await fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cred)});
+        if(ar.ok){
+          document.getElementById('loginWrap').style.display='none';
+          document.getElementById('appWrap').style.display='flex';
+          loadAll();
+          return;
+        }
+      }catch(e){}
+    }
+    document.getElementById('loginWrap').style.display='flex';
+    document.getElementById('appWrap').style.display='none';
+  }
+}
+
+async function doLogin(){
+  const u=document.getElementById('loginUser').value;
+  const p=document.getElementById('loginPass').value;
+  const remember=document.getElementById('rememberMe').checked;
+  const r=await fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+  if(r.ok){
+    if(remember){localStorage.setItem('admin_cred',JSON.stringify({username:u,password:p}));}
+    checkAuth();
+  }else{
+    document.getElementById('loginErr').style.display='block';
+  }
+}
+
+async function doLogout(){
+  localStorage.removeItem('admin_cred');
+  await fetch('/admin/logout',{method:'POST'});
+  checkAuth();
+}
+
+async function loadAll(){
+  loadStats();
+  loadRecent();
+  loadSubs();
+  loadMonitor();
+  loadTemplates();
+}
+
+async function loadStats(){
+  const r=await fetch('/admin/api/stats');
+  const d=await r.json();
+  document.getElementById('statTotal').textContent=d.total_analyses.toLocaleString();
+  document.getElementById('statStores').textContent=d.registered_stores.toLocaleString();
+  document.getElementById('statSubs').innerHTML=d.subscriber_count+'<small>+'+d.new_subscribers_week+' 이번주</small>';
+  document.getElementById('statWeek').textContent=d.new_analyses_week.toLocaleString();
+}
+
+async function loadRecent(){
+  const r=await fetch('/admin/api/recent-analyses?limit=10');
+  const d=await r.json();
+  let html='';
+  d.forEach(x=>{
+    const t=x.analyzed_at?new Date(x.analyzed_at).toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'}):'';
+    html+=`<tr><td>${x.store_name}</td><td>${x.top_keyword||'-'}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${t}</td></tr>`;
+  });
+  document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="4" style="color:var(--sub);text-align:center">진단 기록이 없습니다</td></tr>';
+}
+
+async function loadSubs(){
+  const r=await fetch('/admin/api/subscribers');
+  const d=await r.json();
+  document.getElementById('subCount').textContent=d.length;
+  let html='';
+  d.forEach(x=>{
+    const tag=x.alarm_on?'<span class="tag on">수신중</span>':'<span class="tag off">해지</span>';
+    html+=`<tr><td>${x.store_name}</td><td>${x.phone}</td><td>${x.created_at||'-'}</td><td>${x.last_analyzed_at||'-'}</td><td>${tag}</td></tr>`;
+  });
+  document.getElementById('subTable').innerHTML=html||'<tr><td colspan="5" style="color:var(--sub);text-align:center">알림 신청자가 없습니다</td></tr>';
+}
+
+function downloadCsv(){
+  window.location.href='/admin/api/subscribers/csv';
+}
+
+async function loadMonitor(){
+  const r=await fetch('/admin/api/monitored-stores');
+  const d=await r.json();
+  document.getElementById('monitorCount').textContent=d.length;
+  let html='';
+  d.forEach(x=>{
+    let change='<span class="same">- 유지</span>';
+    if(x.last_rank&&x.this_rank){
+      const diff=x.last_rank-x.this_rank;
+      if(diff>0)change=`<span class="up">▲ ${diff}</span>`;
+      else if(diff<0)change=`<span class="down">▼ ${Math.abs(diff)}</span>`;
+    }
+    html+=`<tr><td>${x.store_name}</td><td>${x.top_keyword||'-'}</td><td>${x.last_rank?x.last_rank+'위':'-'}</td><td class="rank">${x.this_rank?x.this_rank+'위':'-'}</td><td>${change}</td></tr>`;
+  });
+  document.getElementById('monitorTable').innerHTML=html||'<tr><td colspan="5" style="color:var(--sub);text-align:center">모니터링 매장이 없습니다</td></tr>';
+}
+
+let templates={};
+async function loadTemplates(){
+  const r=await fetch('/admin/api/alim-templates');
+  const d=await r.json();
+  d.forEach(t=>{templates[t.template_key]=t.extra_text||'';});
+  document.getElementById('tplSignup').value=templates['signup']||'지난 진단 결과가 궁금하면 언제든 다시 확인하실 수 있어요.';
+  document.getElementById('tplWeekly').value=templates['weekly']||'이번주 순위, 한 번 확인해보세요 👀  새로 뜬 키워드가 있을 수 있어요.';
+}
+
+async function saveTemplate(key){
+  const txt=document.getElementById(key==='signup'?'tplSignup':'tplWeekly').value;
+  await fetch('/admin/api/alim-templates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({template_key:key,extra_text:txt})});
+  const msg=document.getElementById(key==='signup'?'savedSignup':'savedWeekly');
+  msg.style.display='inline';
+  setTimeout(()=>msg.style.display='none',2000);
+}
+
+document.getElementById('loginPass').addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
+checkAuth();
+</script>
+</body>
+</html>"""
+
+
+@app.get("/admin", response_class=HTMLResponse, include_in_schema=False)
+def admin_page():
+    """관리자 페이지"""
+    return _ADMIN_HTML

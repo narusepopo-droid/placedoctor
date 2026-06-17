@@ -114,3 +114,58 @@ class RegisteredStoreInfo(BaseModel):
 class RegisteredStoresResponse(BaseModel):
     my_stores: List[RegisteredStoreInfo] = []
     rival_stores: List[RegisteredStoreInfo] = []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 알림톡 구독
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SubscribeRequest(BaseModel):
+    store_name: str
+    phone: str
+    store_url: Optional[str] = None
+    place_id: Optional[str] = None
+    anon_id: Optional[str] = None
+    agreed: bool = False  # 수신 동의 체크
+
+
+class SubscribeResponse(BaseModel):
+    id: int
+    store_name: str
+    phone: str
+    alarm_on: bool
+    message: str = "신청 완료"
+
+    model_config = {"from_attributes": True}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 관리자 API
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AdminLoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class AdminStatsResponse(BaseModel):
+    total_analyses: int
+    registered_stores: int
+    subscriber_count: int
+    new_subscribers_week: int
+    new_analyses_week: int
+
+
+class SubscriberInfo(BaseModel):
+    id: int
+    store_name: str
+    phone: str
+    place_id: Optional[str] = None
+    alarm_on: bool
+    created_at: Optional[str] = None
+    last_analyzed_at: Optional[str] = None
+
+
+class AlimTemplateUpdate(BaseModel):
+    template_key: str
+    extra_text: str

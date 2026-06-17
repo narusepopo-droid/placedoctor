@@ -35,6 +35,7 @@
 | R단계 | **백그라운드 SSE + 게임형 UI (504 근본 해결)** — ① **SSE 스트리밍**: `/diagnose-stream` 엔드포인트 추가, started 이벤트 즉시 전송(504 방지), keyword 이벤트 실시간 전송, complete에 전체 결과. nginx `proxy_buffering off` 설정. ② **게임 UI**: 키워드+순위 팝업 애니메이션(커졌다 작아짐), 순위별 리액션(1위 "오~! 🎉"/2~3위 "Nice!"/4~5위 "Good!"/그 이하 담백), 점수 차오르는 연출(1~3등 +2/4~10등 +1), 천장 규칙(종합점수 초과 안 함). ③ **최적화**: N_WORKERS=2(t3.small 측정상 최적), 키워드 9글자(공백 제외) 초과 필터링. |
 | S단계 | **게임 UI 다듬기** — ① **가짜 5단계 제거** → 실제 진행률 "키워드 N/M" 표시 (SSE progress/total 연동). ② **상위 키워드 칩 누적**: 10위 이내 키워드를 플레이스 지수 아래에 칩으로 쌓음 (순위별 색 뱃지: 1위=금, 2~3=은, 4~5=동, 6~10=회색). ③ **키워드 사이 생동감**: 결과 표시 후 1.2초 뒤 "분석 중" 펄스/스피너로 전환 → 다음 키워드 도착 시 팝업 (끊김 없음). ④ **순위 흐름 날짜 표기**: 날짜별 대표 1개만 표시 (같은 날 중복 제거) + 가로 흐름에 날짜·순위 세로 배치. |
 | T단계 | **키워드 정확도 플마 수준 복원** — R단계에서 추가된 필터들이 플마보다 키워드를 적게 생성하는 문제. ① `clean_official` 8글자+공백없음 필터 **제거** (긴 태그도 검색 대상) ② `kw_list` 10글자+공백없음 필터 **제거** (긴 키워드도 시드로 사용) ③ 최종 9글자 필터 **제거** (R단계 추가분 롤백) ④ `_find_tokens_in_kw` 플마 1:1 동일화 (사전 매칭 없을 때만 5글자 이하 fallback). 테스트: 동일 입력으로 66개+ 키워드 생성 확인. |
+| U단계 | **관리자 페이지 + 전화번호 수집** — ① **DB 테이블 2개 추가**: `subscribers`(알림 구독자), `alim_templates`(알림톡 추가문구). ② **전화번호 수집**: 분석 결과 화면에 "매주 순위 알림 받기" 폼 (휴대폰+수신동의) → `/subscribe` API로 저장. ③ **관리자 페이지 `/admin`**: 환경변수 인증(`ADMIN_USER`/`ADMIN_PASS`), 4개 메뉴(대시보드/회원·리드/매장 모니터링/알림톡 관리). ④ **대시보드**: 총 진단·등록매장·리드수·이번주 신규 통계 + 최근 진단 테이블. ⑤ **회원·리드**: 구독자 목록(전화번호 포함) + CSV 내보내기. ⑥ **매장 모니터링**: 내 매장 등록된 매장들의 순위 변화 추적. ⑦ **알림톡 관리**: 카카오 승인 골격(읽기전용) + 추가문구 편집·저장. |
 
 ---
 
@@ -156,6 +157,16 @@ URL      : postgresql://postgres:postgres@localhost:5432/placedoctor
 | GET | `/recent-stores/{anon_id}` | (K단계) 익명ID의 최근 본 매장 목록 |
 | GET | `/history-result/{place_id}` | (K단계) 저장된 최신 분석 결과 |
 | GET | `/history-result-all/{place_id}` | (K단계) place+blog 분석 결과 둘 다 반환 |
+| POST | `/subscribe` | (U단계) 알림 구독 신청 |
+| POST | `/unsubscribe/{id}` | (U단계) 알림 해지 |
+| GET | `/admin` | (U단계) 관리자 페이지 HTML |
+| POST | `/admin/login` | (U단계) 관리자 로그인 |
+| GET | `/admin/api/stats` | (U단계) 대시보드 통계 |
+| GET | `/admin/api/subscribers` | (U단계) 구독자 목록 |
+| GET | `/admin/api/subscribers/csv` | (U단계) 구독자 CSV 다운로드 |
+| GET | `/admin/api/monitored-stores` | (U단계) 모니터링 매장 목록 |
+| GET | `/admin/api/alim-templates` | (U단계) 알림톡 템플릿 조회 |
+| POST | `/admin/api/alim-templates` | (U단계) 알림톡 추가문구 저장 |
 
 ---
 

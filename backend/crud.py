@@ -510,3 +510,273 @@ def get_store_registration_status(
         "is_my": any(r.store_type == "my" for r in records),
         "is_rival": any(r.store_type == "rival" for r in records),
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 알림톡 구독자 관리
+# ─────────────────────────────────────────────────────────────────────────────
+
+def subscribe_alarm(
+    db: Session,
+    store_name: str,
+    phone: str,
+    store_url: str | None = None,
+    place_id: str | None = None,
+    anon_id: str | None = None,
+) -> models.Subscriber:
+    """알림 구독 신청 (동일 anon_id+place_id면 업데이트)"""
+    existing = None
+    if anon_id and place_id:
+        existing = (
+            db.query(models.Subscriber)
+            .filter(
+                models.Subscriber.anon_id == anon_id,
+                models.Subscriber.place_id == place_id,
+            )
+            .first()
+        )
+
+    now = datetime.now(timezone.utc)
+    if existing:
+        existing.phone = phone
+        existing.store_name = store_name
+        existing.store_url = store_url
+        existing.alarm_on = True
+        existing.agreed_at = now
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    sub = models.Subscriber(
+        anon_id=anon_id,
+        store_name=store_name,
+        store_url=store_url,
+        place_id=place_id,
+        phone=phone,
+        alarm_on=True,
+        agreed_at=now,
+    )
+    db.add(sub)
+    db.commit()
+    db.refresh(sub)
+    return sub
+
+
+def unsubscribe_alarm(db: Session, subscriber_id: int) -> bool:
+    """알림 해지 (삭제 아닌 alarm_on=False)"""
+    sub = db.query(models.Subscriber).filter(models.Subscriber.id == subscriber_id).first()
+    if sub:
+        sub.alarm_on = False
+        db.commit()
+        return True
+    return False
+
+
+def resubscribe_alarm(db: Session, subscriber_id: int) -> bool:
+    """알림 재구독"""
+    sub = db.query(models.Subscriber).filter(models.Subscriber.id == subscriber_id).first()
+    if sub:
+        sub.alarm_on = True
+        sub.agreed_at = datetime.now(timezone.utc)
+        db.commit()
+        return True
+    return False
+
+
+def get_all_subscribers(db: Session, alarm_on_only: bool = False) -> list[models.Subscriber]:
+    """전체 구독자 목록"""
+    q = db.query(models.Subscriber)
+    if alarm_on_only:
+        q = q.filter(models.Subscriber.alarm_on == True)
+    return q.order_by(models.Subscriber.created_at.desc()).all()
+
+
+def get_subscriber_count(db: Session, alarm_on_only: bool = False) -> int:
+    """구독자 수"""
+    q = db.query(models.Subscriber)
+    if alarm_on_only:
+        q = q.filter(models.Subscriber.alarm_on == True)
+    return q.count()
+
+
+def get_new_subscribers_this_week(db: Session) -> int:
+    """이번 주 신규 구독자 수"""
+    from datetime import timedelta
+    now = datetime.now(timezone.utc)
+    week_ago = now - timedelta(days=7)
+    return (
+        db.query(models.Subscriber)
+        .filter(models.Subscriber.created_at >= week_ago)
+        .count()
+    )
+
+
+def update_subscriber_last_analyzed(db: Session, place_id: str):
+    """분석 시 구독자의 last_analyzed_at 업데이트"""
+    subs = db.query(models.Subscriber).filter(models.Subscriber.place_id == place_id).all()
+    now = datetime.now(timezone.utc)
+    for sub in subs:
+        sub.last_analyzed_at = now
+    if subs:
+        db.commit()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 알림톡 템플릿 관리
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_alim_template(db: Session, template_key: str) -> models.AlimTemplate | None:
+    return db.query(models.AlimTemplate).filter(models.AlimTemplate.template_key == template_key).first()
+
+
+def get_all_alim_templates(db: Session) -> list[models.AlimTemplate]:
+    return db.query(models.AlimTemplate).all()
+
+
+def upsert_alim_template(db: Session, template_key: str, extra_text: str) -> models.AlimTemplate:
+    """추가문구 저장 (없으면 생성)"""
+    tpl = get_alim_template(db, template_key)
+    now = datetime.now(timezone.utc)
+    if tpl:
+        tpl.extra_text = extra_text
+        tpl.updated_at = now
+    else:
+        tpl = models.AlimTemplate(
+            template_key=template_key,
+            extra_text=extra_text,
+            updated_at=now,
+        )
+        db.add(tpl)
+    db.commit()
+    db.refresh(tpl)
+    return tpl
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 관리자 대시보드 통계
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_admin_stats(db: Session) -> dict:
+    """관리자 대시보드용 통계"""
+    from datetime import timedelta
+    now = datetime.now(timezone.utc)
+    week_ago = now - timedelta(days=7)
+
+    total_analyses = db.query(models.AnalysisHistory).count()
+    registered_stores = db.query(models.RegisteredStore).filter(
+        models.RegisteredStore.store_type == "my"
+    ).count()
+    subscriber_count = get_subscriber_count(db)
+    new_subscribers_week = get_new_subscribers_this_week(db)
+    new_analyses_week = (
+        db.query(models.AnalysisHistory)
+        .filter(models.AnalysisHistory.analyzed_at >= week_ago)
+        .count()
+    )
+
+    return {
+        "total_analyses": total_analyses,
+        "registered_stores": registered_stores,
+        "subscriber_count": subscriber_count,
+        "new_subscribers_week": new_subscribers_week,
+        "new_analyses_week": new_analyses_week,
+    }
+
+
+def get_recent_analyses(db: Session, limit: int = 10) -> list[dict]:
+    """최근 분석 목록"""
+    records = (
+        db.query(models.AnalysisHistory)
+        .order_by(models.AnalysisHistory.analyzed_at.desc())
+        .limit(limit)
+        .all()
+    )
+    result = []
+    for r in records:
+        top_keyword = ""
+        if r.result_json:
+            try:
+                data = json.loads(r.result_json)
+                place_results = data.get("place_results", [])
+                ranked = [p for p in place_results if p.get("rank")]
+                if ranked:
+                    best = min(ranked, key=lambda x: x["rank"])
+                    top_keyword = best.get("keyword", "")
+            except:
+                pass
+        result.append({
+            "store_name": r.store_name,
+            "top_keyword": top_keyword,
+            "total_score": r.total_score,
+            "analyzed_at": r.analyzed_at.isoformat() if r.analyzed_at else None,
+        })
+    return result
+
+
+def get_monitored_stores(db: Session, limit: int = 50) -> list[dict]:
+    """모니터링 중인 매장 목록 (내 매장으로 등록된 것들)"""
+    from sqlalchemy import func, distinct
+
+    # place_id별 최근 2개 분석 기록 가져오기
+    stores = (
+        db.query(models.RegisteredStore)
+        .filter(models.RegisteredStore.store_type == "my")
+        .limit(limit)
+        .all()
+    )
+
+    result = []
+    for s in stores:
+        histories = (
+            db.query(models.AnalysisHistory)
+            .filter(
+                models.AnalysisHistory.place_id == s.place_id,
+                models.AnalysisHistory.analysis_type == "place",
+            )
+            .order_by(models.AnalysisHistory.analyzed_at.desc())
+            .limit(2)
+            .all()
+        )
+
+        top_keyword = ""
+        this_rank = None
+        last_rank = None
+
+        if histories:
+            # 이번 주 (최신)
+            latest = histories[0]
+            if latest.result_json:
+                try:
+                    data = json.loads(latest.result_json)
+                    place_results = data.get("place_results", [])
+                    ranked = [p for p in place_results if p.get("rank")]
+                    if ranked:
+                        best = min(ranked, key=lambda x: x["rank"])
+                        top_keyword = best.get("keyword", "")
+                        this_rank = best.get("rank")
+                except:
+                    pass
+
+            # 지난 주 (이전)
+            if len(histories) > 1:
+                prev = histories[1]
+                if prev.result_json and top_keyword:
+                    try:
+                        data = json.loads(prev.result_json)
+                        place_results = data.get("place_results", [])
+                        for p in place_results:
+                            if p.get("keyword") == top_keyword:
+                                last_rank = p.get("rank")
+                                break
+                    except:
+                        pass
+
+        result.append({
+            "store_name": s.store_name,
+            "place_id": s.place_id,
+            "top_keyword": top_keyword,
+            "this_rank": this_rank,
+            "last_rank": last_rank,
+        })
+
+    return result

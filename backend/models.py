@@ -151,3 +151,29 @@ class RegisteredStore(Base):
     store_name    = Column(String(200), nullable=False)
     store_type    = Column(String(10), nullable=False)  # 'my' | 'rival'
     registered_at = Column(DateTime(timezone=True), default=_now)
+
+
+class Subscriber(Base):
+    """알림톡 구독자 (전화번호 수집)"""
+    __tablename__ = "subscribers"
+
+    id               = Column(Integer, primary_key=True, index=True)
+    anon_id          = Column(String(36), index=True, nullable=True)
+    store_name       = Column(String(200), nullable=False)
+    store_url        = Column(Text, nullable=True)
+    place_id         = Column(String(20), index=True, nullable=True)
+    phone            = Column(String(20), nullable=False)
+    alarm_on         = Column(Boolean, default=True)
+    agreed_at        = Column(DateTime(timezone=True), default=_now)
+    created_at       = Column(DateTime(timezone=True), default=_now)
+    last_analyzed_at = Column(DateTime(timezone=True), nullable=True)
+    memo             = Column(Text, nullable=True)
+
+
+class AlimTemplate(Base):
+    """알림톡 템플릿 (추가문구 관리)"""
+    __tablename__ = "alim_templates"
+
+    template_key = Column(String(50), primary_key=True)
+    extra_text   = Column(Text, nullable=True)
+    updated_at   = Column(DateTime(timezone=True), default=_now)
