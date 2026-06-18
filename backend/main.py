@@ -791,9 +791,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         플레이스 광고, 블로그 체험단, 상위노출 작업 등<br>
         매장 상황에 맞는 방법을 안내해드립니다.
       </p>
-      <a href="https://pf.kakao.com/_qsxlXX/chat" target="_blank" class="cta-btn">
+      <a id="kakaoCtaBtn" href="https://pf.kakao.com/_qsxlXX/chat" target="_blank" class="cta-btn">
         💬 카카오톡으로 무료 문의하기
       </a>
+      <script>
+      (function(){
+        var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        var btn = document.getElementById('kakaoCtaBtn');
+        if(!isMobile) btn.href = 'https://pf.kakao.com/_qsxlXX';
+      })();
+      </script>
     </section>
 
     <!-- K단계: 최근 본 매장 -->
