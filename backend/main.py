@@ -121,7 +121,7 @@ _HTML = """<!DOCTYPE html>
     },
     {
       "@type": "Question",
-      "name": "블로그 체험단을 운영 중인데 실제로 노출이 되고 있나요?",
+      "name": "블로그 체험단 효과, 실제로 순위에 반영되고 있나요?",
       "acceptedAnswer": {
         "@type": "Answer",
         "text": "블로그 포스팅이 어떤 키워드로 몇 위에 노출되는지 플레이스랭킹 블로그 분석 탭에서 직접 확인할 수 있습니다."
@@ -129,7 +129,7 @@ _HTML = """<!DOCTYPE html>
     },
     {
       "@type": "Question",
-      "name": "가게 오픈 전에도 활용할 수 있나요?",
+      "name": "가게 오픈 전에도 경쟁 매장 분석이 가능한가요?",
       "acceptedAnswer": {
         "@type": "Answer",
         "text": "오픈 예정이라면 경쟁 매장 분석으로 상권 내 키워드 경쟁 강도를 미리 파악할 수 있습니다."
@@ -271,7 +271,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* SEO 콘텐츠 섹션 */
 .seo-why-section{max-width:680px;margin:48px auto;padding:32px 24px;background:#F6F8FA;border-radius:16px;text-align:center;}
-.seo-why-section h2{font-size:22px;font-weight:800;color:#00B894;margin-bottom:20px;letter-spacing:-0.5px;line-height:1.4;}
+.seo-why-section h2{font-size:22px;font-weight:800;color:#00B894;margin-bottom:20px;letter-spacing:-0.5px;line-height:1.4;white-space:nowrap;}
 .seo-why-section p{font-size:14px;color:#4A5568;line-height:1.8;margin-bottom:12px;}
 .seo-faq-section{max-width:680px;margin:48px auto;padding:0 24px;}
 .seo-faq-section h2{font-size:22px;font-weight:800;color:#00B894;margin-bottom:20px;text-align:center;}
@@ -719,13 +719,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <section class="seo-why-section">
       <h2>네이버 플레이스 순위, 왜 확인해야 하나요?</h2>
       <p>
-        네이버 플레이스, 첫페이지 상위 5개 매장이 손님의 80%를 가져갑니다.
+        네이버 플레이스, 상위 3개 매장이 손님의 80%를 가져갑니다.
       </p>
       <p>
-        내 매장이 어떤 키워드에서 몇 위인지, 경쟁 매장과 얼마나 차이 나는지 — 지금 무료로 확인하세요.
+        내 매장이 어떤 키워드에서 몇 위인지,<br>
+        경쟁 매장과 얼마나 차이 나는지 — 지금 무료로 확인하세요.
       </p>
       <p>
-        플레이스 광고 · 리워드 광고 · 상위노출 작업 집행 중이라면 실제 키워드 순위 변화를 직접 확인해보세요.
+        플레이스 광고 · 블로그 체험단 · 상위노출 작업 집행 중이라면<br>
+        실제 키워드 순위 변화를 직접 확인해보세요.
       </p>
     </section>
 
@@ -749,7 +751,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
       </div>
       <div class="faq-item">
-        <button class="faq-q">블로그 체험단을 운영 중인데 실제로 노출이 되고 있나요?</button>
+        <button class="faq-q">블로그 체험단 효과, 실제로 순위에 반영되고 있나요?</button>
         <div class="faq-a">
           블로그 포스팅이 어떤 키워드로 몇 위에 노출되는지
           플레이스랭킹 블로그 분석 탭에서 직접 확인할 수 있습니다.
@@ -764,7 +766,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
       </div>
       <div class="faq-item">
-        <button class="faq-q">가게 오픈 전에도 활용할 수 있나요?</button>
+        <button class="faq-q">가게 오픈 전에도 경쟁 매장 분석이 가능한가요?</button>
         <div class="faq-a">
           오픈 예정이라면 경쟁 매장 분석으로 상권 내 키워드 경쟁 강도를
           미리 파악할 수 있습니다. 플레이스 광고나 소상공인 마케팅 전략 수립에 활용하세요.
