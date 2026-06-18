@@ -74,6 +74,8 @@ _HTML = """<!DOCTYPE html>
 <meta property="og:url" content="https://placeranking.com">
 <meta property="og:site_name" content="플레이스랭킹">
 <link rel="canonical" href="https://placeranking.com">
+<meta name="google-site-verification" content="OMcAcRnijHErEpfd4wIFa9jCXtXAQgVKZ2plesoCYvM" />
+<meta name="naver-site-verification" content="df35aa6f9e46b7aa1e5678ee79a5a19ef5a868d6" />
 <style>
 :root{
   --green:#03c75a;--green-d:#02a84d;--green-bg:#f0fdf6;
