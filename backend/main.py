@@ -277,7 +277,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* SEO 콘텐츠 섹션 */
 .seo-why-section{max-width:680px;margin:48px auto;padding:32px 24px;background:#F6F8FA;border-radius:16px;text-align:center;}
-.seo-why-section h2{font-size:22px;font-weight:800;color:#00B894;margin-bottom:20px;letter-spacing:-0.5px;line-height:1.4;white-space:nowrap;}
+.seo-why-section h2{font-size:22px;font-weight:800;color:#00B894;margin-bottom:20px;letter-spacing:-0.5px;line-height:1.4;}
 .seo-why-section p{font-size:14px;color:#4A5568;line-height:1.8;margin-bottom:12px;}
 .seo-faq-section{max-width:680px;margin:48px auto;padding:0 24px;}
 .seo-faq-section h2{font-size:22px;font-weight:800;color:#00B894;margin-bottom:20px;text-align:center;}
@@ -2710,14 +2710,16 @@ function handleShare(){
   const title = storeName + ' 플레이스 지수 ' + score + '점';
   const text = keyword ? ("'" + keyword + "' " + rank + "위") : '네이버 플레이스 순위 무료 확인';
   const url = 'https://placeranking.com';
+  const shareText = title + ' - ' + text + ' ' + url;
 
-  if(navigator.share){
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if(isMobile && navigator.share){
     navigator.share({title: title, text: text, url: url}).catch(()=>{});
   } else {
-    navigator.clipboard.writeText(title + ' - ' + text + ' ' + url).then(()=>{
-      alert('링크가 복사되었습니다. 카카오톡에 붙여넣기 하세요!');
+    navigator.clipboard.writeText(shareText).then(()=>{
+      alert('링크가 복사되었습니다!');
     }).catch(()=>{
-      alert('공유 링크: ' + url);
+      prompt('아래 링크를 복사하세요:', shareText);
     });
   }
 }
