@@ -2734,10 +2734,12 @@ function handleShare(){
 }
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window._pwaPrompt=e;});
 
-// 카카오 SDK 초기화
-if(typeof Kakao !== 'undefined' && !Kakao.isInitialized()){
-  Kakao.init('feef26a73850e916e03403ad1b9398e9');
-}
+// 카카오 SDK 초기화 (로드 완료 후)
+window.addEventListener('load', function(){
+  if(typeof Kakao !== 'undefined' && !Kakao.isInitialized()){
+    Kakao.init('feef26a73850e916e03403ad1b9398e9');
+  }
+});
 
 // ── 알림 구독 ────────────────────────────────────────────────────────────────
 async function submitSubscribe(){
