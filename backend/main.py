@@ -3311,7 +3311,7 @@ def get_store_registration_status_endpoint(
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.post("/subscribe", tags=["구독"])
-def subscribe_alarm_endpoint(
+async def subscribe_alarm_endpoint(
     req: schemas.SubscribeRequest,
     db: Session = Depends(get_db),
 ):
@@ -3329,6 +3329,18 @@ def subscribe_alarm_endpoint(
         place_id=req.place_id,
         anon_id=req.anon_id,
     )
+
+    # 신청 완료 알림톡 발송 (실패해도 구독 저장은 성공 처리)
+    try:
+        from .services.alimtalk import send_signup_alimtalk
+        await send_signup_alimtalk(
+            phone=req.phone,
+            store_name=req.store_name,
+            day_of_week="월요일",
+        )
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"[알림톡] 신청완료 발송 실패: {e}")
+
     return {
         "id": sub.id,
         "store_name": sub.store_name,
