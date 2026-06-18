@@ -2714,7 +2714,7 @@ function handleShare(){
     objectType: 'feed',
     content: {
       title: storeName + ' · 플레이스 지수 ' + score + '점',
-      description: "대표 키워드 '" + keyword + "' " + rank + "위\n네이버 플레이스 순위를 무료로 확인해보세요",
+      description: "대표 키워드 '" + keyword + "' " + rank + "위 - 네이버 플레이스 순위를 무료로 확인해보세요",
       imageUrl: 'https://placeranking.com/static/og_image.png',
       link: {
         mobileWebUrl: 'https://placeranking.com',
