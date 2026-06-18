@@ -663,8 +663,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
 
     <div class="input-card" id="searchFormCard">
-      <div class="field"><label>매장명</label><input type="text" id="storeName" placeholder="예: 감동식당"></div>
-      <div class="field"><label>네이버 플레이스 URL</label><input type="text" id="placeUrl" placeholder="https://naver.me/... 또는 map.naver.com/..."></div>
+      <div class="field"><label>매장명</label><input type="text" id="storeName" placeholder=""></div>
+      <div class="field"><label>네이버 플레이스 URL</label><input type="text" id="placeUrl" placeholder=""></div>
       <div class="field">
         <label>분석 유형</label>
         <div class="analysis-type-grid">
@@ -719,22 +719,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <section class="seo-why-section">
       <h2>네이버 플레이스 순위, 왜 확인해야 하나요?</h2>
       <p>
-        네이버에서 "우리 동네 맛집", "강남 헬스장"을 검색하면
-        상위 3개 매장이 전체 클릭의 80%를 가져갑니다.
-        내 매장이 어떤 키워드에서 몇 위인지 모른다면
-        매달 광고비를 써도 효과를 제대로 확인할 방법이 없습니다.
+        네이버 플레이스, 첫페이지 상위 5개 매장이 손님의 80%를 가져갑니다.
       </p>
       <p>
-        플레이스랭킹은 네이버 플레이스 순위, 블로그 노출 현황, 경쟁 매장 비교를
-        URL 하나로 무료 확인할 수 있는 진단 도구입니다.
-        플레이스 광고, 블로그 체험단, 지역소상공인광고를 집행 중이라면
+        내 매장이 어떤 키워드에서 몇 위인지,<br>
+        경쟁 매장과 얼마나 차이 나는지 — 지금 무료로 확인하세요.
+      </p>
+      <p>
+        플레이스 광고 · 리워드 광고 · 상위노출 작업 집행 중이라면<br>
         실제 키워드 순위 변화를 직접 확인해보세요.
       </p>
     </section>
 
     <!-- SEO 콘텐츠: FAQ 아코디언 -->
     <section class="seo-faq-section">
-      <h2>자주 묻는 질문</h2>
+      <h2>플레이스 순위, 이런 게 궁금하셨죠?</h2>
       <div class="faq-item">
         <button class="faq-q">네이버 플레이스 상위노출은 어떻게 결정되나요?</button>
         <div class="faq-a">
