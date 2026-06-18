@@ -2724,7 +2724,7 @@ async function submitSubscribe(){
       body: JSON.stringify({
         store_name: _lastResultData?.store_name || '',
         phone: phone,
-        store_url: _lastResultData?.place_url || document.getElementById('place_url').value,
+        store_url: _lastResultData?.place_url || document.getElementById('placeUrl').value,
         place_id: _lastResultData?.place_id || null,
         anon_id: _anonId,
         agreed: true
