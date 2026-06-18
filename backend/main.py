@@ -1860,49 +1860,49 @@ async function analyzePlaceOnly(){
         if(pctEl) pctEl.textContent = pct + '%';
       }
 
-      // R단계: 키워드 팝업 + 리액션
+      // 키워드 팝업 + 리액션 (순위 있는 것만 표시)
       const area = document.getElementById('kwPopupArea');
       const rank = d.rank;
-      let reaction = '';
-      let rankClass = '';
+
       if(rank !== null) {
+        let reaction = '';
+        let rankClass = '';
         if(rank === 1) { reaction = '오~! 🎉'; rankClass = 'top'; }
         else if(rank <= 3) { reaction = 'Nice! 👍'; rankClass = 'top'; }
         else if(rank <= 5) { reaction = 'Good!'; rankClass = 'top'; }
-      }
+        else if(rank <= 10) { rankClass = 'top'; }
 
-      const popup = document.createElement('div');
-      popup.className = 'kw-popup';
-      popup.innerHTML = `
-        <div class="kw-text">${esc(d.keyword)}</div>
-        <div class="kw-rank ${rankClass}">${rank !== null ? rank + '위' : '순위 없음'}</div>
-        ${reaction ? `<div class="kw-reaction">${reaction}</div>` : ''}
-      `;
-      area.innerHTML = '';
-      area.appendChild(popup);
+        const popup = document.createElement('div');
+        popup.className = 'kw-popup';
+        popup.innerHTML = `
+          <div class="kw-text">${esc(d.keyword)}</div>
+          <div class="kw-rank ${rankClass}">${rank}위</div>
+          ${reaction ? '<div class="kw-reaction">' + reaction + '</div>' : ''}
+        `;
+        area.innerHTML = '';
+        area.appendChild(popup);
 
-      // S단계: 상위 10위 이내 키워드 칩 누적
-      if(rank !== null && rank <= 10) {
+        // 상위 키워드 칩 누적
         const chipsArea = document.getElementById('topKwChips');
-        let chipClass = 'rank-6-10';
+        let chipClass = 'rank-11-plus';
         if(rank === 1) chipClass = 'rank-1';
         else if(rank <= 3) chipClass = 'rank-2-3';
         else if(rank <= 5) chipClass = 'rank-4-5';
+        else if(rank <= 10) chipClass = 'rank-6-10';
 
         const chip = document.createElement('span');
-        chip.className = `top-kw-chip ${chipClass}`;
-        chip.innerHTML = `<span class="chip-rank">${rank}위</span>${esc(d.keyword)}`;
+        chip.className = 'top-kw-chip ' + chipClass;
+        chip.innerHTML = '<span class="chip-rank">' + rank + '위</span>' + esc(d.keyword);
         chipsArea.appendChild(chip);
-      }
 
-      // S단계: 1초 후 분석 중 펄스로 전환 (마지막 키워드 아닐 때)
-      if(d.progress < d.total) {
-        setTimeout(() => {
-          // 다음 키워드가 이미 도착했으면 무시
-          if(area.querySelector('.kw-popup')) {
-            _showAnalyzingPulse();
-          }
-        }, 1200);
+        // 1초 후 분석 중 펄스로 전환
+        if(d.progress < d.total) {
+          setTimeout(() => {
+            if(area.querySelector('.kw-popup')) {
+              _showAnalyzingPulse();
+            }
+          }, 1200);
+        }
       }
 
       // R단계: 점수 차오르기 (천장 규칙)
