@@ -3535,6 +3535,14 @@ def get_store_registration_status_endpoint(
 # 알림톡 구독 API
 # ─────────────────────────────────────────────────────────────────────────────
 
+@app.post("/subscribe-debug", tags=["구독"])
+async def subscribe_debug(request: Request):
+    """디버그용 - raw body 확인"""
+    body = await request.body()
+    print(f"[subscribe-debug] Content-Type: {request.headers.get('content-type')}")
+    print(f"[subscribe-debug] Body: {body}")
+    return {"body": body.decode('utf-8', errors='replace'), "content_type": request.headers.get('content-type')}
+
 @app.post("/subscribe", tags=["구독"])
 async def subscribe_alarm_endpoint(
     req: schemas.SubscribeRequest,
