@@ -1005,7 +1005,8 @@ let _prevAnalysis = null;     // 직전 분석 결과 (비교용)
 let _anonId = null;
 let _lastStoreName = '';
 let _lastPlaceUrl = '';
-let _forceRefresh = false;  // L단계: 강제 재크롤 체크박스 제거
+let _forceRefresh = false;
+let _lastResultData = null;  // L단계: 강제 재크롤 체크박스 제거
 
 // N단계: 분석 중단용 AbortController
 let _analysisAbortController = null;
@@ -1903,6 +1904,7 @@ async function analyzeBlogOnly(){
 // ── 결과 렌더링 ───────────────────────────────────────────────────────────────
 function renderResult(d){
   window._diagData = d;
+  _lastResultData = d;
   const sc = d.scores||{};
   const prev = _prevAnalysis;
 
