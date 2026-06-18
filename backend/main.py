@@ -15,7 +15,7 @@ if not _pkg_logger.handlers:
     _pkg_logger.setLevel(logging.INFO)
     _pkg_logger.propagate = False
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -62,8 +62,18 @@ _HTML = """<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>플레이스랭킹 — 네이버 플레이스 순위 무료 확인</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>네이버 플레이스 순위 무료 확인 | 플레이스랭킹</title>
+<meta name="description" content="내 매장 키워드 순위를 무료로 확인하세요. 경쟁 매장과 비교해 네이버 플레이스 노출 현황을 진단합니다.">
+<meta name="keywords" content="네이버 플레이스 순위, 플레이스 키워드 순위, 내 플레이스 순위 확인, 플레이스 진단, 네이버 플레이스 검색 순위">
+<meta name="robots" content="index, follow">
+<meta name="author" content="플레이스랭킹">
+<meta property="og:type" content="website">
+<meta property="og:title" content="네이버 플레이스 순위 무료 확인 | 플레이스랭킹">
+<meta property="og:description" content="내 매장 키워드 순위를 무료로 확인하세요. 경쟁 매장과 비교해 네이버 플레이스 노출 현황을 진단합니다.">
+<meta property="og:url" content="https://placeranking.com">
+<meta property="og:site_name" content="플레이스랭킹">
+<link rel="canonical" href="https://placeranking.com">
 <style>
 :root{
   --green:#03c75a;--green-d:#02a84d;--green-bg:#f0fdf6;
@@ -2685,6 +2695,29 @@ def index():
 @app.get("/health", tags=["시스템"])
 def health():
     return {"status": "ok"}
+
+
+@app.get("/sitemap.xml", tags=["SEO"])
+async def sitemap():
+    content = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://placeranking.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>"""
+    return Response(content=content, media_type="application/xml")
+
+
+@app.get("/robots.txt", tags=["SEO"])
+async def robots():
+    content = """User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Sitemap: https://placeranking.com/sitemap.xml"""
+    return Response(content=content, media_type="text/plain")
 
 
 # ── R단계: SSE 스트리밍 진단 엔드포인트 ─────────────────────────────────────
