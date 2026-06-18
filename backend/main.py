@@ -2699,6 +2699,10 @@ function handlePwa(){
   else alert('브라우저 주소창 옆 설치 아이콘을 눌러주세요.');
 }
 function handleShare(){
+  if(typeof Kakao === 'undefined') return;
+  if(!Kakao.isInitialized()){
+    Kakao.init('feef26a73850e916e03403ad1b9398e9');
+  }
   if(!_lastResultData){
     alert('분석 결과가 없습니다.');
     return;
