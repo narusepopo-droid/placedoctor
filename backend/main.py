@@ -916,7 +916,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <input type="checkbox" id="subscribeAgree">
             <span>플레이스랭킹 순위 리포트 알림톡 수신에 동의합니다 (정보성)</span>
           </label>
-          <button class="btn-subscribe" id="btnSubscribe" onclick="submitSubscribe()">알림 신청하기</button>
+          <button class="btn-subscribe" id="btnSubscribe" onclick="submitSubscribe()">무료 알림 신청하기</button>
         </div>
         <div class="subscribe-done" id="subscribeDone" style="display:none;">
           <div class="subscribe-done-icon">✅</div>
@@ -928,13 +928,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <!-- BUTTONS -->
       <div class="card">
         <div class="btn-area">
-          <button class="btn-main" onclick="handleLead()">📋 상세 리포트 카톡으로 받기</button>
           <div class="btn-row">
             <button class="btn-secondary" onclick="handlePwa()">📱 홈 화면 추가</button>
             <button class="btn-secondary" onclick="handleShare()">💬 카톡 공유</button>
           </div>
         </div>
-        <p class="bottom-note">개선 로드맵 + 키워드별 분석 무료 발송 · 운영 <strong>광고토대왕</strong></p>
       </div>
     </div>
 
@@ -2736,12 +2734,12 @@ async function submitSubscribe(){
     } else {
       alert(data.detail || '신청에 실패했습니다.');
       btn.disabled = false;
-      btn.textContent = '알림 신청하기';
+      btn.textContent = '무료 알림 신청하기';
     }
   } catch(e){
     alert('네트워크 오류가 발생했습니다.');
     btn.disabled = false;
-    btn.textContent = '알림 신청하기';
+    btn.textContent = '무료 알림 신청하기';
   }
 }
 
