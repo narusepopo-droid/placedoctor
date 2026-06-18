@@ -74,6 +74,7 @@ _HTML = """<!DOCTYPE html>
 <meta property="og:url" content="https://placeranking.com">
 <meta property="og:site_name" content="플레이스랭킹">
 <link rel="canonical" href="https://placeranking.com">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><rect width='128' height='128' rx='24' fill='%2300B894'/><circle cx='64' cy='50' r='28' fill='white'/><circle cx='64' cy='50' r='14' fill='%2300B894'/><path d='M64 78 L52 106 L64 101 L76 106 Z' fill='white'/></svg>">
 <meta name="google-site-verification" content="OMcAcRnijHErEpfd4wIFa9jCXtXAQgVKZ2plesoCYvM" />
 <meta name="naver-site-verification" content="df35aa6f9e46b7aa1e5678ee79a5a19ef5a868d6" />
 <script type="application/ld+json">
@@ -158,8 +159,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* HEADER (L단계: 흰 배경 + 차분한 초록 로고) */
 .header{background:#fff;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--gray-200);}
-.logo{display:flex;align-items:baseline;gap:7px;color:var(--green-d);font-size:1.2rem;font-weight:800;letter-spacing:-.3px;}
-.logo-icon{font-size:1.3rem;}
+.logo{display:flex;align-items:center;gap:8px;color:var(--green-d);font-size:1.2rem;font-weight:800;letter-spacing:-.3px;}
+.logo-icon{width:28px;height:28px;flex-shrink:0;}
 .logo-sub{font-size:.72rem;font-weight:500;color:var(--gray-400);padding-left:9px;border-left:1px solid var(--gray-200);letter-spacing:0;}
 .header-badge{background:var(--green-bg);color:var(--green-d);font-size:.72rem;font-weight:700;padding:4px 11px;border-radius:20px;border:1px solid #bbf7d0;}
 @media (max-width:480px){.logo-sub{display:none;}}
@@ -598,7 +599,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </head>
 <body>
 <div class="header">
-  <div class="logo" onclick="goHome()" style="cursor:pointer;"><span class="logo-icon">📊</span>플레이스랭킹<span class="logo-sub">네이버 플레이스 순위 분석</span></div>
+  <div class="logo" onclick="goHome()" style="cursor:pointer;"><svg class="logo-icon" viewBox="0 0 50 70" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="22" r="16" fill="#00B894"/><circle cx="25" cy="22" r="8" fill="white"/><circle cx="25" cy="22" r="4" fill="#00B894"/><path d="M25 38 L18 52 L25 48 L32 52 Z" fill="#00B894"/></svg>플레이스랭킹<span class="logo-sub">네이버 플레이스 순위 분석</span></div>
   <span class="header-badge">무료</span>
 </div>
 <div class="main">
