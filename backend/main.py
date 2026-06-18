@@ -288,20 +288,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .cta-btn{display:inline-block;background:#FEE500;color:#1A1A1A;font-weight:800;font-size:15px;padding:14px 32px;border-radius:12px;text-decoration:none;margin-bottom:12px;}
 .cta-btn:hover{background:#F5DC00;}
 
-/* 푸터 */
-.site-footer{background:#1A2B3C;padding:48px 24px 32px;margin-top:0;}
-.footer-inner{max-width:680px;margin:0 auto;text-align:center;}
-.footer-logo{display:inline-flex;align-items:center;gap:12px;margin-bottom:20px;}
-.footer-logo-icon{width:40px;height:56px;}
-.footer-logo-text{display:flex;flex-direction:column;align-items:flex-start;gap:2px;}
-.footer-brand{font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px;}
-.footer-brand span{color:#00B894;}
-.footer-tagline{font-size:12px;color:#6B7C8F;}
-.footer-divider{width:60px;height:1px;background:#2D3E50;margin:24px auto;}
-.footer-copy{font-size:12px;color:#4A5568;}
-.footer-links{margin-top:12px;display:flex;justify-content:center;gap:16px;}
-.footer-links a{font-size:12px;color:#6B7C8F;text-decoration:none;}
-.footer-links a:hover{color:#00B894;}
+/* 푸터 (히어로 배너 스타일) */
+.site-footer{margin:48px 16px 24px;}
+.footer-banner{background:#1A2B3C;border-radius:20px;padding:32px 28px 20px;position:relative;overflow:hidden;}
+.footer-bg-circle{position:absolute;border-radius:50%;background:#00B894;}
+.footer-bg-circle.c1{width:160px;height:160px;top:-40px;right:-30px;opacity:0.08;}
+.footer-bg-circle.c2{width:100px;height:100px;bottom:-30px;right:60px;opacity:0.05;}
+.footer-content{display:flex;align-items:center;justify-content:space-between;gap:20px;position:relative;z-index:1;}
+.footer-left{display:flex;align-items:center;gap:16px;}
+.footer-logo-icon{width:44px;height:60px;flex-shrink:0;}
+.footer-text{display:flex;flex-direction:column;gap:4px;}
+.footer-brand{font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;}
+.footer-tagline{font-size:13px;color:#00B894;}
+.footer-tags{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+.ftag{background:rgba(0,184,148,0.15);color:#00B894;font-size:11px;font-weight:700;padding:5px 12px;border-radius:14px;}
+.footer-right{flex-shrink:0;}
+.footer-card{background:rgba(255,255,255,0.06);border-radius:14px;padding:14px 20px;text-align:center;min-width:130px;}
+.fc-label{font-size:11px;color:#6B7C8F;margin-bottom:4px;}
+.fc-rank{font-size:36px;font-weight:800;color:#00B894;line-height:1;}
+.fc-kw{font-size:13px;color:#fff;margin-top:4px;}
+.fc-score{font-size:10px;color:#6B7C8F;margin-top:4px;}
+.footer-copy{text-align:center;font-size:11px;color:#4A5568;margin-top:20px;position:relative;z-index:1;}
+@media(max-width:560px){
+  .footer-content{flex-direction:column;text-align:center;}
+  .footer-left{flex-direction:column;}
+  .footer-text{align-items:center;}
+  .footer-tags{justify-content:center;}
+}
 
 /* K단계: 최근 본 매장 */
 .recent-stores-section{margin-top:24px;padding:0 4px;}
@@ -809,30 +822,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         💬 카카오톡으로 무료 문의하기
       </a>
     </section>
-
-    <!-- 푸터 -->
-    <footer class="site-footer">
-      <div class="footer-inner">
-        <div class="footer-logo">
-          <svg class="footer-logo-icon" viewBox="0 0 50 70" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="25" cy="22" r="18" fill="#00B894"/>
-            <circle cx="25" cy="22" r="9" fill="#1A2B3C"/>
-            <circle cx="25" cy="22" r="4" fill="#00B894"/>
-            <path d="M25 40 L16 58 L25 53 L34 58 Z" fill="#00B894"/>
-          </svg>
-          <div class="footer-logo-text">
-            <div class="footer-brand">플레이스<span>랭킹</span></div>
-            <div class="footer-tagline">네이버 플레이스 순위 무료 진단</div>
-          </div>
-        </div>
-        <div class="footer-divider"></div>
-        <div class="footer-copy">© 2026 플레이스랭킹. All rights reserved.</div>
-        <div class="footer-links">
-          <a href="http://pf.kakao.com/_qsxlXX" target="_blank">카카오톡 문의</a>
-          <a href="mailto:narusepopo@gmail.com">이메일 문의</a>
-        </div>
-      </div>
-    </footer>
 
     <!-- K단계: 최근 본 매장 -->
     <div class="recent-stores-section" id="recentStoresSection" style="display:none;">
@@ -2898,6 +2887,43 @@ function resetForm(){
 
 document.getElementById('placeUrl').addEventListener('keydown',e=>{if(e.key==='Enter')startAnalysis();});
 </script>
+
+<!-- 푸터 (히어로 배너 스타일) -->
+<footer class="site-footer" id="siteFooter">
+  <div class="footer-banner">
+    <div class="footer-bg-circle c1"></div>
+    <div class="footer-bg-circle c2"></div>
+    <div class="footer-content">
+      <div class="footer-left">
+        <svg class="footer-logo-icon" viewBox="0 0 50 70" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="25" cy="22" r="18" fill="#00B894"/>
+          <circle cx="25" cy="22" r="9" fill="#1A2B3C"/>
+          <circle cx="25" cy="22" r="4" fill="#00B894"/>
+          <path d="M25 40 L16 58 L25 53 L34 58 Z" fill="#00B894"/>
+        </svg>
+        <div class="footer-text">
+          <div class="footer-brand">플레이스랭킹</div>
+          <div class="footer-tagline">네이버 플레이스 순위 무료 진단 도구</div>
+          <div class="footer-tags">
+            <span class="ftag">무료</span>
+            <span class="ftag">플레이스 분석</span>
+            <span class="ftag">경쟁사 비교</span>
+          </div>
+        </div>
+      </div>
+      <div class="footer-right">
+        <div class="footer-card">
+          <div class="fc-label">대표 키워드</div>
+          <div class="fc-rank">1위</div>
+          <div class="fc-kw">강남 맛집</div>
+          <div class="fc-score">플레이스 지수 85점</div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-copy">© 2026 플레이스랭킹</div>
+  </div>
+</footer>
+
 </body>
 </html>"""
 
