@@ -76,6 +76,75 @@ _HTML = """<!DOCTYPE html>
 <link rel="canonical" href="https://placeranking.com">
 <meta name="google-site-verification" content="OMcAcRnijHErEpfd4wIFa9jCXtXAQgVKZ2plesoCYvM" />
 <meta name="naver-site-verification" content="df35aa6f9e46b7aa1e5678ee79a5a19ef5a868d6" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "플레이스랭킹",
+  "url": "https://placeranking.com",
+  "description": "네이버 플레이스 키워드 순위 무료 진단 도구. 플레이스 상위노출, 블로그 노출 현황, 경쟁 매장 비교를 무료로 확인하세요.",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "KRW"
+  },
+  "provider": {
+    "@type": "Organization",
+    "name": "플레이스랭킹",
+    "url": "https://placeranking.com"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "네이버 플레이스 상위노출은 어떻게 결정되나요?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "키워드 일치도, 리뷰 수·점수, 저장수, 최근 활동, 블로그 포스팅 노출 등 복합 알고리즘으로 결정됩니다."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "플레이스 광고를 집행 중인데 순위 확인이 필요한가요?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "네이버 플레이스 광고는 유료 노출이고, 자연 순위는 별개입니다. 광고 없이도 어떤 키워드에서 자연 노출되는지 확인하는 것이 진짜 마케팅 실력 파악의 시작입니다."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "블로그 체험단을 운영 중인데 실제로 노출이 되고 있나요?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "블로그 포스팅이 어떤 키워드로 몇 위에 노출되는지 플레이스랭킹 블로그 분석 탭에서 직접 확인할 수 있습니다."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "가게 오픈 전에도 활용할 수 있나요?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "오픈 예정이라면 경쟁 매장 분석으로 상권 내 키워드 경쟁 강도를 미리 파악할 수 있습니다."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "지역소상공인광고와 일반 플레이스 광고 차이는 무엇인가요?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "지역소상공인광고는 네이버가 지원하는 소상공인 전용 광고 상품으로 노출 영역과 비용 구조가 다릅니다. 현재 키워드 순위를 먼저 파악한 후 결정하는 것이 효율적입니다."
+      }
+    }
+  ]
+}
+</script>
 <style>
 :root{
   --green:#03c75a;--green-d:#02a84d;--green-bg:#f0fdf6;
@@ -198,6 +267,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .trend-date{font-size:.6rem;color:var(--gray-400);}
 .trend-rank{font-size:.72rem;color:var(--gray-600);}
 .trend-arrow{color:var(--gray-300);font-size:.65rem;margin:0 2px;}
+
+/* SEO 콘텐츠 섹션 */
+.seo-why-section{max-width:680px;margin:48px auto;padding:32px 24px;background:#F6F8FA;border-radius:16px;text-align:center;}
+.seo-why-section h2{font-size:18px;font-weight:800;color:#1A2B3C;margin-bottom:16px;letter-spacing:-0.5px;}
+.seo-why-section p{font-size:14px;color:#4A5568;line-height:1.8;margin-bottom:12px;}
+.seo-faq-section{max-width:680px;margin:48px auto;padding:0 24px;}
+.seo-faq-section h2{font-size:18px;font-weight:800;color:#1A2B3C;margin-bottom:20px;text-align:center;}
+.faq-item{border-bottom:1px solid #E8EDF1;}
+.faq-q{width:100%;text-align:left;background:none;border:none;padding:18px 0;font-size:14px;font-weight:700;color:#1A2B3C;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+.faq-q::after{content:'+';font-size:20px;color:#00B894;flex-shrink:0;}
+.faq-q.open::after{content:'−';}
+.faq-a{display:none;padding:0 0 18px;font-size:13.5px;color:#4A5568;line-height:1.8;}
+.faq-a.open{display:block;}
+.seo-cta-section{max-width:680px;margin:48px auto 64px;padding:40px 24px;background:linear-gradient(135deg,#F0FDF8 0%,#E6F7F2 100%);border-radius:20px;text-align:center;border:1px solid #BfeBe0;}
+.cta-label{font-size:12px;font-weight:700;color:#00B894;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
+.seo-cta-section h2{font-size:20px;font-weight:800;color:#1A2B3C;margin-bottom:12px;line-height:1.4;}
+.cta-desc{font-size:13.5px;color:#4A5568;line-height:1.8;margin-bottom:24px;}
+.cta-btn{display:inline-block;background:#FEE500;color:#1A1A1A;font-weight:800;font-size:15px;padding:14px 32px;border-radius:12px;text-decoration:none;margin-bottom:12px;}
+.cta-btn:hover{background:#F5DC00;}
 
 /* K단계: 최근 본 매장 */
 .recent-stores-section{margin-top:24px;padding:0 4px;}
@@ -624,6 +712,87 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="registered-desc">경쟁 매장 순위를 슬쩍 지켜보세요</div>
       <div class="registered-list" id="rivalStoresList"></div>
     </div>
+
+    <!-- SEO 콘텐츠: Why 섹션 -->
+    <section class="seo-why-section">
+      <h2>네이버 플레이스 순위, 왜 확인해야 하나요?</h2>
+      <p>
+        네이버에서 "우리 동네 맛집", "강남 헬스장"을 검색하면
+        상위 3개 매장이 전체 클릭의 80%를 가져갑니다.
+        내 매장이 어떤 키워드에서 몇 위인지 모른다면
+        매달 광고비를 써도 효과를 제대로 확인할 방법이 없습니다.
+      </p>
+      <p>
+        플레이스랭킹은 네이버 플레이스 순위, 블로그 노출 현황, 경쟁 매장 비교를
+        URL 하나로 무료 확인할 수 있는 진단 도구입니다.
+        플레이스 광고, 블로그 체험단, 지역소상공인광고를 집행 중이라면
+        실제 키워드 순위 변화를 직접 확인해보세요.
+      </p>
+    </section>
+
+    <!-- SEO 콘텐츠: FAQ 아코디언 -->
+    <section class="seo-faq-section">
+      <h2>자주 묻는 질문</h2>
+      <div class="faq-item">
+        <button class="faq-q">네이버 플레이스 상위노출은 어떻게 결정되나요?</button>
+        <div class="faq-a">
+          키워드 일치도, 리뷰 수·점수, 저장수, 최근 활동, 블로그 포스팅 노출 등
+          복합 알고리즘으로 결정됩니다. 플레이스랭킹에서 내 매장의
+          현재 점수와 부족한 항목을 무료로 확인할 수 있습니다.
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">플레이스 광고를 집행 중인데 순위 확인이 필요한가요?</button>
+        <div class="faq-a">
+          네이버 플레이스 광고는 유료 노출이고, 자연 순위는 별개입니다.
+          광고 없이도 어떤 키워드에서 자연 노출되는지 확인하는 것이
+          진짜 마케팅 실력 파악의 시작입니다.
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">블로그 체험단을 운영 중인데 실제로 노출이 되고 있나요?</button>
+        <div class="faq-a">
+          블로그 포스팅이 어떤 키워드로 몇 위에 노출되는지
+          플레이스랭킹 블로그 분석 탭에서 직접 확인할 수 있습니다.
+          체험단 효과를 데이터로 검증해보세요.
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">경쟁 매장이 왜 나보다 순위가 높은지 알 수 있나요?</button>
+        <div class="faq-a">
+          경쟁사 비교 기능으로 1위 매장과의 키워드 격차를 확인할 수 있습니다.
+          어떤 키워드에서 밀리는지 파악하면 개선 방향이 보입니다.
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">가게 오픈 전에도 활용할 수 있나요?</button>
+        <div class="faq-a">
+          오픈 예정이라면 경쟁 매장 분석으로 상권 내 키워드 경쟁 강도를
+          미리 파악할 수 있습니다. 플레이스 광고나 소상공인 마케팅 전략 수립에 활용하세요.
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">지역소상공인광고와 일반 플레이스 광고 차이는 무엇인가요?</button>
+        <div class="faq-a">
+          지역소상공인광고는 네이버가 지원하는 소상공인 전용 광고 상품으로
+          노출 영역과 비용 구조가 다릅니다.
+          어떤 광고가 적합한지는 현재 키워드 순위를 먼저 파악한 후 결정하는 것이 효율적입니다.
+        </div>
+      </div>
+    </section>
+
+    <!-- SEO 콘텐츠: CTA -->
+    <section class="seo-cta-section">
+      <p class="cta-label">순위 개선이 필요하다면?</p>
+      <h2>진단 결과를 바탕으로<br>무엇을 개선해야 할지 물어보세요</h2>
+      <p class="cta-desc">
+        플레이스 광고, 블로그 체험단, 상위노출 작업 등<br>
+        매장 상황에 맞는 방법을 안내해드립니다.
+      </p>
+      <a href="http://pf.kakao.com/_qsxlXX/chat" target="_blank" class="cta-btn">
+        💬 카카오톡으로 무료 문의하기
+      </a>
+    </section>
 
     <!-- K단계: 최근 본 매장 -->
     <div class="recent-stores-section" id="recentStoresSection" style="display:none;">
@@ -1263,6 +1432,15 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('scroll', () => {
     if(window.scrollY > 300) scrollBtn.classList.add('visible');
     else scrollBtn.classList.remove('visible');
+  });
+
+  // SEO: FAQ 아코디언 토글
+  document.querySelectorAll('.faq-q').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const answer = btn.nextElementSibling;
+      btn.classList.toggle('open');
+      answer.classList.toggle('open');
+    });
   });
 });
 
