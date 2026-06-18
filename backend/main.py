@@ -271,7 +271,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* SEO 콘텐츠 섹션 */
 .seo-why-section{max-width:680px;margin:48px auto;padding:32px 24px;background:#F6F8FA;border-radius:16px;text-align:center;}
-.seo-why-section h2{font-size:18px;font-weight:800;color:#1A2B3C;margin-bottom:16px;letter-spacing:-0.5px;}
+.seo-why-section h2{font-size:20px;font-weight:800;color:#1A2B3C;margin-bottom:20px;letter-spacing:-0.5px;line-height:1.4;}
 .seo-why-section p{font-size:14px;color:#4A5568;line-height:1.8;margin-bottom:12px;}
 .seo-faq-section{max-width:680px;margin:48px auto;padding:0 24px;}
 .seo-faq-section h2{font-size:18px;font-weight:800;color:#1A2B3C;margin-bottom:20px;text-align:center;}
@@ -717,13 +717,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
     <!-- SEO 콘텐츠: Why 섹션 -->
     <section class="seo-why-section">
-      <h2>네이버 플레이스 순위, 왜 확인해야 하나요?</h2>
+      <h2>🏆 상위 5개 매장이 손님의 80%를 가져갑니다</h2>
       <p>
-        네이버 플레이스, 첫페이지 상위 5개 매장이 손님의 80%를 가져갑니다.
-      </p>
-      <p>
-        내 매장이 어떤 키워드에서 몇 위인지,<br>
-        경쟁 매장과 얼마나 차이 나는지 — 지금 무료로 확인하세요.
+        내 매장이 어떤 키워드에서 몇 위인지, 경쟁 매장과 얼마나 차이 나는지<br>
+        지금 무료로 확인하세요.
       </p>
       <p>
         플레이스 광고 · 리워드 광고 · 상위노출 작업 집행 중이라면<br>
