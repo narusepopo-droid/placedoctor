@@ -2714,7 +2714,7 @@ function handleShare(){
   if(navigator.share){
     navigator.share({title: title, text: text, url: url}).catch(()=>{});
   } else {
-    navigator.clipboard.writeText(title + ' - ' + text + '\n' + url).then(()=>{
+    navigator.clipboard.writeText(title + ' - ' + text + ' ' + url).then(()=>{
       alert('링크가 복사되었습니다. 카카오톡에 붙여넣기 하세요!');
     }).catch(()=>{
       alert('공유 링크: ' + url);
