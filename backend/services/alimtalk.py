@@ -93,11 +93,10 @@ async def send_signup_alimtalk(phone: str, store_name: str, day_of_week: str = "
 
     # 템플릿 메시지 (카카오 승인된 내용과 정확히 일치해야 함)
     message = (
-        f"[플레이스랭킹] 주간 순위 알림 신청 완료\n\n"
-        f"매장명: {store_name}\n"
-        f"발송일: 매주 {day_of_week}\n\n"
-        f"{extra_text}"
-    ).strip()
+        f"[플레이스랭킹] 순위 알림 신청이 완료되었습니다.\n\n"
+        f"{store_name}님의 플레이스 순위 모니터링을 시작합니다.\n\n"
+        f"매주 {day_of_week}에 키워드 순위 변화를 정리하여 보내드립니다."
+    )
 
     return await _send_alimtalk(
         phone=phone,
@@ -142,14 +141,11 @@ async def send_weekly_alimtalk(
 
     # 템플릿 메시지 (카카오 승인된 내용과 정확히 일치해야 함)
     message = (
-        f"[플레이스랭킹] 주간 순위 리포트\n\n"
-        f"매장명: {store_name}\n"
-        f"대표 키워드: {keyword}\n\n"
-        f"지난주: {last_str}\n"
-        f"이번주: {this_str}\n"
-        f"{change}\n\n"
-        f"{extra_text}"
-    ).strip()
+        f"[플레이스랭킹] {store_name} 이번주 순위 리포트\n\n"
+        f"대표 키워드 '{keyword}'\n"
+        f"{last_str}위 → {this_str}위\n\n"
+        f"경쟁 매장 변화까지 전체 리포트를 정리했습니다."
+    )
 
     return await _send_alimtalk(
         phone=phone,
