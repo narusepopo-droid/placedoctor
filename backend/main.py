@@ -1157,7 +1157,7 @@ function showTip(idx) {
   if (!el || !_tipList[idx]) return;
   el.style.opacity = 0;
   setTimeout(() => {
-    el.textContent = _tipList[idx].replace(/\\\\n/g, '\\n');
+    el.innerHTML = _tipList[idx].replace(/\\\\n/g, '<br>');
     el.style.opacity = 1;
   }, 300);
 }
@@ -1802,6 +1802,9 @@ async function analyzePlaceOnly(){
   startLoading('place');
   window.scrollTo({top:0,behavior:'smooth'});
 
+  // 부팅 시퀀스 즉시 시작 (SSE 연결 전에 입력 매장명으로)
+  showBootSequence(name, '', '');
+
   // R단계: SSE로 실시간 스트리밍
   const params = new URLSearchParams({
     store_name: name,
@@ -1825,8 +1828,10 @@ async function analyzePlaceOnly(){
     eventSource.addEventListener('started', (e) => {
       const d = JSON.parse(e.data);
       console.log('[SSE] started:', d);
-      // 부팅 시퀀스 시작
-      showBootSequence(d.store_name || name, d.category || '', d.address || '');
+      // 카테고리/주소 정보로 팁 리스트 업데이트 (부팅 시퀀스는 이미 시작됨)
+      if(d.category || d.address) {
+        _tipList = getTips(d.store_name || name, d.category || '', d.address || '');
+      }
       // R단계: 게임 UI 초기화
       _gameScore = 0;
       document.getElementById('kwPopupArea').innerHTML = '';
