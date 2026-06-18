@@ -78,6 +78,9 @@ async def send_weekly_alimtalk(
     last_str = str(last_rank) if last_rank else "-"
     this_str = str(this_rank) if this_rank else "-"
 
+    # 강조 타이틀 (파란색 헤더)
+    emtitle = "이번주 플레이스 순위 리포트"
+
     # 변수를 직접 치환한 메시지
     message = (
         f"[플레이스랭킹] {store_name} 이번주 순위 리포트\n\n"
@@ -96,7 +99,8 @@ async def send_weekly_alimtalk(
         "sender": ALIGO_SENDER,
         "receiver_1": phone,
         "recvname_1": "",
-        "subject_1": "플레이스랭킹",
+        "subject_1": "주간 순위 리포트",
+        "emtitle_1": emtitle,
         "message_1": message,
         "button_1": button_json,
         "testmode_yn": TESTMODE,
