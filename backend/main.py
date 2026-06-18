@@ -1082,59 +1082,59 @@ function getTips(storeName, category, address) {
 
   if (mainCat === '음식점') {
     categoryTips.push(
-      "💡 " + storeName + "처럼 음식점은\\n점심·저녁 키워드를 따로 공략하면 노출이 2배예요",
-      "📸 음식 사진 클릭률이\\n테이블 사진보다 3배 높아요",
-      "✍️ 블로그 체험단 포스팅 후\\n2~4주 안에 순위 변화가 나타나요",
-      "⭐ " + region + " 음식점은\\n리뷰 50개 이상부터 상위 경쟁이 가능해요"
+      "💡 " + storeName + " 음식점은 점심/저녁 키워드를 따로 공략하면 노출이 2배!",
+      "📸 음식 사진 클릭률이 테이블 사진보다 3배 높아요",
+      "✍️ 블로그 체험단 포스팅 후 2~4주 안에 순위 변화가 나타나요",
+      "⭐ " + region + " 음식점은 리뷰 50개 이상부터 상위 경쟁 가능해요"
     );
   }
   if (mainCat === '헬스') {
     categoryTips.push(
-      "💪 " + region + " 헬스·운동 업종은\\n지역명 + 서비스명 조합이 핵심 키워드예요",
-      "🏋️ 시설 내부 사진이 많을수록\\n문의 전환율이 높아요",
-      "🎯 체험가·무료체험 키워드는\\n경쟁이 낮아 공략하기 좋아요"
+      "💪 " + region + " 헬스 업종은 지역명+서비스명 조합이 핵심 키워드예요",
+      "🏋️ 시설 내부 사진이 많을수록 문의 전환율이 높아요",
+      "🎯 체험가/무료체험 키워드는 경쟁이 낮아 공략하기 좋아요"
     );
   }
   if (mainCat === '카페') {
     categoryTips.push(
-      "☕ " + region + " 카페는\\n'작업하기 좋은' 같은 목적 키워드가 뜨고 있어요",
-      "🧋 시그니처 메뉴 이름이\\n키워드로 잡히는 경우도 있어요",
-      "📸 음료·디저트 비주얼 사진이\\n저장수를 높이는 핵심이에요"
+      "☕ " + region + " 카페는 '작업하기 좋은' 같은 목적 키워드가 효과적이에요",
+      "🧋 시그니처 메뉴 이름이 키워드로 잡히는 경우도 있어요",
+      "📸 음료/디저트 비주얼 사진이 저장수를 높이는 핵심이에요"
     );
   }
   if (mainCat === '병원') {
     categoryTips.push(
-      "👨‍⚕️ " + storeName + "은\\n전문의 이름이 키워드로 잡힐 수 있어요",
-      "💉 비급여 시술명 키워드는\\n경쟁이 낮아 공략 가치가 높아요",
-      "⭐ 병원·의원은 리뷰 신뢰도가\\n순위에 큰 영향을 줘요"
+      "👨‍⚕️ " + storeName + "은 전문의 이름이 키워드로 잡힐 수 있어요",
+      "💉 비급여 시술명 키워드는 경쟁이 낮아 공략 가치가 높아요",
+      "⭐ 병원/의원은 리뷰 신뢰도가 순위에 큰 영향을 줘요"
     );
   }
   if (mainCat === '뷰티') {
     categoryTips.push(
-      "💆 " + storeName + "은\\n시술 전후 사진이 클릭률을 크게 높여요",
-      "✨ " + region + " 뷰티 업종은\\n이벤트 키워드보다 시술명 키워드가 효과적이에요"
+      "💆 " + storeName + "은 시술 전후 사진이 클릭률을 크게 높여요",
+      "✨ " + region + " 뷰티 업종은 시술명 키워드가 이벤트보다 효과적이에요"
     );
   }
   if (mainCat === '교육') {
     categoryTips.push(
-      "📚 " + region + " 학원은\\n지역 + 과목 조합 키워드가 전환율이 가장 높아요",
-      "🎓 입학 시즌에\\n설명회·체험수업 키워드 효과가 커요",
-      "💡 " + storeName + "은\\n학부모 리뷰가 순위에 큰 영향을 줘요"
+      "📚 " + region + " 학원은 지역+과목 조합 키워드가 전환율이 가장 높아요",
+      "🎓 입학 시즌에 설명회/체험수업 키워드 효과가 커요",
+      "💡 " + storeName + "은 학부모 리뷰가 순위에 큰 영향을 줘요"
     );
   }
 
   const commonTips = [
-    "📸 " + storeName + ", 플레이스 사진은\\n최소 10장 이상이면 노출 점수가 올라가요",
-    "💬 리뷰 답글을 꾸준히 달면\\n사장님 활동 점수가 높아져요",
-    "🔖 저장수가 많을수록\\n네이버가 인기 매장으로 인식해요",
-    "🗺️ " + region + " 지역 키워드 + 업종 조합이\\n가장 효과적인 키워드예요",
-    "🏆 플레이스 광고 없이도\\n자연 순위 1위가 가능해요",
-    "🎯 경쟁 매장 분석으로\\n" + storeName + "이 놓친 키워드를 찾을 수 있어요",
-    "📋 영업시간·메뉴·가격 정보가\\n상세할수록 클릭 전환율이 높아요",
-    "🔄 스마트플레이스 정보를\\n최신화만 해도 순위가 오르는 경우가 있어요",
-    "📊 플레이스 지수는 4가지로 계산돼요\\n검색노출·리뷰·활동·광고 현황",
-    "🚀 분석 결과를 주 1회 확인하면\\n순위 변화 트렌드를 파악할 수 있어요",
-    "💡 " + region + "에서 " + storeName + "의\\n경쟁 매장 현황도 곧 보여드려요"
+    "📸 " + storeName + ", 플레이스 사진 10장 이상이면 노출 점수 UP!",
+    "💬 리뷰 답글을 꾸준히 달면 사장님 활동 점수가 높아져요",
+    "🔖 저장수가 많을수록 네이버가 인기 매장으로 인식해요",
+    "🗺️ " + region + " 지역 키워드 + 업종 조합이 가장 효과적이에요",
+    "🏆 플레이스 광고 없이도 자연 순위 1위가 가능해요",
+    "🎯 경쟁 매장 분석으로 " + storeName + "이 놓친 키워드를 찾을 수 있어요",
+    "📋 영업시간/메뉴/가격 정보가 상세할수록 클릭 전환율이 높아요",
+    "🔄 스마트플레이스 정보 최신화만으로도 순위가 오르는 경우가 있어요",
+    "📊 플레이스 지수는 검색노출/리뷰/활동/광고 4가지로 계산돼요",
+    "🚀 분석 결과를 주 1회 확인하면 순위 변화 트렌드를 파악할 수 있어요",
+    "💡 " + region + "에서 " + storeName + "의 경쟁 매장 현황도 곧 보여드려요"
   ];
 
   return [...categoryTips, ...commonTips].sort(() => Math.random() - 0.5);
@@ -1691,14 +1691,13 @@ function startLoading(type){
   _lStart=Date.now(); _lStepIdx=0; _lProg=0;
   document.getElementById('lBar').style.width='0%';
   document.getElementById('lPct').textContent='0%';
-  document.getElementById('lTip').textContent=L_TIPS[Math.floor(Math.random()*L_TIPS.length)];
 
-  // S단계: 실제 진행률 UI 초기화
-  document.getElementById('lProgressCur').textContent = '0';
-  document.getElementById('lProgressTotal').textContent = '...';
+  // UI 초기화
   document.getElementById('topKwChips').innerHTML = '';
   document.getElementById('kwPopupArea').innerHTML = '';
-  document.getElementById('gameScoreWrap').style.display = 'none';
+  document.getElementById('boot-sequence').innerHTML = '';
+  document.getElementById('boot-sequence').style.display = 'none';
+  document.getElementById('tip-section').style.display = 'none';
 
   // 분석 유형에 따라 로딩 화면 텍스트 변경
   if(type === 'blog'){
@@ -1725,10 +1724,7 @@ function _advanceLStep(steps){
   const elapsed=Date.now()-_lStart;
   let cum=0, idx=0;
   for(let i=0;i<steps.length;i++){cum+=steps[i].ms;if(elapsed<cum){idx=i;break;}idx=steps.length-1;}
-  if(idx!==_lStepIdx){_lStepIdx=idx;_renderLSteps(idx,steps);}
-  // rotate tip every 20s
-  const tipIdx=Math.floor(elapsed/20000)%L_TIPS.length;
-  document.getElementById('lTip').textContent=L_TIPS[tipIdx];
+  if(idx!==_lStepIdx){_lStepIdx=idx;}
 }
 
 function _renderLSteps(active,steps){
@@ -1855,8 +1851,7 @@ async function analyzePlaceOnly(){
       const d = JSON.parse(e.data);
       console.log('[SSE] keyword:', d.keyword, 'rank:', d.rank, 'progress:', d.progress + '/' + d.total);
 
-      // S단계: 실제 진행률 업데이트
-      document.getElementById('lProgressCur').textContent = d.progress;
+      // 진행률 바 업데이트
       if(d.total > 0) {
         const pct = Math.min(95, Math.round((d.progress / d.total) * 90));
         const bar = document.getElementById('lBar');
