@@ -77,7 +77,6 @@ _HTML = """<!DOCTYPE html>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><rect width='128' height='128' rx='24' fill='%2300B894'/><circle cx='64' cy='50' r='28' fill='white'/><circle cx='64' cy='50' r='14' fill='%2300B894'/><path d='M64 78 L52 106 L64 101 L76 106 Z' fill='white'/></svg>">
 <meta name="google-site-verification" content="OMcAcRnijHErEpfd4wIFa9jCXtXAQgVKZ2plesoCYvM" />
 <meta name="naver-site-verification" content="df35aa6f9e46b7aa1e5678ee79a5a19ef5a868d6" />
-<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js" crossorigin="anonymous"></script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -792,9 +791,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         플레이스 광고, 블로그 체험단, 상위노출 작업 등<br>
         매장 상황에 맞는 방법을 안내해드립니다.
       </p>
-      <button onclick="openKakaoChat()" class="cta-btn">
+      <a href="http://pf.kakao.com/_qsxlXX/chat" target="_blank" class="cta-btn">
         💬 카카오톡으로 무료 문의하기
-      </button>
+      </a>
     </section>
 
     <!-- K단계: 최근 본 매장 -->
@@ -2861,12 +2860,6 @@ function resetForm(){
 
 document.getElementById('placeUrl').addEventListener('keydown',e=>{if(e.key==='Enter')startAnalysis();});
 
-// 카카오 SDK 초기화
-Kakao.init('feef26a73850e916e03403ad1b9398e9');
-
-function openKakaoChat(){
-  Kakao.Channel.chat({channelPublicId:'_qsxlXX'});
-}
 </script>
 
 
