@@ -83,7 +83,6 @@ _HTML = """<!DOCTYPE html>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><rect width='128' height='128' rx='24' fill='%2300B894'/><circle cx='64' cy='50' r='28' fill='white'/><circle cx='64' cy='50' r='14' fill='%2300B894'/><path d='M64 78 L52 106 L64 101 L76 106 Z' fill='white'/></svg>">
 <meta name="google-site-verification" content="OMcAcRnijHErEpfd4wIFa9jCXtXAQgVKZ2plesoCYvM" />
 <meta name="naver-site-verification" content="df35aa6f9e46b7aa1e5678ee79a5a19ef5a868d6" />
-<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" crossorigin="anonymous"></script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -2701,51 +2700,29 @@ function handlePwa(){
   else alert('브라우저 주소창 옆 설치 아이콘을 눌러주세요.');
 }
 function handleShare(){
-  if(typeof Kakao === 'undefined') return;
-  if(!Kakao.isInitialized()){
-    Kakao.init('feef26a73850e916e03403ad1b9398e9');
-  }
-  if(!_lastResultData){
-    alert('분석 결과가 없습니다.');
-    return;
-  }
-  const storeName = _lastResultData.store_name || '매장';
-  const score = _lastResultData.scores?.total || 0;
-  const keywords = _lastResultData.keyword_ranks || [];
+  const storeName = _lastResultData?.store_name || '매장';
+  const score = _lastResultData?.scores?.total || 0;
+  const keywords = _lastResultData?.keyword_ranks || [];
   const topKw = keywords.find(k => k.rank && k.rank <= 10);
-  const keyword = topKw?.keyword || (keywords[0]?.keyword || '키워드');
-  const rank = topKw?.rank || (keywords[0]?.rank || '-');
+  const keyword = topKw?.keyword || (keywords[0]?.keyword || '');
+  const rank = topKw?.rank || (keywords[0]?.rank || '');
 
-  Kakao.Share.sendDefault({
-    objectType: 'feed',
-    content: {
-      title: storeName + ' · 플레이스 지수 ' + score + '점',
-      description: "대표 키워드 '" + keyword + "' " + rank + "위 - 네이버 플레이스 순위를 무료로 확인해보세요",
-      imageUrl: 'https://placeranking.com/static/og_image.png',
-      link: {
-        mobileWebUrl: 'https://placeranking.com',
-        webUrl: 'https://placeranking.com',
-      },
-    },
-    buttons: [
-      {
-        title: '내 매장도 확인하기',
-        link: {
-          mobileWebUrl: 'https://placeranking.com',
-          webUrl: 'https://placeranking.com',
-        },
-      },
-    ],
-  });
+  const title = storeName + ' 플레이스 지수 ' + score + '점';
+  const text = keyword ? ("'" + keyword + "' " + rank + "위") : '네이버 플레이스 순위 무료 확인';
+  const url = 'https://placeranking.com';
+
+  if(navigator.share){
+    navigator.share({title: title, text: text, url: url}).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(title + ' - ' + text + '\n' + url).then(()=>{
+      alert('링크가 복사되었습니다. 카카오톡에 붙여넣기 하세요!');
+    }).catch(()=>{
+      alert('공유 링크: ' + url);
+    });
+  }
 }
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window._pwaPrompt=e;});
 
-// 카카오 SDK 초기화 (로드 완료 후)
-window.addEventListener('load', function(){
-  if(typeof Kakao !== 'undefined' && !Kakao.isInitialized()){
-    Kakao.init('feef26a73850e916e03403ad1b9398e9');
-  }
-});
 
 // ── 알림 구독 ────────────────────────────────────────────────────────────────
 async function submitSubscribe(){
