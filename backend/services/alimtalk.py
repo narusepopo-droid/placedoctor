@@ -27,13 +27,13 @@ async def send_signup_alimtalk(phone: str, store_name: str, day_of_week: str = "
     """
     알림 신청 완료 알림톡 발송
 
-    템플릿 변수: #{매장명}, #{요일}
+    템플릿 변수: #{매장명}, #{요일} → 직접 치환해서 전송
     """
-    # 템플릿 원문 (변수 그대로)
+    # 변수를 직접 치환한 메시지
     message = (
-        "[플레이스랭킹] 순위 알림 신청이 완료되었습니다.\n\n"
-        "#{매장명}님의 플레이스 순위 모니터링을 시작합니다.\n\n"
-        "매주 #{요일}에 키워드 순위 변화를 정리하여 보내드립니다."
+        f"[플레이스랭킹] 순위 알림 신청이 완료되었습니다.\n\n"
+        f"{store_name}님의 플레이스 순위 모니터링을 시작합니다.\n\n"
+        f"매주 {day_of_week}에 키워드 순위 변화를 정리하여 보내드립니다."
     )
 
     button_json = '{"button":[{"name":"순위 확인하기","linkType":"WL","linkTypeName":"웹링크","linkMo":"https://placeranking.com","linkPc":"https://placeranking.com"}]}'
@@ -50,24 +50,15 @@ async def send_signup_alimtalk(phone: str, store_name: str, day_of_week: str = "
         "message_1": message,
         "button_1": button_json,
         "testmode_yn": TESTMODE,
-        # 변수 전달
-        "emtitle_1": "",
-        "failover": "N",
     }
-
-    # 변수값 전달 (알리고 방식)
-    data["#{매장명}_1"] = store_name
-    data["#{요일}_1"] = day_of_week
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(ALIGO_ENDPOINT, data=data)
             result = response.json()
-            logger.info(f"[알림톡] phone={phone[-4:]}, tpl={TPL_SIGNUP}, result={result}")
             print(f"[알림톡] phone={phone[-4:]}, tpl={TPL_SIGNUP}, result={result}")
             return result
     except Exception as e:
-        logger.error(f"[알림톡] 발송 실패: {e}")
         print(f"[알림톡] 발송 실패: {e}")
         return {"code": -1, "message": str(e)}
 
@@ -82,14 +73,17 @@ async def send_weekly_alimtalk(
     """
     주간 순위 리포트 알림톡 발송
 
-    템플릿 변수: #{매장명}, #{키워드}, #{지난순위}, #{이번순위}
+    템플릿 변수: #{매장명}, #{키워드}, #{지난순위}, #{이번순위} → 직접 치환해서 전송
     """
-    # 템플릿 원문 (변수 그대로)
+    last_str = str(last_rank) if last_rank else "-"
+    this_str = str(this_rank) if this_rank else "-"
+
+    # 변수를 직접 치환한 메시지
     message = (
-        "[플레이스랭킹] #{매장명} 이번주 순위 리포트\n\n"
-        "대표 키워드 '#{키워드}'\n"
-        "#{지난순위}위 → #{이번순위}위\n\n"
-        "경쟁 매장 변화까지 전체 리포트를 정리했습니다."
+        f"[플레이스랭킹] {store_name} 이번주 순위 리포트\n\n"
+        f"대표 키워드 '{keyword}'\n"
+        f"{last_str}위 → {this_str}위\n\n"
+        f"경쟁 매장 변화까지 전체 리포트를 정리했습니다."
     )
 
     button_json = '{"button":[{"name":"키워드 전체 보기","linkType":"WL","linkTypeName":"웹링크","linkMo":"https://placeranking.com","linkPc":"https://placeranking.com"}]}'
@@ -106,24 +100,14 @@ async def send_weekly_alimtalk(
         "message_1": message,
         "button_1": button_json,
         "testmode_yn": TESTMODE,
-        "emtitle_1": "",
-        "failover": "N",
     }
-
-    # 변수값 전달
-    data["#{매장명}_1"] = store_name
-    data["#{키워드}_1"] = keyword
-    data["#{지난순위}_1"] = str(last_rank) if last_rank else "-"
-    data["#{이번순위}_1"] = str(this_rank) if this_rank else "-"
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(ALIGO_ENDPOINT, data=data)
             result = response.json()
-            logger.info(f"[알림톡] phone={phone[-4:]}, tpl={TPL_WEEKLY}, result={result}")
             print(f"[알림톡] phone={phone[-4:]}, tpl={TPL_WEEKLY}, result={result}")
             return result
     except Exception as e:
-        logger.error(f"[알림톡] 발송 실패: {e}")
         print(f"[알림톡] 발송 실패: {e}")
         return {"code": -1, "message": str(e)}
