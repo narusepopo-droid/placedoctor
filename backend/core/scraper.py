@@ -1622,6 +1622,8 @@ async def diagnose_store_stream(
             "total_keywords": len(target_keywords),
             "store_name": store_name,
             "place_id": place_id,
+            "category": category,
+            "address": address,
         }
 
         # ── 병렬 키워드 순위 검색 (하나씩 yield) ──

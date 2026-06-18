@@ -505,7 +505,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .dots span:nth-child(2){animation-delay:.13s;}
 .dots span:nth-child(3){animation-delay:.26s;}
 @keyframes db{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
-.l-tip{background:var(--green-bg);border-radius:10px;padding:12px 14px;font-size:.8rem;color:#374151;line-height:1.6;text-align:left;}
+/* 부팅 시퀀스 */
+#boot-sequence{background:#F6F8FA;border-radius:12px;padding:20px 24px;margin:16px 0;font-family:'Courier New',monospace;display:none;}
+.boot-line{font-size:14px;color:#1A2B3C;padding:4px 0;opacity:0;animation:bootFadeIn 0.3s ease forwards;}
+@keyframes bootFadeIn{from{opacity:0;transform:translateX(-8px);}to{opacity:1;transform:translateX(0);}}
+
+/* 맞춤형 팁 */
+#tip-section{display:none;background:#F0FDF8;border:1px solid #BfeBe0;border-radius:12px;padding:16px 18px;margin:16px 0;min-height:72px;align-items:center;}
+#tip-text{font-size:14px;color:#2D6A4F;line-height:1.75;white-space:pre-line;transition:opacity 0.3s ease;}
 .btn-stop{margin-top:16px;padding:10px 24px;background:#fff;border:1px solid var(--gray-300);border-radius:8px;font-size:.85rem;color:var(--gray-600);cursor:pointer;transition:all .15s;}
 .btn-stop:hover{background:var(--gray-50);border-color:var(--gray-400);}
 
@@ -823,15 +830,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="l-card">
       <span class="l-pulse" id="lIcon">📊</span>
       <div class="l-title" id="lTitle">플레이스 진단 중이에요</div>
-      <!-- S단계: 실제 진행률 표시 (가짜 5단계 제거) -->
       <div class="l-progress-text" id="lProgressText">키워드 분석 중</div>
-      <div class="l-progress-count" id="lProgressCount"><span id="lProgressCur">0</span> / <span id="lProgressTotal">30</span></div>
 
-      <!-- R단계: 점수 게이지 (게임머니 획득 연출) -->
-      <div class="game-score-wrap" id="gameScoreWrap" style="display:none;">
-        <div class="game-score-label">플레이스 지수</div>
-        <div class="game-score-num" id="gameScoreNum">0</div>
-        <div class="game-score-delta" id="gameScoreDelta"></div>
+      <!-- 부팅 시퀀스 (초반 20초) -->
+      <div id="boot-sequence"></div>
+
+      <!-- 맞춤형 팁 (부팅 후 표시) -->
+      <div id="tip-section">
+        <div id="tip-text"></div>
       </div>
 
       <!-- S단계: 상위 키워드 칩 누적 영역 -->
@@ -842,7 +848,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
       <div class="l-bar-wrap"><div class="l-bar" id="lBar"></div></div>
       <div class="l-pct" id="lPct">0%</div>
-      <div class="l-tip" id="lTip"></div>
       <button class="btn-stop" onclick="goHome()">중지하기</button>
     </div>
   </div>
@@ -1009,6 +1014,161 @@ let _lastResultData = null;  // L단계: 강제 재크롤 체크박스 제거
 
 // N단계: 분석 중단용 AbortController
 let _analysisAbortController = null;
+
+// 팁 슬라이더 상태
+let _tipIdx = 0;
+let _tipList = [];
+let _tipInterval = null;
+
+// 부팅 시퀀스 표시
+function showBootSequence(storeName, category, address) {
+  const steps = [
+    "🔗 네이버 플레이스 연결 중...",
+    "✅ " + (storeName || '매장') + " 확인됨",
+    "✅ 카테고리: " + (category || '매장 정보 확인됨'),
+    "✅ 지역: " + (address ? address.split(' ').slice(0,2).join(' ') : '위치 확인됨'),
+    "🔍 키워드 목록 생성 중...",
+    "🚀 순위 분석 시작!",
+  ];
+
+  const container = document.getElementById('boot-sequence');
+  container.innerHTML = '';
+  container.style.display = 'block';
+  document.getElementById('tip-section').style.display = 'none';
+
+  steps.forEach((step, i) => {
+    setTimeout(() => {
+      const line = document.createElement('div');
+      line.className = 'boot-line';
+      line.textContent = step;
+      container.appendChild(line);
+      if (i === steps.length - 1) {
+        setTimeout(() => {
+          container.style.display = 'none';
+          document.getElementById('tip-section').style.display = 'flex';
+          startTips(storeName, category, address);
+        }, 1000);
+      }
+    }, i * 600);
+  });
+}
+
+// 업종 분류
+function getMainCategory(category) {
+  if (!category) return 'default';
+  const cat = category;
+  if (/육류|고기|갈비|삼겹|곱창|양고기|스테이크|한식|중식|일식|양식|분식|국밥|찌개|해산물|회|초밥|라멘|피자|버거|치킨|카레|태국|베트남|인도|음식|식당|맛집|백반|냉면|막국수|돼지|소고기|닭/.test(cat))
+    return '음식점';
+  if (/카페|커피|디저트|베이커리|케이크|브런치|빵|음료/.test(cat))
+    return '카페';
+  if (/헬스|피트니스|PT|필라테스|요가|크로스핏|수영|골프|테니스|운동|체육관|짐/.test(cat))
+    return '헬스';
+  if (/병원|의원|클리닉|치과|한의|성형|피부과|정형|내과|소아과|약국|의료/.test(cat))
+    return '병원';
+  if (/뷰티|미용|네일|에스테틱|왁싱|속눈썹|헤어|피부관리|미용실|샵/.test(cat))
+    return '뷰티';
+  if (/학원|교육|과외|어학|코딩|미술|음악|체육|입시|영어|수학/.test(cat))
+    return '교육';
+  if (/숙박|호텔|모텔|펜션|게스트하우스|캠핑|리조트/.test(cat))
+    return '숙박';
+  return 'default';
+}
+
+// 맞춤형 팁 생성
+function getTips(storeName, category, address) {
+  const region = address ? address.split(' ').slice(0,2).join(' ') : '이 지역';
+  const mainCat = getMainCategory(category);
+  const categoryTips = [];
+
+  if (mainCat === '음식점') {
+    categoryTips.push(
+      "💡 " + storeName + "처럼 음식점은\\n점심·저녁 키워드를 따로 공략하면 노출이 2배예요",
+      "📸 음식 사진 클릭률이\\n테이블 사진보다 3배 높아요",
+      "✍️ 블로그 체험단 포스팅 후\\n2~4주 안에 순위 변화가 나타나요",
+      "⭐ " + region + " 음식점은\\n리뷰 50개 이상부터 상위 경쟁이 가능해요"
+    );
+  }
+  if (mainCat === '헬스') {
+    categoryTips.push(
+      "💪 " + region + " 헬스·운동 업종은\\n지역명 + 서비스명 조합이 핵심 키워드예요",
+      "🏋️ 시설 내부 사진이 많을수록\\n문의 전환율이 높아요",
+      "🎯 체험가·무료체험 키워드는\\n경쟁이 낮아 공략하기 좋아요"
+    );
+  }
+  if (mainCat === '카페') {
+    categoryTips.push(
+      "☕ " + region + " 카페는\\n'작업하기 좋은' 같은 목적 키워드가 뜨고 있어요",
+      "🧋 시그니처 메뉴 이름이\\n키워드로 잡히는 경우도 있어요",
+      "📸 음료·디저트 비주얼 사진이\\n저장수를 높이는 핵심이에요"
+    );
+  }
+  if (mainCat === '병원') {
+    categoryTips.push(
+      "👨‍⚕️ " + storeName + "은\\n전문의 이름이 키워드로 잡힐 수 있어요",
+      "💉 비급여 시술명 키워드는\\n경쟁이 낮아 공략 가치가 높아요",
+      "⭐ 병원·의원은 리뷰 신뢰도가\\n순위에 큰 영향을 줘요"
+    );
+  }
+  if (mainCat === '뷰티') {
+    categoryTips.push(
+      "💆 " + storeName + "은\\n시술 전후 사진이 클릭률을 크게 높여요",
+      "✨ " + region + " 뷰티 업종은\\n이벤트 키워드보다 시술명 키워드가 효과적이에요"
+    );
+  }
+  if (mainCat === '교육') {
+    categoryTips.push(
+      "📚 " + region + " 학원은\\n지역 + 과목 조합 키워드가 전환율이 가장 높아요",
+      "🎓 입학 시즌에\\n설명회·체험수업 키워드 효과가 커요",
+      "💡 " + storeName + "은\\n학부모 리뷰가 순위에 큰 영향을 줘요"
+    );
+  }
+
+  const commonTips = [
+    "📸 " + storeName + ", 플레이스 사진은\\n최소 10장 이상이면 노출 점수가 올라가요",
+    "💬 리뷰 답글을 꾸준히 달면\\n사장님 활동 점수가 높아져요",
+    "🔖 저장수가 많을수록\\n네이버가 인기 매장으로 인식해요",
+    "🗺️ " + region + " 지역 키워드 + 업종 조합이\\n가장 효과적인 키워드예요",
+    "🏆 플레이스 광고 없이도\\n자연 순위 1위가 가능해요",
+    "🎯 경쟁 매장 분석으로\\n" + storeName + "이 놓친 키워드를 찾을 수 있어요",
+    "📋 영업시간·메뉴·가격 정보가\\n상세할수록 클릭 전환율이 높아요",
+    "🔄 스마트플레이스 정보를\\n최신화만 해도 순위가 오르는 경우가 있어요",
+    "📊 플레이스 지수는 4가지로 계산돼요\\n검색노출·리뷰·활동·광고 현황",
+    "🚀 분석 결과를 주 1회 확인하면\\n순위 변화 트렌드를 파악할 수 있어요",
+    "💡 " + region + "에서 " + storeName + "의\\n경쟁 매장 현황도 곧 보여드려요"
+  ];
+
+  return [...categoryTips, ...commonTips].sort(() => Math.random() - 0.5);
+}
+
+// 팁 시작
+function startTips(storeName, category, address) {
+  _tipList = getTips(storeName, category, address);
+  _tipIdx = 0;
+  showTip(_tipIdx);
+  _tipInterval = setInterval(() => {
+    _tipIdx = (_tipIdx + 1) % _tipList.length;
+    showTip(_tipIdx);
+  }, 5000);
+}
+
+// 팁 표시
+function showTip(idx) {
+  const el = document.getElementById('tip-text');
+  if (!el || !_tipList[idx]) return;
+  el.style.opacity = 0;
+  setTimeout(() => {
+    el.textContent = _tipList[idx].replace(/\\\\n/g, '\\n');
+    el.style.opacity = 1;
+  }, 300);
+}
+
+// 팁 중지
+function stopTips() {
+  if (_tipInterval) {
+    clearInterval(_tipInterval);
+    _tipInterval = null;
+  }
+}
 
 // K단계: 익명 ID 발급/조회
 function getOrCreateAnonId(){
@@ -1370,6 +1530,7 @@ function goHome(){
     _analysisAbortController = null;
   }
   stopLoading();
+  stopTips();
   goBackToSearch();
 }
 
@@ -1664,15 +1825,11 @@ async function analyzePlaceOnly(){
     eventSource.addEventListener('started', (e) => {
       const d = JSON.parse(e.data);
       console.log('[SSE] started:', d);
+      // 부팅 시퀀스 시작
+      showBootSequence(d.store_name || name, d.category || '', d.address || '');
       // R단계: 게임 UI 초기화
       _gameScore = 0;
-      document.getElementById('gameScoreWrap').style.display = 'block';
-      document.getElementById('gameScoreNum').textContent = '0';
-      document.getElementById('gameScoreDelta').textContent = '';
       document.getElementById('kwPopupArea').innerHTML = '';
-      // S단계: 실제 진행률 초기화
-      document.getElementById('lProgressTotal').textContent = d.total_keywords;
-      document.getElementById('lProgressCur').textContent = '0';
       document.getElementById('topKwChips').innerHTML = '';
       // S단계: 분석 중 펄스 표시
       _showAnalyzingPulse();
@@ -1774,6 +1931,7 @@ async function analyzePlaceOnly(){
     eventSource.addEventListener('complete', (e) => {
       eventSource.close();
       stopLoading();
+      stopTips();
       const data = JSON.parse(e.data);
       _prevAnalysis = data.prev_analysis || null;
 
@@ -1804,6 +1962,7 @@ async function analyzePlaceOnly(){
     eventSource.addEventListener('error', (e) => {
       eventSource.close();
       stopLoading();
+      stopTips();
       let msg = '연결 오류';
       try { const d = JSON.parse(e.data); msg = d.message || msg; } catch(x){}
       document.getElementById('loading-section').style.display='none';
@@ -3015,7 +3174,7 @@ async def diagnose_stream_endpoint(
 
             async def cached_generator():
                 # 캐시 히트 시에도 started → complete 흐름 유지
-                yield f"event: started\ndata: {json_module.dumps({'total_keywords': len(cached.get('keywords_used', [])), 'store_name': store_name, 'place_id': cached_place_id, 'cached': True}, ensure_ascii=False)}\n\n"
+                yield f"event: started\ndata: {json_module.dumps({'total_keywords': len(cached.get('keywords_used', [])), 'store_name': store_name, 'place_id': cached_place_id, 'category': cached.get('category', ''), 'address': cached.get('address', ''), 'cached': True}, ensure_ascii=False)}\n\n"
                 yield f"event: complete\ndata: {json_module.dumps(cached, ensure_ascii=False)}\n\n"
 
             return StreamingResponse(
