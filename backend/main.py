@@ -288,6 +288,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .cta-btn{display:inline-block;background:#FEE500;color:#1A1A1A;font-weight:800;font-size:15px;padding:14px 32px;border-radius:12px;text-decoration:none;margin-bottom:12px;}
 .cta-btn:hover{background:#F5DC00;}
 
+/* 푸터 */
+.site-footer{background:#1A2B3C;padding:48px 24px 32px;margin-top:0;}
+.footer-inner{max-width:680px;margin:0 auto;text-align:center;}
+.footer-logo{display:inline-flex;align-items:center;gap:12px;margin-bottom:20px;}
+.footer-logo-icon{width:40px;height:56px;}
+.footer-logo-text{display:flex;flex-direction:column;align-items:flex-start;gap:2px;}
+.footer-brand{font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px;}
+.footer-brand span{color:#00B894;}
+.footer-tagline{font-size:12px;color:#6B7C8F;}
+.footer-divider{width:60px;height:1px;background:#2D3E50;margin:24px auto;}
+.footer-copy{font-size:12px;color:#4A5568;}
+.footer-links{margin-top:12px;display:flex;justify-content:center;gap:16px;}
+.footer-links a{font-size:12px;color:#6B7C8F;text-decoration:none;}
+.footer-links a:hover{color:#00B894;}
+
 /* K단계: 최근 본 매장 */
 .recent-stores-section{margin-top:24px;padding:0 4px;}
 .recent-stores-header{font-size:.9rem;font-weight:700;color:var(--gray-700);margin-bottom:12px;}
@@ -794,6 +809,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         💬 카카오톡으로 무료 문의하기
       </a>
     </section>
+
+    <!-- 푸터 -->
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-logo">
+          <svg class="footer-logo-icon" viewBox="0 0 50 70" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="25" cy="22" r="18" fill="#00B894"/>
+            <circle cx="25" cy="22" r="9" fill="#1A2B3C"/>
+            <circle cx="25" cy="22" r="4" fill="#00B894"/>
+            <path d="M25 40 L16 58 L25 53 L34 58 Z" fill="#00B894"/>
+          </svg>
+          <div class="footer-logo-text">
+            <div class="footer-brand">플레이스<span>랭킹</span></div>
+            <div class="footer-tagline">네이버 플레이스 순위 무료 진단</div>
+          </div>
+        </div>
+        <div class="footer-divider"></div>
+        <div class="footer-copy">© 2026 플레이스랭킹. All rights reserved.</div>
+        <div class="footer-links">
+          <a href="http://pf.kakao.com/_qsxlXX" target="_blank">카카오톡 문의</a>
+          <a href="mailto:narusepopo@gmail.com">이메일 문의</a>
+        </div>
+      </div>
+    </footer>
 
     <!-- K단계: 최근 본 매장 -->
     <div class="recent-stores-section" id="recentStoresSection" style="display:none;">
