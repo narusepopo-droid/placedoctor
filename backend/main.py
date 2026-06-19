@@ -512,7 +512,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* 맞춤형 팁 */
 #tip-section{display:none;background:linear-gradient(135deg,#F0FDF8 0%,#E6F7F2 100%);border:1px solid #BfeBe0;border-radius:14px;padding:18px 20px;margin:16px 0;min-height:90px;flex-direction:column;gap:10px;}
-.tip-header{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#00B894;}
+.tip-header{display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:700;color:#00B894;}
 .tip-header .tip-icon{font-size:18px;animation:tipBounce 2s ease-in-out infinite;}
 @keyframes tipBounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
 #tip-text{font-size:14px;color:#2D6A4F;line-height:1.7;transition:opacity 0.3s ease;}
