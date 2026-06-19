@@ -511,8 +511,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 @keyframes bootFadeIn{from{opacity:0;transform:translateX(-8px);}to{opacity:1;transform:translateX(0);}}
 
 /* 맞춤형 팁 */
-#tip-section{display:none;background:#F0FDF8;border:1px solid #BfeBe0;border-radius:12px;padding:16px 18px;margin:16px 0;min-height:72px;align-items:center;}
-#tip-text{font-size:14px;color:#2D6A4F;line-height:1.75;white-space:pre-line;transition:opacity 0.3s ease;}
+#tip-section{display:none;background:linear-gradient(135deg,#F0FDF8 0%,#E6F7F2 100%);border:1px solid #BfeBe0;border-radius:14px;padding:18px 20px;margin:16px 0;min-height:90px;flex-direction:column;gap:10px;}
+.tip-header{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#00B894;}
+.tip-header .tip-icon{font-size:18px;animation:tipBounce 2s ease-in-out infinite;}
+@keyframes tipBounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
+#tip-text{font-size:14px;color:#2D6A4F;line-height:1.7;transition:opacity 0.3s ease;}
 .btn-stop{margin-top:16px;padding:10px 24px;background:#fff;border:1px solid var(--gray-300);border-radius:8px;font-size:.85rem;color:var(--gray-600);cursor:pointer;transition:all .15s;}
 .btn-stop:hover{background:var(--gray-50);border-color:var(--gray-400);}
 
@@ -837,6 +840,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
       <!-- 맞춤형 팁 (부팅 후 표시) -->
       <div id="tip-section">
+        <div class="tip-header"><span class="tip-icon">💡</span>플레이스 순위 높이는 꿀팁</div>
         <div id="tip-text"></div>
       </div>
 
