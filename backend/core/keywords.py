@@ -1,5 +1,24 @@
 import re
 
+# ── 가짜 지역 접두어 차단 (v8.42) ─────────────────────────────────────────────
+_FAKE_LOC_PREFIXES = frozenset([
+    "장작", "펠렛", "화목", "벽난", "장판", "싱크", "소파", "붙박", "바닥", "천장", "단열", "타일", "도배",
+    "세차", "타이어", "블랙", "튜닝", "광택", "정비", "수리", "배터", "오일",
+    "할인", "이벤", "특가", "프리", "무료", "신규", "오픈", "예약", "포장", "배달",
+    "테이크", "드라이", "셀프", "무인", "키오", "자동", "원데", "당일", "즉시",
+    "족모임", "찐내돈", "느좋존", "유명블", "모노레",
+    "청첩장", "청풍케", "밤야경",
+    "골프헬", "냉온탕", "건식사", "일회권", "사우나포",
+])
+
+def _is_valid_location(loc):
+    """추출된 지역 토큰이 실제 지명인지 검증"""
+    if any(loc.startswith(fp) for fp in _FAKE_LOC_PREFIXES):
+        return False
+    if any(c.isdigit() for c in loc):
+        return False
+    return True
+
 # ── 검색 의도 토큰 사전 (keywordList 분해용) ─────────────────────────────────
 _INTENT_TOKENS = [
     # 캠핑/야외
@@ -232,13 +251,22 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
         prov_short, prov_long = addr_tokens[0], _PROV_MAP[addr_tokens[0]]
         if prov_short not in locations: locations.append(prov_short)
         if prov_long not in locations: locations.append(prov_long)
-    if nearby_station and len(nearby_station) >= 3:
+    if nearby_station and nearby_station not in locations and len(nearby_station) >= 3:
         if len(nearby_station) <= 6:
             locations.append(nearby_station)
         else:
-            m_st = re.search(r'[가-힣]{2,4}역$', nearby_station)
-            if m_st and len(m_st.group()) <= 6:
-                locations.append(m_st.group())
+            # v8.42: 노선명 먼저 제거 (신분당선신논현역 → 신논현역)
+            _station_clean = nearby_station
+            for _line in ["신분당선", "수인분당선", "경의중앙선", "경춘선", "경강선",
+                          "서해선", "신림선", "우이신설선", "김포골드라인", "용인경전철", "의정부경전철"]:
+                _station_clean = _station_clean.replace(_line, "")
+            _station_clean = re.sub(r'\d호선|공항철도', '', _station_clean)
+
+            m_st = re.search(r'([가-힣]{2,3})역$', _station_clean)
+            if not m_st:
+                m_st = re.search(r'([가-힣]{4})역$', _station_clean)
+            if m_st:
+                locations.append(m_st.group(1) + "역")
 
     locations = list(dict.fromkeys([l for l in locations if l and len(l) >= 2]))
     for skip in ["서울", "경기"]:
@@ -247,7 +275,12 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
 
     if log_func: log_func(f"    ㄴ 📌 위치 토큰: {', '.join(locations)}")
 
-    _BAD_PATTERNS = re.compile(r'영업중|영업종료|영업시간|\d{3,}|에영업|시에|분에|\d+시\d*분|휴무|정기휴무|임시휴무|특가|이벤트|한정|첫방문|할인쿠폰|프로모션|레귤러|수퍼스페셜|디럭스|스탠다드|스위트룸|싱글룸|더블룸|트윈룸|\d+만원(?!대)|지인소개|기간증정|\d+회(?:추가|증정)|뭉칠수록|혜택최대')
+    _BAD_PATTERNS = re.compile(
+        r'영업중|영업종료|영업시간|\d{3,}|에영업|시에|분에|\d+시\d*분|휴무|정기휴무|임시휴무|'
+        r'특가|이벤트|한정|첫방문|할인쿠폰|프로모션|레귤러|수퍼스페셜|디럭스|스탠다드|'
+        r'스위트룸|싱글룸|더블룸|트윈룸|\d+만원(?!대)|지인소개|기간증정|\d+회(?:추가|증정)|'
+        r'뭉칠수록|혜택최대|\d+회헬스|\d+전문|냉온탕|건식사우나|일회권|사우나포함'
+    )
     _bone_kw_pat = re.compile(r'뼈국밥|뼈해장국|뼈다귀|돼지뼈')
     clean_official = [tag for tag in official_keywords
                       if not _BAD_PATTERNS.search(tag) and not _bone_kw_pat.search(tag)
@@ -271,6 +304,12 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
             if extra not in locations and not is_derived_dong:
                 locations.append(extra)
                 added_by_method1 = True
+
+        # v8.42: 랜드마크 전체 검색 (산/강/천/계곡/공원/호수)
+        # keywordList 어디에 있든 추출 — 금호강, 용오름계곡, 팔공산 등
+        for landmark in re.findall(r'[가-힣]{2,4}(?:산|강|천|계곡|공원|호수)', kw):
+            if landmark not in locations and landmark not in _INTENT_TOKENS:
+                locations.append(landmark)
 
         if not added_by_method1:
             for plen in (3, 2):
@@ -345,7 +384,7 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                         locations.append(prefix)
                         break
 
-    locations = list(dict.fromkeys([l for l in locations if l and len(l) >= 2]))
+    locations = list(dict.fromkeys([l for l in locations if l and len(l) >= 2 and _is_valid_location(l)]))
     for skip in ["서울", "경기"]:
         if skip in locations: locations.remove(skip)
     if not locations: locations = [""]
@@ -489,10 +528,20 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                 break
         return w
 
+    # v8.42: 쓰레기 키워드 필터
+    _intent_set = set(_INTENT_TOKENS)
+    def _is_garbage_kw(kw):
+        parts = kw.split()
+        last_token = parts[-1] if parts else kw
+        if _BAD_PATTERNS.search(last_token): return True
+        # 8자 이상 토큰인데 알려진 의도 토큰이 아니면 쓰레기
+        if len(last_token) >= 8 and last_token not in _intent_set: return True
+        return False
+
     seen = set()
     deduped = []
     for k in kws:
-        if k not in seen:
+        if k not in seen and not _is_garbage_kw(k):
             seen.add(k)
             deduped.append(k)
 
