@@ -725,9 +725,8 @@ async def _fetch_place_ranking(page, keyword, safe_mode=True):
     except Exception:
         pass
 
-    # Q단계: 스크롤 12→4회 축소 (상위 위주로 충분, ~3초/키워드 절약). 우리 매장이 4회로 안 잡히면
-    # 아래 2페이지 폴백 또는 rank None(graceful)로 처리됨. 하위노출 정확도 문제 시 6회로 상향.
-    for _ in range(4):
+    # 플마 동일: 12회 스크롤 (순위 6+ 안정 로드, 모바일 폴백 최소화)
+    for _ in range(12):
         await page.evaluate(_SCROLL_JS)
         await page.wait_for_timeout(350)
 
@@ -1428,7 +1427,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
           "scores":     { seo, content, activity, ad, total, detail },
         }
     """
-    N_WORKERS  = 2   # R단계: t3.small 측정상 2워커 최적 (4·6은 CPU 경합으로 더 느림)
+    N_WORKERS  = 5   # 플마 동일 (N_PLACE=5). 속도 2배+ 향상
     MAX_KW     = 30  # 상위 우선순위 키워드 (역·동 두 지역 키워드 모두 포함)
 
     _t0 = time.perf_counter()  # ⏱ Q단계 타이밍: 전체 시작
@@ -1582,7 +1581,7 @@ async def diagnose_store_stream(
     Yields:
         dict: {"type": "started"|"keyword"|"complete", ...}
     """
-    N_WORKERS = 2
+    N_WORKERS = 5   # 플마 동일
     MAX_KW = 30
 
     _t0 = time.perf_counter()
