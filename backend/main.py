@@ -173,10 +173,12 @@ _HTML = """<!DOCTYPE html>
 body{font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(180deg,#f8fafc 0%,#f1f5f9 100%);color:var(--gray-900);min-height:100vh;font-feature-settings:'ss01' on;-webkit-font-smoothing:antialiased;}
 
 /* HEADER */
-.header{background:rgba(255,255,255,.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(226,232,240,.6);}
-.logo{display:flex;align-items:center;height:36px;}
+.header{background:linear-gradient(180deg,#fff 0%,#f8fdfb 100%);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:2px solid transparent;background-clip:padding-box;box-shadow:0 2px 20px rgba(0,184,148,.08);}
+.header::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:2px;background:var(--primary-gradient);}
+.logo{display:flex;align-items:center;height:42px;}
 .logo-full{height:100%;}
-.header-badge{background:var(--primary-gradient);color:#fff;font-size:.7rem;font-weight:600;padding:5px 12px;border-radius:20px;box-shadow:var(--shadow-sm);}
+.header-cta{background:var(--primary-gradient);color:#fff;font-size:.82rem;font-weight:700;padding:10px 20px;border-radius:10px;border:none;cursor:pointer;box-shadow:var(--shadow-glow);transition:all .25s ease;letter-spacing:-.2px;}
+.header-cta:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,184,148,.35);}
 
 /* MAIN */
 .main{max-width:540px;margin:0 auto;padding:var(--spacing-md) 16px 100px;}
@@ -635,16 +637,16 @@ body{font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFo
 <body>
 <div class="header">
   <div class="logo" onclick="goHome()" style="cursor:pointer;">
-    <svg class="logo-full" viewBox="0 0 180 36" xmlns="http://www.w3.org/2000/svg">
+    <svg class="logo-full" viewBox="0 0 195 42" xmlns="http://www.w3.org/2000/svg">
       <defs><linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00b894"/><stop offset="100%" stop-color="#00d4a4"/></linearGradient></defs>
-      <circle cx="18" cy="14" r="10" fill="url(#logoGrad)"/>
-      <circle cx="18" cy="14" r="5" fill="white"/>
-      <circle cx="18" cy="14" r="2.5" fill="#00b894"/>
-      <path d="M18 24 L13 32 L18 29 L23 32 Z" fill="url(#logoGrad)"/>
-      <text x="38" y="24" font-family="'Pretendard Variable',Pretendard,sans-serif" font-size="17" font-weight="800" fill="#1e293b" letter-spacing="-0.5">플레이스랭킹</text>
+      <circle cx="21" cy="16" r="12" fill="url(#logoGrad)"/>
+      <circle cx="21" cy="16" r="6" fill="white"/>
+      <circle cx="21" cy="16" r="3" fill="#00b894"/>
+      <path d="M21 28 L14 39 L21 35 L28 39 Z" fill="url(#logoGrad)"/>
+      <text x="44" y="28" font-family="'Pretendard Variable',Pretendard,sans-serif" font-size="19" font-weight="800" fill="#1e293b" letter-spacing="-0.6">플레이스랭킹</text>
     </svg>
   </div>
-  <span class="header-badge">무료</span>
+  <button class="header-cta" onclick="scrollToSearch()">무료 분석</button>
 </div>
 <div class="main">
 
