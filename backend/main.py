@@ -85,6 +85,7 @@ _HTML = """<!DOCTYPE html>
 <meta name="naver-site-verification" content="df35aa6f9e46b7aa1e5678ee79a5a19ef5a868d6" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<script src="https://unpkg.com/lucide@latest"></script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -389,6 +390,17 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .axis-card:hover{box-shadow:var(--shadow);transform:translateY(-2px);}
 .axis-head{display:flex;align-items:center;gap:10px;margin-bottom:var(--spacing-sm);}
 .axis-icon{font-size:1.4rem;}
+/* 디자인2차: 결과 화면 라인 아이콘(Lucide) 공통 스타일 */
+.rpt-icon{width:18px;height:18px;stroke-width:2;vertical-align:-3px;color:#5A6B7B;}
+.rpt-icon.is-good{color:var(--brand-green);}
+.rpt-icon.is-warn{color:#E8833A;}
+.rpt-icon.is-info{color:#5A6B7B;}
+.axis-icon .rpt-icon{width:20px;height:20px;vertical-align:-4px;}
+.card-title .rpt-icon{width:18px;height:18px;vertical-align:-3px;margin-right:3px;}
+.tab-btn .rpt-icon{width:16px;height:16px;vertical-align:-3px;margin-right:3px;color:currentColor;}
+.store-badge .rpt-icon{width:14px;height:14px;vertical-align:-2px;color:currentColor;}
+.btn-action .rpt-icon,.btn-secondary .rpt-icon{width:15px;height:15px;vertical-align:-3px;margin-right:3px;color:currentColor;}
+.chip .rpt-icon{width:12px;height:12px;stroke-width:2.5;vertical-align:-2px;color:currentColor;margin-right:1px;}
 .axis-name{font-size:.84rem;font-weight:700;color:var(--gray-600);letter-spacing:-.2px;}
 .axis-score{font-size:1.9rem;font-weight:800;margin-bottom:8px;letter-spacing:-.5px;}
 .progress-bar{height:7px;background:var(--gray-100);border-radius:6px;overflow:hidden;margin-bottom:var(--spacing-sm);}
@@ -466,8 +478,9 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
 /* DOCTOR COMMENT */
 .comment-box{background:var(--green-bg);border-left:4px solid var(--green);border-radius:0 var(--radius) var(--radius) 0;padding:16px;margin-top:6px;}
-.comment-line{font-size:.88rem;color:var(--gray-800);line-height:1.65;margin-bottom:6px;}
+.comment-line{display:flex;align-items:flex-start;gap:9px;font-size:.88rem;color:var(--gray-800);line-height:1.6;margin-bottom:11px;}
 .comment-line:last-child{margin-bottom:0;}
+.comment-line .rpt-icon{margin-top:2px;flex-shrink:0;}
 
 /* SUBSCRIBE */
 .subscribe-form{display:flex;flex-direction:column;gap:12px;}
@@ -891,12 +904,12 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
     <!-- K단계: 결과 화면 상단 재검색 버튼 -->
     <div class="result-top-actions">
       <button class="btn-action" onclick="goBackToSearch()">← 홈으로</button>
-      <button class="btn-action btn-reanalyze" onclick="reAnalyze()">🔄 다시 분석</button>
+      <button class="btn-action btn-reanalyze" onclick="reAnalyze()"><i data-lucide="rotate-cw" class="rpt-icon"></i>다시 분석</button>
     </div>
 
     <!-- 공통 헤더: 매장명 + 종합점수 (탭 위에 항상 표시) -->
     <div class="result-header">
-      <div class="store-badge">📍 <span id="rCategory"></span></div>
+      <div class="store-badge"><i data-lucide="map-pin" class="rpt-icon"></i> <span id="rCategory"></span></div>
       <div class="store-name" id="rStoreName"></div>
       <div class="store-meta" id="rMeta"></div>
       <!-- J단계: 분석 횟수 표시 -->
@@ -922,8 +935,8 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
     <!-- TABS -->
     <div class="tabs">
-      <button class="tab-btn active" data-tab="place" onclick="switchTab('place')">📍 플레이스 분석</button>
-      <button class="tab-btn" data-tab="blog" onclick="switchTab('blog')">📝 블로그 분석</button>
+      <button class="tab-btn active" data-tab="place" onclick="switchTab('place')"><i data-lucide="map-pin" class="rpt-icon"></i>플레이스 분석</button>
+      <button class="tab-btn" data-tab="blog" onclick="switchTab('blog')"><i data-lucide="file-text" class="rpt-icon"></i>블로그 분석</button>
     </div>
 
     <!-- TAB: 플레이스 분석 -->
@@ -934,26 +947,26 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
       <!-- COMPETITOR -->
       <div class="card" id="compCard" style="display:none;">
-        <div class="card-title">🏆 경쟁사 비교</div>
+        <div class="card-title"><i data-lucide="trophy" class="rpt-icon is-info"></i>경쟁사 비교</div>
         <div class="comp-rows" id="compRows"></div>
       </div>
 
       <!-- KEYWORDS -->
       <div class="card">
-        <div class="card-title">🔑 키워드 순위</div>
+        <div class="card-title"><i data-lucide="key-round" class="rpt-icon is-info"></i>키워드 순위</div>
         <div class="kw-list" id="kwList"></div>
         <div class="kw-more" id="kwMore" onclick="toggleKw()"></div>
       </div>
 
       <!-- ANALYSIS COMMENT -->
       <div class="card">
-        <div class="card-title">💬 분석 코멘트</div>
+        <div class="card-title"><i data-lucide="message-square-text" class="rpt-icon is-info"></i>분석 코멘트</div>
         <div class="comment-box" id="commentBox"></div>
       </div>
 
       <!-- 알림 신청 -->
       <div class="card" id="subscribeCard">
-        <div class="card-title">🔔 매주 순위 알림 받기</div>
+        <div class="card-title"><i data-lucide="bell" class="rpt-icon is-info"></i>매주 순위 알림 받기</div>
         <div class="subscribe-form" id="subscribeForm">
           <p class="subscribe-desc">매주 키워드 순위 변화를 카카오 알림톡으로 보내드려요.</p>
           <input type="tel" id="subscribePhone" class="subscribe-input" placeholder="휴대폰 번호 (예: 01012345678)" maxlength="13">
@@ -974,7 +987,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       <div class="card">
         <div class="btn-area">
           <div class="btn-row">
-            <button class="btn-secondary" onclick="handlePwa()">📱 홈 화면 추가</button>
+            <button class="btn-secondary" onclick="handlePwa()"><i data-lucide="smartphone" class="rpt-icon"></i>홈 화면 추가</button>
             <button class="btn-secondary" onclick="handleShare()">💬 카톡 공유</button>
           </div>
         </div>
@@ -1620,6 +1633,8 @@ async function reAnalyze(){
 
 // ── 분석 유형 선택 ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // 디자인2차: 정적 라인 아이콘(결과 카드 타이틀·탭·배지 등) 초기 렌더
+  if(window.lucide) lucide.createIcons();
   // K단계: 익명 ID 발급 + 최근 매장 로드
   _anonId = getOrCreateAnonId();
   loadRegisteredStores();  // M단계: 내 매장 / 경쟁 매장 먼저
@@ -2129,9 +2144,9 @@ function renderResult(d){
     if(diff > 0){
       cls = 'trend-up';
       arrow = '▲';
-      if(absDiff >= 10) ment = '크게 상승했어요! 🎉';
+      if(absDiff >= 10) ment = '크게 상승했어요!';
       else if(absDiff >= 4) ment = '순위가 오르고 있어요! 잘하고 계세요';
-      else ment = '조금씩 좋아지고 있어요 👍';
+      else ment = '조금씩 좋아지고 있어요';
     } else if(diff < 0){
       cls = 'trend-down';
       arrow = '▼';
@@ -2175,6 +2190,9 @@ function renderResult(d){
 
   // 닥터 코멘트
   renderComment(d, sc);
+
+  // 디자인2차: 동적 렌더링 완료 후 Lucide 라인 아이콘 그리기
+  if(window.lucide) lucide.createIcons();
 }
 
 // 직전 분석에서 키워드별 순위 맵 생성
@@ -2246,6 +2264,9 @@ function renderBlogOnlyResult(d){
   const prevBlogMap = buildPrevBlogRankMap(prev);
   const kwHistory = d.keyword_history || {};
   renderBlogResultsWithComparison(d.blog_results||[], prevBlogMap, kwHistory);
+
+  // 디자인2차: 결과 화면 라인 아이콘 렌더
+  if(window.lucide) lucide.createIcons();
 }
 
 function buildPrevBlogRankMap(prev){
@@ -2295,7 +2316,7 @@ function renderAxisCards(d, sc){
 function axisCard(icon, name, score, details){
   const color = scoreColor(score);
   return `<div class="axis-card">
-    <div class="axis-head"><span class="axis-icon">${icon}</span><span class="axis-name">${name}</span></div>
+    <div class="axis-head"><span class="axis-icon"><i data-lucide="${icon}" class="rpt-icon is-info"></i></span><span class="axis-name">${name}</span></div>
     <div class="axis-score" style="color:${color}">${score}<small style="font-size:.9rem;font-weight:600;color:var(--gray-400)">/100</small></div>
     <div class="progress-bar"><div class="progress-fill" data-w="${score}%" style="width:0%;background:${color}"></div></div>
     <div class="detail-list">${details}</div>
@@ -2314,7 +2335,7 @@ function buildSeoCard(d, score){
   const topRank = kws.reduce((best,k)=>k.rank&&k.rank<(best||999)?k.rank:best, null);
   const infoScore = (d.address?30:0)+(d.category?30:0)+((d.photo_count||0)>=10?40:(d.photo_count||0)>=3?20:0);
   const photoCount = d.photo_count??null;
-  return axisCard('📍','검색노출(SEO)',score,[
+  return axisCard('search','검색노출(SEO)',score,[
     detailRow('대표 키워드 순위', topRank?`${topRank}위`:'30위 밖', topRank?Math.max(0,100-topRank*3):5),
     detailRow('정보 완성도', infoScore+'%', infoScore),
     detailRow('사진 수', photoCount!=null?photoCount+'장':'-', photoCount!=null?Math.min(100,photoCount*8):null),
@@ -2323,7 +2344,7 @@ function buildSeoCard(d, score){
 
 function buildContentCard(d, score){
   const vr = d.visitor_reviews, br = d.blog_reviews, ss = d.star_score;
-  return axisCard('⭐','리뷰관리',score,[
+  return axisCard('star','리뷰관리',score,[
     detailRow('방문자 리뷰', vr!=null?fmt(vr)+'개':'-', vr!=null?Math.min(100,vr/5):null),
     detailRow('블로그 리뷰', br!=null?fmt(br)+'개':'-', br!=null?Math.min(100,br/3):null),
     detailRow('별점', ss!=null?ss+'점':'별점 없음', ss!=null?(ss>=4.5?90:ss>=4.0?65:ss>=3.5?40:20):null),
@@ -2335,7 +2356,7 @@ function buildActivityCard(d, score){
   // 중립 표시. 이 경우 종합점수에서도 최근활동 축은 제외됨(백엔드 재정규화).
   if(score == null){
     return `<div class="axis-card">
-      <div class="axis-head"><span class="axis-icon">🔥</span><span class="axis-name">최근활동</span></div>
+      <div class="axis-head"><span class="axis-icon"><i data-lucide="activity" class="rpt-icon is-info"></i></span><span class="axis-name">최근활동</span></div>
       <div class="axis-score" style="color:var(--gray-400);font-size:1.05rem;font-weight:700">리뷰 활동 정보 수집 중</div>
       <div class="detail-list">
         <div class="detail-row"><span class="detail-label">최근 리뷰</span><div class="detail-val"><span class="detail-num" style="color:var(--gray-400)">잠시 후 다시 확인</span></div></div>
@@ -2363,7 +2384,7 @@ function buildActivityCard(d, score){
     else if(diff<=90){ act='한산'; actScore=45; }
     else { act='거의 없음'; actScore=25; }
   }
-  return axisCard('🔥','최근활동',score,[
+  return axisCard('activity','최근활동',score,[
     detailRow('최근 리뷰', dayStr, dayScore),
     detailRow('리뷰 활동', act??'정보 없음', actScore),
     detailRow('정보 최신성', d.address?'최신':'미확인', d.address?80:30),
@@ -2379,10 +2400,10 @@ function buildAdCard(d, sc){
     {name:'지역소상공인광고',  on:!!f.local},
     {name:'블로그 체험단',     on:!!f.blog},
   ];
-  const rows = adItems.map(a=>`<div class="detail-row"><span class="detail-label">${a.name}</span><div class="detail-val"><span class="chip ${a.on?'chip-good':'chip-bad'}">${a.on?'✓ 집행':'✗ 미집행'}</span></div></div>`).join('');
+  const rows = adItems.map(a=>`<div class="detail-row"><span class="detail-label">${a.name}</span><div class="detail-val"><span class="chip ${a.on?'chip-good':'chip-bad'}"><i data-lucide="${a.on?'check':'x'}" class="rpt-icon"></i>${a.on?'집행':'미집행'}</span></div></div>`).join('');
   const label = sc.ad_label?`<p style="font-size:.78rem;font-weight:700;color:var(--gray-700);margin-top:8px;">${esc(sc.ad_label)}</p>`:'';
   const note = '<p style="font-size:.72rem;color:var(--gray-600);margin-top:6px;line-height:1.5;">광고가 켜져 있어도 키워드·소재 최적화로 효율을 더 올릴 수 있어요</p>';
-  return axisCard('📣','키워드광고',score, rows + label + note);
+  return axisCard('megaphone','키워드광고',score, rows + label + note);
 }
 
 // ── 경쟁사 비교 (P단계: S/A급 1위아닌 키워드 최대3 카드 + 통찰 멘트) ──────────────
@@ -2402,7 +2423,7 @@ function renderCompetitor(d){
   if(status==='all_first'){
     cardEl.style.display='block';
     const kws=(comp.first_place_keywords||[]).map(k=>`<span class="comp-fp-kw">${esc(k)} 1위</span>`).join('');
-    rowsEl.innerHTML=`<p class="comp-praise">주요 키워드에서 모두 1위예요! 잘하고 계세요 👏</p><div class="comp-fp-list">${kws}</div>`;
+    rowsEl.innerHTML=`<p class="comp-praise">주요 키워드에서 모두 1위예요! 잘하고 계세요</p><div class="comp-fp-list">${kws}</div>`;
     return;
   }
 
@@ -2835,16 +2856,16 @@ function renderComment(d, sc){
 
   if(allKws.length>0){
     if(firstPage.length>0)
-      lines.push(`📊 검색한 키워드 ${allKws.length}개 중 ${firstPage.length}개가 첫 화면(1~10위)에 노출 중이에요.`);
+      lines.push({i:'bar-chart-3',c:'is-info',t:`검색한 키워드 ${allKws.length}개 중 ${firstPage.length}개가 첫 화면(1~10위)에 노출 중이에요.`});
     else
-      lines.push(`📊 검색한 키워드 ${allKws.length}개 중 아직 첫 화면에 든 키워드가 없어요.`);
+      lines.push({i:'bar-chart-3',c:'is-info',t:`검색한 키워드 ${allKws.length}개 중 아직 첫 화면에 든 키워드가 없어요.`});
   }
 
   if(oppKw){
     const gap=Math.max(1,oppKw.rank-5);
-    lines.push(`💡 다만 '${esc(oppKw.keyword)}'이(가) ${oppKw.rank}위라, ${gap}계단만 올리면 첫 화면이에요.`);
+    lines.push({i:'lightbulb',c:'is-warn',t:`다만 '${esc(oppKw.keyword)}'이(가) ${oppKw.rank}위라, ${gap}계단만 올리면 첫 화면이에요.`});
   } else if(rankedKws.length===0&&allKws.length>0){
-    lines.push(`💡 '${esc(allKws[0].keyword)}' 같은 핵심 키워드에서 노출이 안 돼, 검색 손님을 놓치고 있어요.`);
+    lines.push({i:'lightbulb',c:'is-warn',t:`'${esc(allKws[0].keyword)}' 같은 핵심 키워드에서 노출이 안 돼, 검색 손님을 놓치고 있어요.`});
   }
 
   // 2) 리뷰/별점 강점
@@ -2858,7 +2879,7 @@ function renderComment(d, sc){
     strength = best>=50 ? `${AX[k]} 쪽은 비교적 잘 관리되고 있어요.`
                         : `아직 시작 단계지만, 손볼 곳이 명확해 개선 여지가 큰 매장이에요.`;
   }
-  lines.push('✅ '+strength);
+  lines.push({i:'check-circle-2',c:'is-good',t:strength});
 
   // 3) 핵심 약점 (가장 낮은 축)
   const weak=axisPairs.slice().sort((a,b)=>a[1]-b[1])[0];
@@ -2868,7 +2889,7 @@ function renderComment(d, sc){
     content:'리뷰·별점 관리가 경쟁사 대비 약해요',
     activity:'최근 리뷰 활동이 뜸해 신선도가 떨어져요',
   }[weakKey];
-  lines.push(`🔸 ${AX[weakKey]}이(가) ${weakVal}점으로, ${weakReason}.`);
+  lines.push({i:'alert-circle',c:'is-warn',t:`${AX[weakKey]}이(가) ${weakVal}점으로, ${weakReason}.`});
 
   // 4) 해결 방향
   const fix={
@@ -2876,10 +2897,10 @@ function renderComment(d, sc){
     content:'리뷰와 블로그를 꾸준히 보완하면 충분히 상위권으로 올라갈 수 있어요.',
     activity:'최근 리뷰를 꾸준히 쌓으면 신선도 점수가 빠르게 회복돼요.',
   }[weakKey];
-  lines.push('🚀 '+fix);
+  lines.push({i:'trending-up',c:'is-good',t:fix});
 
   const box=document.getElementById('commentBox');
-  box.innerHTML=lines.map(l=>`<p class="comment-line">${l}</p>`).join('');
+  box.innerHTML=lines.map(l=>`<div class="comment-line"><i data-lucide="${l.i}" class="rpt-icon ${l.c}"></i><span>${l.t}</span></div>`).join('');
 }
 
 // ── 버튼 액션 (자리 확보, 동작은 추후) ──────────────────────────────────────
