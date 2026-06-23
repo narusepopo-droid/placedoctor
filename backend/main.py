@@ -80,7 +80,7 @@ _HTML = """<!DOCTYPE html>
 <meta property="og:url" content="https://placeranking.com">
 <meta property="og:site_name" content="플레이스랭킹">
 <link rel="canonical" href="https://placeranking.com">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><rect width='128' height='128' rx='24' fill='%2300B894'/><circle cx='64' cy='50' r='28' fill='white'/><circle cx='64' cy='50' r='14' fill='%2300B894'/><path d='M64 78 L52 106 L64 101 L76 106 Z' fill='white'/></svg>">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><rect width='128' height='128' rx='24' fill='%2300C896'/><circle cx='64' cy='50' r='28' fill='white'/><circle cx='64' cy='50' r='14' fill='%2300C896'/><path d='M64 78 L52 106 L64 101 L76 106 Z' fill='white'/></svg>">
 <meta name="google-site-verification" content="OMcAcRnijHErEpfd4wIFa9jCXtXAQgVKZ2plesoCYvM" />
 <meta name="naver-site-verification" content="df35aa6f9e46b7aa1e5678ee79a5a19ef5a868d6" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -156,21 +156,23 @@ _HTML = """<!DOCTYPE html>
 </script>
 <style>
 :root{
-  --green:#00b894;--green-d:#00a885;--green-l:#00d4a4;--green-bg:#f0fdf8;
-  --primary-gradient:linear-gradient(135deg, #00b894 0%, #00d4a4 100%);
+  --brand-green:#00C896;--brand-green-dark:#00B085;--brand-green-light:#E8FAF4;
+  --green:var(--brand-green);--green-d:var(--brand-green-dark);--green-l:#00d4a4;--green-bg:var(--brand-green-light);
+  --primary-gradient:linear-gradient(135deg, var(--brand-green) 0%, #00d4a4 100%);
   --red:#ef4444;--orange:#f97316;--score-green:#22c55e;
   --gray-50:#f8fafc;--gray-100:#f1f5f9;--gray-200:#e2e8f0;--gray-300:#cbd5e1;
   --gray-400:#94a3b8;--gray-500:#64748b;--gray-600:#475569;--gray-700:#334155;--gray-800:#1e293b;--gray-900:#0f172a;
   --radius:16px;--radius-sm:12px;--radius-lg:20px;
   --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
-  --shadow:0 4px 20px rgba(0,0,0,.08);
+  --shadow:0 1px 3px rgba(0,0,0,.04),0 1px 2px rgba(0,0,0,.06);
   --shadow-lg:0 10px 40px rgba(0,0,0,.12);
   --shadow-glow:0 4px 24px rgba(0,184,148,.25);
   --card-border:1px solid #e2e8f0;
   --spacing-xs:8px;--spacing-sm:12px;--spacing-md:20px;--spacing-lg:32px;--spacing-xl:48px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(180deg,#f8fafc 0%,#f1f5f9 100%);color:var(--gray-900);min-height:100vh;font-feature-settings:'ss01' on;-webkit-font-smoothing:antialiased;}
+body,button,input,textarea,select{font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Segoe UI',sans-serif;letter-spacing:-.3px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
+body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);color:var(--gray-900);min-height:100vh;font-feature-settings:'ss01' on;}
 
 /* HEADER */
 .header{background:rgba(255,255,255,.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(226,232,240,.6);}
@@ -180,6 +182,7 @@ body{font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFo
 
 /* MAIN */
 .main{max-width:540px;margin:0 auto;padding:var(--spacing-md) 16px 100px;}
+@media(min-width:768px){.main{max-width:820px;padding-left:20px;padding-right:20px;}}
 
 /* INPUT CARD */
 .input-card{background:#fff;border-radius:var(--radius-lg);border:var(--card-border);padding:28px 24px;box-shadow:var(--shadow);}
@@ -200,7 +203,7 @@ body{font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFo
 .landing{margin-bottom:var(--spacing-sm);}
 .hero{text-align:center;padding:var(--spacing-xl) var(--spacing-md) var(--spacing-lg);}
 .hero-icon{font-size:3.2rem;display:block;margin-bottom:var(--spacing-md);filter:drop-shadow(0 4px 12px rgba(0,184,148,.3));}
-.hero h1{font-size:1.75rem;font-weight:800;line-height:1.4;letter-spacing:-.6px;color:var(--gray-900);margin-bottom:var(--spacing-sm);}
+.hero h1{font-size:1.75rem;font-weight:700;line-height:1.4;letter-spacing:-.8px;color:var(--gray-900);margin-bottom:var(--spacing-sm);}
 .hero h1 .accent{background:var(--primary-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .hero-sub{font-size:1rem;color:var(--gray-500);line-height:1.7;margin:0 auto var(--spacing-lg);max-width:340px;letter-spacing:-.2px;}
 .hero-cta{width:100%;max-width:320px;padding:17px 28px;background:var(--primary-gradient);color:#fff;border:none;border-radius:var(--radius);font-size:1.08rem;font-weight:700;cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1);box-shadow:var(--shadow-glow);letter-spacing:-.2px;}
@@ -636,10 +639,10 @@ body{font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFo
 <div class="header">
   <div class="logo" onclick="goHome()" style="cursor:pointer;">
     <svg class="logo-full" viewBox="0 0 180 36" xmlns="http://www.w3.org/2000/svg">
-      <defs><linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00b894"/><stop offset="100%" stop-color="#00d4a4"/></linearGradient></defs>
+      <defs><linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00C896"/><stop offset="100%" stop-color="#00d4a4"/></linearGradient></defs>
       <circle cx="18" cy="14" r="10" fill="url(#logoGrad)"/>
       <circle cx="18" cy="14" r="5" fill="white"/>
-      <circle cx="18" cy="14" r="2.5" fill="#00b894"/>
+      <circle cx="18" cy="14" r="2.5" fill="#00C896"/>
       <path d="M18 24 L13 32 L18 29 L23 32 Z" fill="url(#logoGrad)"/>
       <text x="38" y="24" font-family="'Pretendard Variable',Pretendard,sans-serif" font-size="17" font-weight="800" fill="#1e293b" letter-spacing="-0.5">플레이스랭킹</text>
     </svg>
@@ -4011,7 +4014,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
 <title>플레이스랭킹 관리자</title>
 <style>
   :root{
-    --green:#00B894; --green-d:#009B7D; --green-soft:#E6F7F2;
+    --green:#00C896; --green-d:#00B085; --green-soft:#E6F7F2;
     --ink:#1A2B3C; --sub:#6B7C8F; --line:#E8EDF1; --bg:#F6F8FA; --white:#fff;
     --amber:#F0A500; --red:#E06A6A;
   }
