@@ -173,12 +173,10 @@ _HTML = """<!DOCTYPE html>
 body{font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(180deg,#f8fafc 0%,#f1f5f9 100%);color:var(--gray-900);min-height:100vh;font-feature-settings:'ss01' on;-webkit-font-smoothing:antialiased;}
 
 /* HEADER */
-.header{background:rgba(255,255,255,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(226,232,240,.6);}
-.logo{display:flex;align-items:center;gap:10px;color:var(--green-d);font-size:1.25rem;font-weight:700;letter-spacing:-.4px;}
-.logo-icon{width:32px;height:32px;flex-shrink:0;}
-.logo-sub{font-size:.75rem;font-weight:500;color:var(--gray-400);padding-left:12px;border-left:1px solid var(--gray-200);letter-spacing:-.2px;}
+.header{background:rgba(255,255,255,.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(226,232,240,.6);}
+.logo{display:flex;align-items:center;height:36px;}
+.logo-full{height:100%;}
 .header-badge{background:var(--primary-gradient);color:#fff;font-size:.7rem;font-weight:600;padding:5px 12px;border-radius:20px;box-shadow:var(--shadow-sm);}
-@media (max-width:480px){.logo-sub{display:none;}}
 
 /* MAIN */
 .main{max-width:540px;margin:0 auto;padding:var(--spacing-md) 16px 100px;}
@@ -211,7 +209,7 @@ body{font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFo
 .hero-note{font-size:.8rem;color:var(--gray-400);margin-top:var(--spacing-sm);display:flex;align-items:center;justify-content:center;gap:8px;}
 .hero-note::before,.hero-note::after{content:'';width:24px;height:1px;background:var(--gray-200);}
 .lp-section{margin-top:var(--spacing-xl);}
-.lp-section-title{font-size:.72rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:1.5px;text-align:center;margin-bottom:var(--spacing-md);}
+.lp-section-title{font-size:1.1rem;font-weight:800;color:var(--gray-800);letter-spacing:-.3px;text-align:center;margin-bottom:var(--spacing-lg);}
 .value-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--spacing-sm);}
 .value-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:24px 16px;text-align:center;transition:all .25s ease;box-shadow:var(--shadow-sm);}
 .value-card:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:var(--green);}
@@ -636,7 +634,16 @@ body{font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFo
 </head>
 <body>
 <div class="header">
-  <div class="logo" onclick="goHome()" style="cursor:pointer;"><svg class="logo-icon" viewBox="0 0 50 70" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="22" r="16" fill="#00B894"/><circle cx="25" cy="22" r="8" fill="white"/><circle cx="25" cy="22" r="4" fill="#00B894"/><path d="M25 38 L18 52 L25 48 L32 52 Z" fill="#00B894"/></svg>플레이스랭킹<span class="logo-sub">네이버 플레이스 순위 분석</span></div>
+  <div class="logo" onclick="goHome()" style="cursor:pointer;">
+    <svg class="logo-full" viewBox="0 0 180 36" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00b894"/><stop offset="100%" stop-color="#00d4a4"/></linearGradient></defs>
+      <circle cx="18" cy="14" r="10" fill="url(#logoGrad)"/>
+      <circle cx="18" cy="14" r="5" fill="white"/>
+      <circle cx="18" cy="14" r="2.5" fill="#00b894"/>
+      <path d="M18 24 L13 32 L18 29 L23 32 Z" fill="url(#logoGrad)"/>
+      <text x="38" y="24" font-family="'Pretendard Variable',Pretendard,sans-serif" font-size="17" font-weight="800" fill="#1e293b" letter-spacing="-0.5">플레이스랭킹</text>
+    </svg>
+  </div>
   <span class="header-badge">무료</span>
 </div>
 <div class="main">
