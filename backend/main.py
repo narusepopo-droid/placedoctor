@@ -516,6 +516,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 #loading-section{display:none;}
 .l-card{background:#fff;border-radius:var(--radius-lg);border:var(--card-border);border-top:4px solid var(--green);padding:36px 24px;text-align:center;box-shadow:var(--shadow);}
 .l-pulse{font-size:3.2rem;display:block;margin-bottom:16px;animation:lpulse 1.4s ease-in-out infinite;}
+.l-pulse .rpt-icon{width:46px;height:46px;stroke-width:1.75;}
 @keyframes lpulse{0%,100%{transform:scale(1);}50%{transform:scale(1.12);}}
 .l-title{font-size:1.2rem;font-weight:700;margin-bottom:6px;letter-spacing:-.3px;}
 .l-sub{font-size:.85rem;color:var(--gray-500);margin-bottom:24px;}
@@ -541,13 +542,16 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 @keyframes db{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
 /* 부팅 시퀀스 */
 #boot-sequence{background:var(--gray-50);border-radius:var(--radius);padding:22px 26px;margin:var(--spacing-md) 0;font-family:'JetBrains Mono','Fira Code','Courier New',monospace;display:none;border:1px solid var(--gray-200);}
-.boot-line{font-size:13px;color:var(--gray-700);padding:5px 0;opacity:0;animation:bootFadeIn 0.3s ease forwards;letter-spacing:-.3px;}
+.boot-line{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gray-700);padding:5px 0;opacity:0;animation:bootFadeIn 0.3s ease forwards;letter-spacing:-.3px;}
+.boot-line .rpt-icon{width:15px;height:15px;flex-shrink:0;}
 @keyframes bootFadeIn{from{opacity:0;transform:translateX(-10px);}to{opacity:1;transform:translateX(0);}}
 
 /* 맞춤형 팁 */
 #tip-section{display:none;background:linear-gradient(135deg,#f0fdf8 0%,#dcfce7 100%);border:1px solid #bbf7d0;border-radius:var(--radius);padding:20px 22px;margin:var(--spacing-md) 0;min-height:96px;flex-direction:column;gap:12px;box-shadow:var(--shadow-sm);}
-.tip-header{display:flex;align-items:center;justify-content:center;gap:10px;font-size:.82rem;font-weight:700;color:var(--green);}
-.tip-header .tip-icon{font-size:1.2rem;animation:tipBounce 2s ease-in-out infinite;}
+.tip-header{display:flex;align-items:center;justify-content:center;gap:8px;font-size:.82rem;font-weight:700;color:var(--green);}
+.tip-header .tip-icon{width:18px;height:18px;animation:tipBounce 2s ease-in-out infinite;}
+.tip-item{display:flex;align-items:flex-start;justify-content:center;gap:8px;}
+.tip-item .rpt-icon{margin-top:3px;flex-shrink:0;}
 @keyframes tipBounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-4px);}}
 #tip-text{font-size:.9rem;color:#166534;line-height:1.75;transition:opacity 0.3s ease;}
 .btn-stop{margin-top:var(--spacing-md);padding:12px 28px;background:#fff;border:1px solid var(--gray-300);border-radius:var(--radius-sm);font-size:.88rem;color:var(--gray-600);cursor:pointer;transition:all .2s ease;font-weight:500;}
@@ -589,6 +593,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 /* S단계: 분석 중 펄스 (키워드 사이 생동감) */
 .kw-analyzing{text-align:center;padding:20px;}
 .kw-analyzing-icon{font-size:2rem;animation:analyzePulse 1.2s ease-in-out infinite;}
+.kw-analyzing-icon .rpt-icon{width:30px;height:30px;color:var(--green);}
 .kw-analyzing-text{font-size:.9rem;color:var(--gray-500);margin-top:8px;}
 .kw-analyzing-dots{display:inline-flex;gap:3px;margin-left:4px;}
 .kw-analyzing-dots span{width:5px;height:5px;background:var(--green);border-radius:50%;animation:dotBounce .6s ease-in-out infinite;}
@@ -874,7 +879,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
   <!-- LOADING (R단계: 게임형 UI) -->
   <div id="loading-section">
     <div class="l-card">
-      <span class="l-pulse" id="lIcon">📊</span>
+      <span class="l-pulse" id="lIcon"><i data-lucide="bar-chart-3" class="rpt-icon is-good"></i></span>
       <div class="l-title" id="lTitle">플레이스 진단 중이에요</div>
       <div class="l-progress-text" id="lProgressText">키워드 분석 중</div>
 
@@ -883,8 +888,8 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
       <!-- 맞춤형 팁 (부팅 후 표시) -->
       <div id="tip-section">
-        <div class="tip-header"><span class="tip-icon">💡</span>플레이스 순위 높이는 꿀팁</div>
-        <div id="tip-text"></div>
+        <div class="tip-header"><i data-lucide="lightbulb" class="rpt-icon is-warn tip-icon"></i>플레이스 순위 높이는 꿀팁</div>
+        <div class="tip-item"><i data-lucide="lightbulb" class="rpt-icon is-warn"></i><span id="tip-text"></span></div>
       </div>
 
       <!-- S단계: 상위 키워드 칩 누적 영역 -->
@@ -1070,12 +1075,12 @@ let _tipInterval = null;
 // 부팅 시퀀스 표시
 function showBootSequence(storeName, category, address) {
   const steps = [
-    "🔗 네이버 플레이스 연결 중...",
-    "✅ " + (storeName || '매장') + " 확인됨",
-    "✅ 카테고리: " + (category || '매장 정보 확인됨'),
-    "✅ 지역: " + (address ? address.split(' ').slice(0,2).join(' ') : '위치 확인됨'),
-    "🔍 키워드 목록 생성 중...",
-    "🚀 순위 분석 시작!",
+    {i:'link',          c:'is-info', t:'네이버 플레이스 연결 중...'},
+    {i:'check-circle-2',c:'is-good', t:(storeName || '매장') + ' 확인됨'},
+    {i:'check-circle-2',c:'is-good', t:'카테고리: ' + (category || '매장 정보 확인됨')},
+    {i:'check-circle-2',c:'is-good', t:'지역: ' + (address ? address.split(' ').slice(0,2).join(' ') : '위치 확인됨')},
+    {i:'search',        c:'is-info', t:'키워드 목록 생성 중...'},
+    {i:'play-circle',   c:'is-good', t:'순위 분석 시작!'},
   ];
 
   const container = document.getElementById('boot-sequence');
@@ -1087,8 +1092,9 @@ function showBootSequence(storeName, category, address) {
     setTimeout(() => {
       const line = document.createElement('div');
       line.className = 'boot-line';
-      line.textContent = step;
+      line.innerHTML = `<i data-lucide="${step.i}" class="rpt-icon ${step.c}"></i><span>${step.t}</span>`;
       container.appendChild(line);
+      if(window.lucide) lucide.createIcons();
       if (i === steps.length - 1) {
         setTimeout(() => {
           container.style.display = 'none';
@@ -1129,59 +1135,59 @@ function getTips(storeName, category, address) {
 
   if (mainCat === '음식점') {
     categoryTips.push(
-      "💡 " + storeName + " 음식점은 점심/저녁 키워드를 따로 공략하면 노출이 2배!",
-      "📸 음식 사진 클릭률이 테이블 사진보다 3배 높아요",
-      "✍️ 블로그 체험단 포스팅 후 2~4주 안에 순위 변화가 나타나요",
-      "⭐ " + region + " 음식점은 리뷰 50개 이상부터 상위 경쟁 가능해요"
+      storeName + " 음식점은 점심/저녁 키워드를 따로 공략하면 노출이 2배!",
+      "음식 사진 클릭률이 테이블 사진보다 3배 높아요",
+      "블로그 체험단 포스팅 후 2~4주 안에 순위 변화가 나타나요",
+      region + " 음식점은 리뷰 50개 이상부터 상위 경쟁 가능해요"
     );
   }
   if (mainCat === '헬스') {
     categoryTips.push(
-      "💪 " + region + " 헬스 업종은 지역명+서비스명 조합이 핵심 키워드예요",
-      "🏋️ 시설 내부 사진이 많을수록 문의 전환율이 높아요",
-      "🎯 체험가/무료체험 키워드는 경쟁이 낮아 공략하기 좋아요"
+      region + " 헬스 업종은 지역명+서비스명 조합이 핵심 키워드예요",
+      "시설 내부 사진이 많을수록 문의 전환율이 높아요",
+      "체험가/무료체험 키워드는 경쟁이 낮아 공략하기 좋아요"
     );
   }
   if (mainCat === '카페') {
     categoryTips.push(
-      "☕ " + region + " 카페는 '작업하기 좋은' 같은 목적 키워드가 효과적이에요",
-      "🧋 시그니처 메뉴 이름이 키워드로 잡히는 경우도 있어요",
-      "📸 음료/디저트 비주얼 사진이 저장수를 높이는 핵심이에요"
+      region + " 카페는 '작업하기 좋은' 같은 목적 키워드가 효과적이에요",
+      "시그니처 메뉴 이름이 키워드로 잡히는 경우도 있어요",
+      "음료/디저트 비주얼 사진이 저장수를 높이는 핵심이에요"
     );
   }
   if (mainCat === '병원') {
     categoryTips.push(
-      "👨‍⚕️ " + storeName + "은 전문의 이름이 키워드로 잡힐 수 있어요",
-      "💉 비급여 시술명 키워드는 경쟁이 낮아 공략 가치가 높아요",
-      "⭐ 병원/의원은 리뷰 신뢰도가 순위에 큰 영향을 줘요"
+      storeName + "은 전문의 이름이 키워드로 잡힐 수 있어요",
+      "비급여 시술명 키워드는 경쟁이 낮아 공략 가치가 높아요",
+      "병원/의원은 리뷰 신뢰도가 순위에 큰 영향을 줘요"
     );
   }
   if (mainCat === '뷰티') {
     categoryTips.push(
-      "💆 " + storeName + "은 시술 전후 사진이 클릭률을 크게 높여요",
-      "✨ " + region + " 뷰티 업종은 시술명 키워드가 이벤트보다 효과적이에요"
+      storeName + "은 시술 전후 사진이 클릭률을 크게 높여요",
+      region + " 뷰티 업종은 시술명 키워드가 이벤트보다 효과적이에요"
     );
   }
   if (mainCat === '교육') {
     categoryTips.push(
-      "📚 " + region + " 학원은 지역+과목 조합 키워드가 전환율이 가장 높아요",
-      "🎓 입학 시즌에 설명회/체험수업 키워드 효과가 커요",
-      "💡 " + storeName + "은 학부모 리뷰가 순위에 큰 영향을 줘요"
+      region + " 학원은 지역+과목 조합 키워드가 전환율이 가장 높아요",
+      "입학 시즌에 설명회/체험수업 키워드 효과가 커요",
+      storeName + "은 학부모 리뷰가 순위에 큰 영향을 줘요"
     );
   }
 
   const commonTips = [
-    "📸 " + storeName + ", 플레이스 사진 10장 이상이면 노출 점수 UP!",
-    "💬 리뷰 답글을 꾸준히 달면 사장님 활동 점수가 높아져요",
-    "🔖 저장수가 많을수록 네이버가 인기 매장으로 인식해요",
-    "🗺️ " + region + " 지역 키워드 + 업종 조합이 가장 효과적이에요",
-    "🏆 플레이스 광고 없이도 자연 순위 1위가 가능해요",
-    "🎯 경쟁 매장 분석으로 " + storeName + "이 놓친 키워드를 찾을 수 있어요",
-    "📋 영업시간/메뉴/가격 정보가 상세할수록 클릭 전환율이 높아요",
-    "🔄 스마트플레이스 정보 최신화만으로도 순위가 오르는 경우가 있어요",
-    "📊 플레이스 지수는 검색노출/리뷰/활동/광고 4가지로 계산돼요",
-    "🚀 분석 결과를 주 1회 확인하면 순위 변화 트렌드를 파악할 수 있어요",
-    "💡 " + region + "에서 " + storeName + "의 경쟁 매장 현황도 곧 보여드려요"
+    storeName + ", 플레이스 사진 10장 이상이면 노출 점수 UP!",
+    "리뷰 답글을 꾸준히 달면 사장님 활동 점수가 높아져요",
+    "저장수가 많을수록 네이버가 인기 매장으로 인식해요",
+    region + " 지역 키워드 + 업종 조합이 가장 효과적이에요",
+    "플레이스 광고 없이도 자연 순위 1위가 가능해요",
+    "경쟁 매장 분석으로 " + storeName + "이 놓친 키워드를 찾을 수 있어요",
+    "영업시간/메뉴/가격 정보가 상세할수록 클릭 전환율이 높아요",
+    "스마트플레이스 정보 최신화만으로도 순위가 오르는 경우가 있어요",
+    "플레이스 지수는 검색노출/리뷰/활동/광고 4가지로 계산돼요",
+    "분석 결과를 주 1회 확인하면 순위 변화 트렌드를 파악할 수 있어요",
+    region + "에서 " + storeName + "의 경쟁 매장 현황도 곧 보여드려요"
   ];
 
   return [...categoryTips, ...commonTips].sort(() => Math.random() - 0.5);
@@ -1711,29 +1717,29 @@ function animateGauge(target){
 
 // ── 로딩 애니메이션 ───────────────────────────────────────────────────────────
 const L_STEPS = [
-  { label:'매장 정보 수집 중',    icon:'🔍', desc:'네이버 플레이스에서 매장 정보를 읽어오고 있어요',       ms:12000 },
-  { label:'키워드 순위 분석 중',  icon:'📊', desc:'검색 키워드 30개를 하나씩 확인하고 있어요 (가장 오래 걸려요)', ms:80000 },
-  { label:'리뷰·별점 수집 중',   icon:'⭐', desc:'방문자 리뷰, 블로그 리뷰, 별점 데이터를 모으고 있어요', ms:15000 },
-  { label:'경쟁사 비교 중',      icon:'🏆', desc:'같은 키워드 1위 매장 정보를 분석하고 있어요',         ms:15000 },
-  { label:'블로그 분석 중',      icon:'📝', desc:'우리 매장 태그한 블로그 순위를 확인하고 있어요',       ms:70000 },
-  { label:'점수 계산 중',        icon:'✅', desc:'4축 진단 점수를 계산하고 있어요 — 거의 다 됐어요!',    ms:999999 },
+  { label:'매장 정보 수집 중',    icon:'search',        desc:'네이버 플레이스에서 매장 정보를 읽어오고 있어요',       ms:12000 },
+  { label:'키워드 순위 분석 중',  icon:'bar-chart-3',   desc:'검색 키워드 30개를 하나씩 확인하고 있어요 (가장 오래 걸려요)', ms:80000 },
+  { label:'리뷰·별점 수집 중',   icon:'star',          desc:'방문자 리뷰, 블로그 리뷰, 별점 데이터를 모으고 있어요', ms:15000 },
+  { label:'경쟁사 비교 중',      icon:'trophy',        desc:'같은 키워드 1위 매장 정보를 분석하고 있어요',         ms:15000 },
+  { label:'블로그 분석 중',      icon:'file-text',     desc:'우리 매장 태그한 블로그 순위를 확인하고 있어요',       ms:70000 },
+  { label:'점수 계산 중',        icon:'check-circle-2',desc:'4축 진단 점수를 계산하고 있어요 — 거의 다 됐어요!',    ms:999999 },
 ];
 const L_TIPS = [
-  '💡 방문자 리뷰 50개 이상이면 검색 노출에 유리해요',
-  '💡 플레이스 사진은 최소 10장 이상 등록하면 점수가 올라요',
-  '💡 키워드가 업종·지역과 잘 맞을수록 상위 노출 가능성이 높아요',
-  '💡 최근 30일 이내 리뷰가 있으면 활성도 점수가 높아져요',
-  '💡 매장 정보(주소·전화·영업시간)가 완전할수록 노출에 유리해요',
+  '방문자 리뷰 50개 이상이면 검색 노출에 유리해요',
+  '플레이스 사진은 최소 10장 이상 등록하면 점수가 올라요',
+  '키워드가 업종·지역과 잘 맞을수록 상위 노출 가능성이 높아요',
+  '최근 30일 이내 리뷰가 있으면 활성도 점수가 높아져요',
+  '매장 정보(주소·전화·영업시간)가 완전할수록 노출에 유리해요',
 ];
 
 let _lStart=0, _lTimer=null, _lStepIdx=0, _lRafId=null, _lProg=0;
 
 // 블로그 분석용 로딩 스텝
 const L_STEPS_BLOG = [
-  { label:'매장 정보 수집 중',    icon:'🔍', desc:'네이버 플레이스에서 매장 정보를 읽어오고 있어요',       ms:15000 },
-  { label:'키워드 추출 중',       icon:'📝', desc:'블로그 검색에 사용할 키워드를 생성하고 있어요',        ms:5000 },
-  { label:'블로그 순위 분석 중',  icon:'📊', desc:'키워드별 블로그 검색 순위를 확인하고 있어요',         ms:60000 },
-  { label:'결과 정리 중',         icon:'✅', desc:'분석 결과를 정리하고 있어요 — 거의 다 됐어요!',       ms:999999 },
+  { label:'매장 정보 수집 중',    icon:'search',        desc:'네이버 플레이스에서 매장 정보를 읽어오고 있어요',       ms:15000 },
+  { label:'키워드 추출 중',       icon:'file-text',     desc:'블로그 검색에 사용할 키워드를 생성하고 있어요',        ms:5000 },
+  { label:'블로그 순위 분석 중',  icon:'bar-chart-3',   desc:'키워드별 블로그 검색 순위를 확인하고 있어요',         ms:60000 },
+  { label:'결과 정리 중',         icon:'check-circle-2',desc:'분석 결과를 정리하고 있어요 — 거의 다 됐어요!',       ms:999999 },
 ];
 
 function startLoading(type){
@@ -1750,14 +1756,15 @@ function startLoading(type){
 
   // 분석 유형에 따라 로딩 화면 텍스트 변경
   if(type === 'blog'){
-    document.getElementById('lIcon').textContent = '📝';
+    document.getElementById('lIcon').innerHTML = '<i data-lucide="file-text" class="rpt-icon is-good"></i>';
     document.getElementById('lTitle').textContent = '블로그 분석 중이에요';
     document.getElementById('lProgressText').textContent = '블로그 순위 분석 중';
   } else {
-    document.getElementById('lIcon').textContent = '📊';
+    document.getElementById('lIcon').innerHTML = '<i data-lucide="bar-chart-3" class="rpt-icon is-good"></i>';
     document.getElementById('lTitle').textContent = '플레이스 진단 중이에요';
     document.getElementById('lProgressText').textContent = '키워드 분석 중';
   }
+  if(window.lucide) lucide.createIcons();
 
   // S단계: 가짜 단계 애니메이션 제거, 진행률 바만 유지
   _animateLBar();
@@ -1780,10 +1787,10 @@ function _renderLSteps(active,steps){
   const stepsArr = steps || L_STEPS;
   document.getElementById('lSteps').innerHTML=stepsArr.map((s,i)=>{
     const state=i<active?'done':i===active?'active':'pending';
-    const ic=state==='done'?'✓':s.icon;
+    const ic=state==='done'?'check':s.icon;
     const dots=state==='active'?'<span class="dots"><span></span><span></span><span></span></span>':'';
     return `<div class="l-step">
-      <div class="l-ic ${state}">${ic}</div>
+      <div class="l-ic ${state}"><i data-lucide="${ic}" class="rpt-icon"></i></div>
       <div class="l-body">
         <div class="l-name ${state}">${s.label}${dots}</div>
         ${state!=='pending'?`<div class="l-desc">${s.desc}</div>`:''}
@@ -1890,10 +1897,11 @@ async function analyzePlaceOnly(){
       const area = document.getElementById('kwPopupArea');
       area.innerHTML = `
         <div class="kw-analyzing">
-          <div class="kw-analyzing-icon">🔍</div>
+          <div class="kw-analyzing-icon"><i data-lucide="search" class="rpt-icon"></i></div>
           <div class="kw-analyzing-text">다음 키워드 분석 중<span class="kw-analyzing-dots"><span></span><span></span><span></span></span></div>
         </div>
       `;
+      if(window.lucide) lucide.createIcons();
     }
 
     eventSource.addEventListener('keyword', (e) => {
@@ -1916,8 +1924,8 @@ async function analyzePlaceOnly(){
       if(rank !== null) {
         let reaction = '';
         let rankClass = '';
-        if(rank === 1) { reaction = '오~! 🎉'; rankClass = 'top'; }
-        else if(rank <= 3) { reaction = 'Nice! 👍'; rankClass = 'top'; }
+        if(rank === 1) { reaction = '오~!'; rankClass = 'top'; }
+        else if(rank <= 3) { reaction = 'Nice!'; rankClass = 'top'; }
         else if(rank <= 5) { reaction = 'Good!'; rankClass = 'top'; }
         else if(rank <= 10) { rankClass = 'top'; }
 
