@@ -183,7 +183,9 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
 /* MAIN */
 .main{max-width:540px;margin:0 auto;padding:var(--spacing-md) 16px 100px;}
-@media(min-width:768px){.main{max-width:820px;padding-left:20px;padding-right:20px;}}
+@media(min-width:768px){.main{max-width:1040px;padding-left:24px;padding-right:24px;}}
+@media(min-width:768px){.hero h1,.hero-sub{max-width:600px;margin-left:auto;margin-right:auto;}}
+@media(min-width:768px){.axis-grid{gap:20px;}}
 
 /* INPUT CARD */
 .input-card{background:#fff;border-radius:var(--radius-lg);border:var(--card-border);padding:28px 24px;box-shadow:var(--shadow);}
@@ -421,6 +423,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .chip-good{background:var(--score-green);}
 .chip-ok{background:var(--orange);}
 .chip-bad{background:var(--red);}
+.chip-none{background:#F1F3F5;color:#98A2B0;}
 
 /* COMPETITOR */
 .comp-rows{display:flex;flex-direction:column;gap:14px;}
@@ -451,14 +454,18 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
 /* KEYWORDS */
 .kw-list{display:flex;flex-direction:column;gap:10px;}
-.kw-item{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow-sm);transition:all .2s ease;}
+.kw-item{background:#fff;border:1px solid var(--gray-200);border-left:3px solid var(--gray-200);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow-sm);transition:all .2s ease;}
 .kw-item:hover{border-color:var(--green);box-shadow:var(--shadow);}
+.kw-item.rank-top{border-left-color:var(--brand-green);}
+.kw-item.rank-high{border-left-color:#7DD8B8;}
+.kw-item.rank-mid{border-left-color:#E0E6EB;}
 .kw-main{display:flex;align-items:center;gap:12px;}
-.kw-rank-col{font-size:1.6rem;font-weight:800;min-width:50px;text-align:center;line-height:1.1;flex-shrink:0;letter-spacing:-.5px;}
+.kw-rank-col{font-size:1.65rem;font-weight:800;min-width:54px;text-align:center;line-height:1.1;flex-shrink:0;letter-spacing:-.5px;}
+.kw-rank-col .unit{font-size:.9rem;font-weight:600;}
 .kw-divider{width:1px;background:var(--gray-200);align-self:stretch;flex-shrink:0;}
 .kw-info{flex:1;min-width:0;}
 .kw-title-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
-.kw-text{font-size:.82rem;font-weight:600;min-width:0;}
+.kw-text{font-size:.95rem;font-weight:700;color:#1A2B3C;min-width:0;}
 .kw-count{font-size:.7rem;color:var(--gray-400);white-space:nowrap;flex-shrink:0;}
 .kw-grade-badge{font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0;margin-left:auto;}
 .kw-sub{font-size:.73rem;color:var(--gray-500);margin-top:3px;line-height:1.5;}
@@ -1690,7 +1697,7 @@ function scoreColor(s){
   return '#ef4444';
 }
 function scoreChip(s, low='부족', mid='보통', high='좋음'){
-  if(s == null) return `<span class="chip chip-ok">-</span>`;
+  if(s == null) return `<span class="chip chip-none">정보 없음</span>`;
   const c = s>=70?'chip-good':s>=40?'chip-ok':'chip-bad';
   const l = s>=70?high:s>=40?mid:low;
   return `<span class="chip ${c}">${l}</span>`;
@@ -2169,19 +2176,29 @@ function renderResult(d){
       else ment = '살짝 주춤했어요. 조금만 관리하면 금방 회복돼요';
     } else {
       cls = 'trend-same';
-      arrow = '→';
-      ment = '지난번과 같은 점수를 유지하고 있어요';
+      arrow = '―';
+      ment = '지난번과 같은 순위를 유지하고 있어요';
     }
 
     trendEl.className = 'score-trend ' + cls;
-    trendEl.innerHTML = `
-      <div class="trend-main">
-        <span class="trend-arrow">${arrow}</span>
-        <span class="trend-diff">${diff > 0 ? '+' : ''}${diff}점</span>
-        <span class="trend-vs">(${prevScore}점 → ${Math.round(tot)}점)</span>
-      </div>
-      <div class="trend-ment">${ment}</div>
-    `;
+    if(diff === 0) {
+      trendEl.innerHTML = `
+        <div class="trend-main">
+          <span class="trend-arrow">${arrow}</span>
+          <span class="trend-vs">${Math.round(tot)}점 유지</span>
+        </div>
+        <div class="trend-ment">${ment}</div>
+      `;
+    } else {
+      trendEl.innerHTML = `
+        <div class="trend-main">
+          <span class="trend-arrow">${arrow}</span>
+          <span class="trend-diff">${diff > 0 ? '+' : ''}${diff}점</span>
+          <span class="trend-vs">(${prevScore}점 → ${Math.round(tot)}점)</span>
+        </div>
+        <div class="trend-ment">${ment}</div>
+      `;
+    }
     trendEl.style.display = 'block';
   } else {
     trendEl.style.display = 'none';
@@ -2459,10 +2476,10 @@ function renderCompetitor(d){
       ment=`${esc(compName)}와는 근소한 차이 — 약간의 최적화로 역전 가능해요`;
     } else if(gap!=null && gap<=5){
       tone='#f97316';
-      ment=`${esc(compName)}은(는) 플레이스 광고나 상위노출 작업을 진행 중인 것으로 보여요`;
+      ment=`${esc(compName)} 매장은 플레이스 광고나 상위노출 작업을 진행 중인 것으로 보여요`;
     } else {
       tone='#ef4444';
-      ment=`${esc(compName)}은(는) 리뷰·키워드 관리에 꾸준히 투자하거나 광고를 병행하는 것으로 분석돼요`;
+      ment=`${esc(compName)} 매장은 리뷰·키워드 관리에 꾸준히 투자하거나 광고를 병행하는 것으로 분석돼요`;
     }
     const gapTxt = gap!=null ? `${gap}계단 차이` : '아직 순위권 밖';
 
@@ -2577,14 +2594,20 @@ function renderKeywords(expanded, prevRankMap, kwHistory){
     const gradeBadge=grade?`<span class="kw-grade-badge" style="${GRADE_STYLE[grade]}">${grade}급</span>`:'';
     const rc=rankColor(k.rank);
     const rankDisplay=k.rank
-      ?`${k.rank}<span style="font-size:.6em;font-weight:600">위</span>`
+      ?`${k.rank}<span class="unit">위</span>`
       :`<span style="font-size:.85rem;font-weight:700;color:#ef4444">놓침</span>`;
     const countHtml=k.businesses_total?`<span class="kw-count">등록업체 ${k.businesses_total.toLocaleString()}개</span>`:'';
 
     // J단계: 키워드 히스토리 추세 표시
     let trendHtml = buildKeywordTrend(k.keyword, k.rank, _lastKwHistory);
 
-    return `<div class="kw-item">
+    // 순위별 클래스 결정
+    let rankClass = '';
+    if(k.rank === 1) rankClass = 'rank-top';
+    else if(k.rank && k.rank <= 3) rankClass = 'rank-high';
+    else if(k.rank) rankClass = 'rank-mid';
+
+    return `<div class="kw-item ${rankClass}">
       <div class="kw-main">
         <div class="kw-rank-col" style="color:${rc}">${rankDisplay}${trendHtml}</div>
         <div class="kw-divider"></div>
@@ -2877,7 +2900,7 @@ function renderComment(d, sc){
 
   if(oppKw){
     const gap=Math.max(1,oppKw.rank-5);
-    lines.push({i:'lightbulb',c:'is-warn',t:`다만 '${esc(oppKw.keyword)}'이(가) ${oppKw.rank}위라, ${gap}계단만 올리면 첫 화면이에요.`});
+    lines.push({i:'lightbulb',c:'is-warn',t:`다만 '${esc(oppKw.keyword)}' 키워드가 ${oppKw.rank}위라, ${gap}계단만 올리면 첫 화면이에요.`});
   } else if(rankedKws.length===0&&allKws.length>0){
     lines.push({i:'lightbulb',c:'is-warn',t:`'${esc(allKws[0].keyword)}' 같은 핵심 키워드에서 노출이 안 돼, 검색 손님을 놓치고 있어요.`});
   }
@@ -2903,7 +2926,7 @@ function renderComment(d, sc){
     content:'리뷰·별점 관리가 경쟁사 대비 약해요',
     activity:'최근 리뷰 활동이 뜸해 신선도가 떨어져요',
   }[weakKey];
-  lines.push({i:'alert-circle',c:'is-warn',t:`${AX[weakKey]}이(가) ${weakVal}점으로, ${weakReason}.`});
+  lines.push({i:'alert-circle',c:'is-warn',t:`${AX[weakKey]} 점수는 ${weakVal}점으로, ${weakReason}.`});
 
   // 4) 해결 방향
   const fix={
