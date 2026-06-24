@@ -229,7 +229,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .step-num{flex-shrink:0;width:36px;height:36px;border-radius:50%;background:var(--primary-gradient);color:#fff;font-weight:700;font-size:1rem;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,184,148,.3);}
 .step-body .s-title{font-size:.95rem;font-weight:700;color:var(--gray-800);margin-bottom:4px;letter-spacing:-.2px;}
 .step-body .s-desc{font-size:.84rem;color:var(--gray-500);line-height:1.55;}
-@media(min-width:768px){.steps{flex-direction:row;gap:16px;}.step{flex:1;flex-direction:column;align-items:flex-start;text-align:left;}}
+@media(min-width:768px){.steps{flex-direction:row;gap:16px;}.step{flex:1;flex-direction:row;align-items:center;}}
 .preview-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:var(--spacing-lg) var(--spacing-md);text-align:center;box-shadow:var(--shadow);}
 .preview-gauge{position:relative;width:150px;height:150px;margin:0 auto;}
 .preview-score{position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:2.4rem;font-weight:800;color:var(--green-d);line-height:1;}
@@ -437,6 +437,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .comp-gap{margin-top:8px;font-size:.82rem;color:var(--red);font-weight:600;}
 /* P단계: 경쟁사 비교 반응형 카드 (PC 가로 최대3 / 모바일 세로) */
 .comp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px;}
+@media(min-width:768px){.comp-grid{max-width:680px;margin-left:auto;margin-right:auto;}}
 .comp-card2{border:1px solid var(--gray-200);border-radius:12px;padding:16px 14px;display:flex;flex-direction:column;gap:9px;}
 .comp-grade{align-self:flex-start;font-size:.68rem;font-weight:700;color:#fff;padding:3px 9px;border-radius:6px;}
 .comp-kw{font-size:.98rem;font-weight:700;color:var(--gray-900);}
