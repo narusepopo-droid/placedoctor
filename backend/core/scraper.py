@@ -1427,7 +1427,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
           "scores":     { seo, content, activity, ad, total, detail },
         }
     """
-    N_WORKERS  = 6   # 테스트: 5→6 (원복 시 5). 플마 N_PLACE=5
+    N_WORKERS  = 5   # 플마 동일 (N_PLACE=5). 6 테스트=2 vCPU 포화로 동일 시간→5 유지
     MAX_KW     = 30  # 상위 우선순위 키워드 (역·동 두 지역 키워드 모두 포함)
 
     _t0 = time.perf_counter()  # ⏱ Q단계 타이밍: 전체 시작
@@ -1581,7 +1581,7 @@ async def diagnose_store_stream(
     Yields:
         dict: {"type": "started"|"keyword"|"complete", ...}
     """
-    N_WORKERS = 6   # 테스트: 5→6 (원복 시 5). 라이브 SSE 경로
+    N_WORKERS = 5   # 플마 동일. 라이브 SSE 경로 (6 테스트=2 vCPU 포화로 동일 시간→5 유지)
     MAX_KW = 30
 
     _t0 = time.perf_counter()
