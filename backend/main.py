@@ -218,6 +218,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .value-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:24px 16px;text-align:center;transition:all .25s ease;box-shadow:var(--shadow-sm);}
 .value-card:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:var(--green);}
 .value-card .v-icon{font-size:2rem;display:block;margin-bottom:var(--spacing-sm);}
+.value-card .v-icon-luc{width:28px;height:28px;stroke-width:1.8;margin:0 auto var(--spacing-sm);}
 .value-card .v-title{font-size:.95rem;font-weight:700;color:var(--gray-800);margin-bottom:6px;letter-spacing:-.2px;}
 .value-card .v-desc{font-size:.8rem;color:var(--gray-500);line-height:1.55;}
 .steps{display:flex;flex-direction:column;gap:var(--spacing-sm);}
@@ -401,6 +402,9 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .store-badge .rpt-icon{width:14px;height:14px;vertical-align:-2px;color:currentColor;}
 .btn-action .rpt-icon,.btn-secondary .rpt-icon{width:15px;height:15px;vertical-align:-3px;margin-right:3px;color:currentColor;}
 .chip .rpt-icon{width:12px;height:12px;stroke-width:2.5;vertical-align:-2px;color:currentColor;margin-right:1px;}
+.sec-icon{width:16px;height:16px;vertical-align:-3px;margin-right:4px;}
+.btn-reg-icon{width:22px;height:22px;stroke-width:1.8;}
+.scroll-icon{width:20px;height:20px;stroke-width:2.5;color:#fff;}
 .axis-name{font-size:.84rem;font-weight:700;color:var(--gray-600);letter-spacing:-.2px;}
 .axis-score{font-size:1.9rem;font-weight:800;margin-bottom:8px;letter-spacing:-.5px;}
 .progress-bar{height:7px;background:var(--gray-100);border-radius:6px;overflow:hidden;margin-bottom:var(--spacing-sm);}
@@ -631,6 +635,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .analysis-type-btn.selected{border-color:var(--green);background:var(--green-bg);box-shadow:0 0 0 3px rgba(0,184,148,.15);}
 .analysis-type-btn input{display:none;}
 .type-icon{font-size:1.6rem;}
+.type-icon-luc{width:24px;height:24px;stroke-width:1.8;}
 .type-label{font-size:.92rem;font-weight:700;color:var(--gray-800);letter-spacing:-.2px;}
 .type-desc{font-size:.75rem;color:var(--gray-500);}
 
@@ -685,10 +690,10 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       <section class="lp-section">
         <div class="lp-section-title">무엇을 알 수 있나요</div>
         <div class="value-grid">
-          <div class="value-card"><span class="v-icon">📍</span><div class="v-title">플레이스 순위</div><div class="v-desc">키워드별 내 매장 순위</div></div>
-          <div class="value-card"><span class="v-icon">📝</span><div class="v-title">블로그 노출</div><div class="v-desc">블로그 검색 노출 현황</div></div>
-          <div class="value-card"><span class="v-icon">📈</span><div class="v-title">변화 추적</div><div class="v-desc">지난 분석 대비 순위 변화</div></div>
-          <div class="value-card"><span class="v-icon">⚔️</span><div class="v-title">경쟁사 비교</div><div class="v-desc">1위 매장과의 격차</div></div>
+          <div class="value-card"><i data-lucide="map-pin" class="rpt-icon is-info v-icon-luc"></i><div class="v-title">플레이스 순위</div><div class="v-desc">키워드별 내 매장 순위</div></div>
+          <div class="value-card"><i data-lucide="file-text" class="rpt-icon is-info v-icon-luc"></i><div class="v-title">블로그 노출</div><div class="v-desc">블로그 검색 노출 현황</div></div>
+          <div class="value-card"><i data-lucide="trending-up" class="rpt-icon is-info v-icon-luc"></i><div class="v-title">변화 추적</div><div class="v-desc">지난 분석 대비 순위 변화</div></div>
+          <div class="value-card"><i data-lucide="swords" class="rpt-icon is-info v-icon-luc"></i><div class="v-title">경쟁사 비교</div><div class="v-desc">1위 매장과의 격차</div></div>
         </div>
       </section>
 
@@ -734,13 +739,13 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
         <div class="analysis-type-grid">
           <label class="analysis-type-btn selected" data-type="place">
             <input type="radio" name="analysisType" value="place" checked>
-            <span class="type-icon">📍</span>
+            <i data-lucide="map-pin" class="rpt-icon is-info type-icon-luc"></i>
             <span class="type-label">플레이스</span>
             <span class="type-desc">순위·리뷰·경쟁사</span>
           </label>
           <label class="analysis-type-btn" data-type="blog">
             <input type="radio" name="analysisType" value="blog">
-            <span class="type-icon">📝</span>
+            <i data-lucide="file-text" class="rpt-icon is-info type-icon-luc"></i>
             <span class="type-label">블로그</span>
             <span class="type-desc">블로그 노출 순위</span>
           </label>
@@ -763,7 +768,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
     <!-- M단계: 내 매장 -->
     <div class="registered-section" id="myStoresSection" style="display:none;">
       <div class="registered-header">
-        <span class="registered-title">⭐ 내 매장</span>
+        <span class="registered-title"><i data-lucide="star" class="rpt-icon is-info sec-icon"></i> 내 매장</span>
         <span class="registered-count" id="myStoresCount"></span>
       </div>
       <div class="registered-list" id="myStoresList"></div>
@@ -772,7 +777,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
     <!-- M단계: 경쟁 매장 -->
     <div class="registered-section" id="rivalStoresSection" style="display:none;">
       <div class="registered-header">
-        <span class="registered-title">👀 옆 매장 몰래보기</span>
+        <span class="registered-title"><i data-lucide="eye" class="rpt-icon is-info sec-icon"></i> 옆 매장 몰래보기</span>
         <span class="registered-count" id="rivalStoresCount"></span>
       </div>
       <div class="registered-desc">경쟁 매장 순위를 슬쩍 지켜보세요</div>
@@ -869,7 +874,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
     <!-- K단계: 최근 본 매장 -->
     <div class="recent-stores-section" id="recentStoresSection" style="display:none;">
       <div class="recent-stores-header">
-        <span>🕐 최근 본 매장</span>
+        <span><i data-lucide="clock" class="rpt-icon is-info sec-icon"></i> 최근 본 매장</span>
         <span class="btn-clear-all" onclick="clearAllRecentStores()">전체 지우기</span>
       </div>
       <div class="recent-stores-list" id="recentStoresList"></div>
@@ -1032,12 +1037,12 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
     <!-- M단계: 등록 버튼 -->
     <div class="register-buttons" id="registerButtons">
       <div class="btn-register" id="btnRegisterMy" onclick="registerStore('my')">
-        <span class="btn-register-icon">⭐</span>
+        <i data-lucide="star" class="rpt-icon is-info btn-reg-icon"></i>
         <span class="btn-register-label">내 매장으로 등록</span>
         <span class="btn-register-hint">매주 순위 변화를 알려드려요<br>(곧 출시)</span>
       </div>
       <div class="btn-register" id="btnRegisterRival" onclick="registerStore('rival')">
-        <span class="btn-register-icon">👀</span>
+        <i data-lucide="eye" class="rpt-icon is-info btn-reg-icon"></i>
         <span class="btn-register-label">경쟁 매장으로 등록</span>
         <span class="btn-register-hint">옆 매장 순위를 슬쩍 지켜보세요</span>
       </div>
@@ -1047,7 +1052,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 </div>
 
 <!-- N단계: 맨 위로 플로팅 버튼 -->
-<button class="btn-scroll-top" id="btnScrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+<button class="btn-scroll-top" id="btnScrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})"><i data-lucide="arrow-up" class="rpt-icon scroll-icon"></i></button>
 
 <script>
 // ── 상태 ──────────────────────────────────────────────────────────────────────
@@ -1436,14 +1441,14 @@ async function updateRegisterButtons(placeId){
     if(status.is_my){
       btnMy.classList.add('registered');
       btnMy.innerHTML = `
-        <span class="btn-register-icon">✓</span>
+        <i data-lucide="check" class="rpt-icon is-good btn-reg-icon"></i>
         <span class="btn-register-label">내 매장 등록됨</span>
         <span class="btn-unregister" onclick="event.stopPropagation(); unregisterStore('my')">등록 해제</span>
       `;
     } else {
       btnMy.classList.remove('registered');
       btnMy.innerHTML = `
-        <span class="btn-register-icon">⭐</span>
+        <i data-lucide="star" class="rpt-icon is-info btn-reg-icon"></i>
         <span class="btn-register-label">내 매장으로 등록</span>
         <span class="btn-register-hint">매주 순위 변화를 알려드려요<br>(곧 출시)</span>
       `;
@@ -1452,18 +1457,19 @@ async function updateRegisterButtons(placeId){
     if(status.is_rival){
       btnRival.classList.add('registered');
       btnRival.innerHTML = `
-        <span class="btn-register-icon">✓</span>
+        <i data-lucide="check" class="rpt-icon is-good btn-reg-icon"></i>
         <span class="btn-register-label">경쟁 매장 등록됨</span>
         <span class="btn-unregister" onclick="event.stopPropagation(); unregisterStore('rival')">등록 해제</span>
       `;
     } else {
       btnRival.classList.remove('registered');
       btnRival.innerHTML = `
-        <span class="btn-register-icon">👀</span>
+        <i data-lucide="eye" class="rpt-icon is-info btn-reg-icon"></i>
         <span class="btn-register-label">경쟁 매장으로 등록</span>
         <span class="btn-register-hint">옆 매장 순위를 슬쩍 지켜보세요</span>
       `;
     }
+    lucide.createIcons();
   }catch(e){
     console.log('등록 상태 확인 실패:', e);
   }
@@ -4041,7 +4047,9 @@ _ADMIN_HTML = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>플레이스랭킹 관리자</title>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.294.0/dist/umd/lucide.min.js"></script>
 <style>
+  .adm-icon{width:16px;height:16px;stroke-width:2;vertical-align:-3px;margin-right:6px;}
   :root{
     --green:#00C896; --green-d:#00B085; --green-soft:#E6F7F2;
     --ink:#1A2B3C; --sub:#6B7C8F; --line:#E8EDF1; --bg:#F6F8FA; --white:#fff;
@@ -4160,10 +4168,10 @@ _ADMIN_HTML = """<!DOCTYPE html>
   <aside class="side">
     <div class="brand">플레이스<span>랭킹</span> <span style="color:var(--sub);font-weight:600;font-size:12px">admin</span></div>
     <nav class="nav">
-      <button class="on" data-p="dash"><span class="ico">📊</span> 대시보드</button>
-      <button data-p="lead"><span class="ico">👥</span> 회원·리드</button>
-      <button data-p="store"><span class="ico">🏪</span> 매장 모니터링</button>
-      <button data-p="alim"><span class="ico">💬</span> 알림톡 관리</button>
+      <button class="on" data-p="dash"><i data-lucide="layout-dashboard" class="adm-icon"></i> 대시보드</button>
+      <button data-p="lead"><i data-lucide="users" class="adm-icon"></i> 회원·리드</button>
+      <button data-p="store"><i data-lucide="store" class="adm-icon"></i> 매장 모니터링</button>
+      <button data-p="alim"><i data-lucide="message-square" class="adm-icon"></i> 알림톡 관리</button>
     </nav>
     <div class="side-foot"><a onclick="doLogout()">로그아웃</a></div>
   </aside>
@@ -4225,7 +4233,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
 
 <b>#{매장명}</b>님, 순위 모니터링을 시작했어요.
 이제 매주 <b>#{요일}</b>에 플레이스 키워드 순위 변화를 정리해 보내드릴게요.</div>
-        <div class="lockhint">🔒 위 골격은 카카오 승인 영역 (수정 불가). #{ } 자리는 발송 때 자동으로 채워짐.</div>
+        <div class="lockhint"><i data-lucide="lock" class="adm-icon"></i> 위 골격은 카카오 승인 영역 (수정 불가). #{ } 자리는 발송 때 자동으로 채워짐.</div>
         <div class="addlbl">추가문구 (자유 수정)</div>
         <textarea id="tplSignup"></textarea>
         <div class="savebar"><span class="saved-msg" id="savedSignup">저장됨</span><button class="btn" onclick="saveTemplate('signup')">저장</button></div>
@@ -4239,7 +4247,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
 지난주 <b>#{지난순위}</b>위 → 이번주 <b>#{이번순위}</b>위
 
 전체 키워드와 경쟁 매장 변화는 아래에서 확인하세요.</div>
-        <div class="lockhint">🔒 위 골격은 카카오 승인 영역 (수정 불가).</div>
+        <div class="lockhint"><i data-lucide="lock" class="adm-icon"></i> 위 골격은 카카오 승인 영역 (수정 불가).</div>
         <div class="addlbl">추가문구 (자유 수정)</div>
         <textarea id="tplWeekly"></textarea>
         <div class="savebar"><span class="saved-msg" id="savedWeekly">저장됨</span><button class="btn" onclick="saveTemplate('weekly')">저장</button></div>
@@ -4258,6 +4266,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
 </div>
 
 <script>
+lucide.createIcons();
 const btns=document.querySelectorAll('.nav button');
 const pages=document.querySelectorAll('.page');
 btns.forEach(b=>b.addEventListener('click',()=>{
