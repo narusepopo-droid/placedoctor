@@ -3564,7 +3564,7 @@ async def analyze_blog(req: schemas.BlogAnalyzeRequest):
                 place_id=req.place_id,
                 address=req.address,
                 keywords=keywords,
-                max_keywords=30,
+                max_keywords=15,
             ),
             _proactor_loop,
         )
@@ -3666,8 +3666,8 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
                 store_name=req.store_name,
                 place_id=place_id,
                 address=address,
-                keywords=keywords[:30],
-                max_keywords=30,
+                keywords=keywords[:15],
+                max_keywords=15,
             ),
             _proactor_loop,
         )
