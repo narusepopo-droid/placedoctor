@@ -911,7 +911,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
       <!-- 맞춤형 팁 (부팅 후 표시) -->
       <div id="tip-section">
-        <div class="tip-header"><i data-lucide="lightbulb" class="rpt-icon is-warn tip-icon"></i>플레이스 순위 높이는 꿀팁</div>
+        <div class="tip-header"><i data-lucide="lightbulb" class="rpt-icon is-warn tip-icon"></i><span id="tipHeaderText">플레이스 순위 높이는 꿀팁</span></div>
         <div class="tip-item"><i data-lucide="lightbulb" class="rpt-icon is-warn"></i><span id="tip-text"></span></div>
       </div>
 
@@ -1096,14 +1096,20 @@ let _tipList = [];
 let _tipInterval = null;
 
 // 부팅 시퀀스 표시
-function showBootSequence(storeName, category, address) {
+function showBootSequence(storeName, category, address, mode) {
+  mode = mode || 'place';
+  // 마지막 2단계만 분석 유형별로 다름 (앞 4단계 = 연결·매장·카테고리·지역 공통)
+  const tail = mode === 'blog'
+    ? [{i:'file-text',  c:'is-info', t:'블로그 키워드 추출 중...'},
+       {i:'play-circle',c:'is-good', t:'블로그 노출 분석 시작!'}]
+    : [{i:'search',     c:'is-info', t:'키워드 목록 생성 중...'},
+       {i:'play-circle',c:'is-good', t:'순위 분석 시작!'}];
   const steps = [
-    {i:'link',          c:'is-info', t:'네이버 플레이스 연결 중...'},
+    {i:'link',          c:'is-info', t:'네이버 ' + (mode === 'blog' ? '블로그' : '플레이스') + ' 연결 중...'},
     {i:'check-circle-2',c:'is-good', t:(storeName || '매장') + ' 확인됨'},
     {i:'check-circle-2',c:'is-good', t:'카테고리: ' + (category || '매장 정보 확인됨')},
     {i:'check-circle-2',c:'is-good', t:'지역: ' + (address ? address.split(' ').slice(0,2).join(' ') : '위치 확인됨')},
-    {i:'search',        c:'is-info', t:'키워드 목록 생성 중...'},
-    {i:'play-circle',   c:'is-good', t:'순위 분석 시작!'},
+    ...tail,
   ];
 
   const container = document.getElementById('boot-sequence');
@@ -1122,7 +1128,7 @@ function showBootSequence(storeName, category, address) {
         setTimeout(() => {
           container.style.display = 'none';
           document.getElementById('tip-section').style.display = 'flex';
-          startTips(storeName, category, address);
+          startTips(storeName, category, address, mode);
         }, 1000);
       }
     }, i * 600);
@@ -1216,9 +1222,30 @@ function getTips(storeName, category, address) {
   return [...categoryTips, ...commonTips].sort(() => Math.random() - 0.5);
 }
 
+// 블로그 분석용 맞춤 팁 (블로그 노출/마케팅 내용)
+function getBlogTips(storeName, address) {
+  const region = address ? address.split(' ').slice(0,2).join(' ') : '이 지역';
+  const name = storeName || '우리 매장';
+  return [
+    "블로그 체험단 포스팅은 발행 후 2~4주에 순위에 반영돼요",
+    name + "은 제목 앞쪽에 핵심 키워드를 넣은 블로그가 상위 노출에 유리해요",
+    "사진 10장 이상 + 1,500자 이상 포스팅이 검색 노출에 강해요",
+    "같은 키워드로 여러 블로거가 써주면 상위 노출 확률이 올라가요",
+    "방문 후기형(영수증 인증) 블로그가 신뢰도·노출에 더 유리해요",
+    "블로그 제목에 '" + region + " + 업종'을 함께 넣으면 검색에 잘 잡혀요",
+    "협찬·체험단 표기는 정확히 — 네이버 저품질 회피에 중요해요",
+    "발행 직후보다 2주 뒤에 순위가 더 안정적으로 잡혀요",
+    "매달 꾸준히 몇 건씩 발행되는 매장이 상위에 오래 남아요",
+    "본문에 매장 정보·지도 링크를 넣으면 키워드 연관도가 올라가요",
+    name + "을 태그한 블로그가 많을수록 플레이스 노출에도 도움이 돼요",
+  ].sort(() => Math.random() - 0.5);
+}
+
 // 팁 시작
-function startTips(storeName, category, address) {
-  _tipList = getTips(storeName, category, address);
+function startTips(storeName, category, address, mode) {
+  _tipList = (mode === 'blog') ? getBlogTips(storeName, address) : getTips(storeName, category, address);
+  const _hdr = document.getElementById('tipHeaderText');
+  if(_hdr) _hdr.textContent = (mode === 'blog') ? '블로그 노출 높이는 꿀팁' : '플레이스 순위 높이는 꿀팁';
   _tipIdx = 0;
   showTip(_tipIdx);
   _tipInterval = setInterval(() => {
@@ -1801,6 +1828,7 @@ function startLoading(type){
 
 function stopLoading(){
   clearInterval(_lTimer); cancelAnimationFrame(_lRafId);
+  stopTips();  // 부팅/팁 슬라이더 정지 (블로그·플레이스 공통)
   document.getElementById('lBar').style.width='100%';
   document.getElementById('lPct').textContent='100%';
 }
@@ -2099,6 +2127,9 @@ async function analyzeBlogOnly(){
   document.getElementById('loading-section').style.display='block';
   startLoading('blog');
   window.scrollTo({top:0,behavior:'smooth'});
+
+  // 블로그 부팅 시퀀스 + 꿀팁 (플레이스와 동일 느낌, 내용은 블로그용)
+  showBootSequence(name, '', '', 'blog');
 
   const MIN_SHOW_MS = 1500;
 
