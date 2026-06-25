@@ -1633,13 +1633,12 @@ function goBackToSearch(){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-// K단계: 같은 매장 다시 분석
+// K단계: 같은 매장 다시 분석 (현재 탭 기준)
 async function reAnalyze(){
   if(!_lastStoreName || !_lastPlaceUrl){
     const d = window._diagData;
     if(d){
       _lastStoreName = d.store_name || '';
-      // place_url은 없을 수 있으므로 place_id로 재구성
       _lastPlaceUrl = d.place_url || (d.place_id ? 'https://m.place.naver.com/place/' + d.place_id : '');
     }
   }
@@ -1651,12 +1650,18 @@ async function reAnalyze(){
 
   document.getElementById('storeName').value = _lastStoreName;
   document.getElementById('placeUrl').value = _lastPlaceUrl;
-  _forceRefresh = true;  // "다시 분석"은 캐시 무시하고 재크롤
+  _forceRefresh = true;
 
-  // 분석 유형 유지
-  _analysisType = 'place';
+  // 현재 보고 있는 탭 기준으로 분석 유형 결정
+  const blogTabVisible = document.getElementById('tab-blog').style.display !== 'none'
+                      && document.getElementById('tab-blog').classList.contains('active');
+  const placeTabVisible = document.getElementById('tab-place').style.display !== 'none';
+
+  // 블로그 탭만 보이면 블로그, 아니면 플레이스
+  _analysisType = (blogTabVisible && !placeTabVisible) ? 'blog' : 'place';
+
   document.querySelectorAll('.analysis-type-btn').forEach(b => b.classList.remove('selected'));
-  document.querySelector('.analysis-type-btn[data-type="place"]').classList.add('selected');
+  document.querySelector(`.analysis-type-btn[data-type="${_analysisType}"]`).classList.add('selected');
 
   startAnalysis();
 }
