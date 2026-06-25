@@ -1839,3 +1839,136 @@ async def analyze_blog_ranking(
 
     finally:
         await close_browser(playwright, browser)
+
+
+async def analyze_blog_stream(
+    store_name: str,
+    place_url: str = "",
+    place_id: str = "",
+    keywords: list[str] | None = None,
+    address: str = "",
+    category: str = "",
+):
+    """
+    analyze_blog_ranking의 SSE 스트리밍 버전 (블로그 단독 분석).
+    키워드 하나가 검사될 때마다 yield → 실시간 "검출!" 팝업용.
+
+    diagnose_store_stream과 동일한 구조:
+      started → blog_keyword(키워드별) → complete
+
+    Yields:
+        dict: {"type": "started"|"blog_keyword"|"complete"|"error", ...}
+    """
+    import re as _re
+
+    N_BLOG = 3       # analyze_blog_ranking과 동일 (2 vCPU 안정)
+    MAX_BLOG_KW = 15
+    keywords = list(keywords or [])
+
+    playwright, browser, context = await create_browser()
+    try:
+        # ── 매장 정보/키워드 해석 (place_id·주소·키워드 중 빠진 게 있으면 크롤) ──
+        if not place_id or not address or not keywords:
+            detail_page = await create_stealth_page(context)
+            info = await get_store_details(detail_page, place_url)
+            place_id = info.get("place_id") or place_id
+            address = info.get("address", "") or address
+            category = info.get("category", "") or category
+            if not keywords:
+                keywords = generate_keywords(
+                    store_name=store_name,
+                    category=category,
+                    address=address,
+                    menu_items=info.get("menu_items", []),
+                    official_keywords=info.get("official_keywords", []),
+                    nearby_station=info.get("nearby_station", ""),
+                    keyword_list=info.get("keyword_list", []),
+                )
+
+        if not place_id:
+            yield {"type": "error",
+                   "message": "URL에서 네이버 플레이스를 찾지 못했어요. 네이버 지도에서 매장 상세 페이지 URL(또는 공유 링크)을 입력해 주세요."}
+            return
+
+        # ── 브랜드 제거 (analyze_blog_standalone과 동일: 플마 스타일) ──
+        _brand_base = _re.sub(r"(본점|직영점|지점|점)$", "", store_name.strip()).strip()
+        _brand_parts = [bp for bp in _re.split(r"\s+", _brand_base) if len(bp) >= 2]
+        _brand_only = set([store_name.strip(), _brand_base] + _brand_parts)
+        keywords = [k for k in keywords if k and k not in _brand_only][:MAX_BLOG_KW]
+
+        # ⭐ started 이벤트 즉시 전송 (504 방지)
+        yield {
+            "type": "started",
+            "total_keywords": len(keywords),
+            "store_name": store_name,
+            "place_id": place_id,
+            "category": category,
+            "address": address,
+        }
+
+        if not keywords:
+            yield {"type": "complete", "result": {
+                "store_name": store_name, "place_id": place_id, "address": address,
+                "category": category, "blog_results": [], "total_matched": 0,
+                "analyzed_keywords": 0, "keywords_used": []}}
+            return
+
+        # ── 병렬 블로그 검색 (하나씩 yield) ──
+        url_cache: dict = {}
+        search_pool: asyncio.Queue = asyncio.Queue()
+        insp_pool: asyncio.Queue = asyncio.Queue()
+        for _ in range(N_BLOG):
+            search_pool.put_nowait(await create_stealth_page(context))
+            insp_pool.put_nowait(await create_stealth_page(context))
+
+        results_queue: asyncio.Queue = asyncio.Queue()
+
+        async def _blog_task(idx: int, kw: str):
+            pg = await search_pool.get()
+            ip = await insp_pool.get()
+            try:
+                hits = await check_blog_ranking_deep(
+                    page=pg, inspect_page=ip, keyword=kw,
+                    store_name=store_name, place_id=place_id, address=address,
+                    url_cache=url_cache, max_hits=5,
+                )
+            except Exception as e:
+                logger.error(f"  블로그 분석 오류({kw}): {e}")
+                hits = [{"status": f"오류: {str(e)[:40]}", "rank": None,
+                         "title": "", "blog_link": "", "score": 0, "reasons": [str(e)[:80]]}]
+            finally:
+                search_pool.put_nowait(pg)
+                insp_pool.put_nowait(ip)
+            await results_queue.put((idx, kw, hits))
+
+        tasks = [asyncio.create_task(_blog_task(i, kw)) for i, kw in enumerate(keywords)]
+
+        completed = 0
+        total = len(keywords)
+        results_map: dict = {}
+        while completed < total:
+            idx, kw, hits = await results_queue.get()
+            results_map[idx] = {"keyword": kw, "hits": hits}
+            completed += 1
+            ranks = [h["rank"] for h in hits if h.get("rank")]
+            yield {
+                "type": "blog_keyword",
+                "keyword": kw,
+                "matched": len(ranks),
+                "best_rank": min(ranks) if ranks else None,
+                "progress": completed,
+                "total": total,
+            }
+
+        await asyncio.gather(*tasks)
+        blog_results = [results_map[i] for i in range(total)]
+        total_matched = sum(len([h for h in r["hits"] if h.get("rank")]) for r in blog_results)
+
+        yield {"type": "complete", "result": {
+            "store_name": store_name, "place_id": place_id, "address": address,
+            "category": category, "blog_results": blog_results,
+            "total_matched": total_matched, "analyzed_keywords": len(blog_results),
+            "keywords_used": keywords}}
+
+    finally:
+        await close_browser(playwright, browser)

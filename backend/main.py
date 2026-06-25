@@ -270,6 +270,13 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .gauge-sub{font-size:.9rem;fill:var(--gray-600);text-anchor:middle;}
 .grade-badge{font-size:1rem;font-weight:700;padding:6px 18px;border-radius:20px;color:#fff;}
 .gauge-summary{font-size:.88rem;color:var(--gray-600);text-align:center;max-width:260px;}
+/* 블로그 노출 요약 헤드라인 (게이지 대체) */
+.blog-headline{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0 4px;}
+.blog-headline .bh-num{font-size:3rem;font-weight:800;line-height:1;background:var(--primary-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.blog-headline .bh-num small{font-size:1.1rem;font-weight:700;-webkit-text-fill-color:var(--gray-500);color:var(--gray-500);margin-left:3px;}
+.blog-headline .bh-sub{font-size:.92rem;font-weight:600;color:var(--gray-700);}
+.blog-headline .bh-sub b{color:var(--brand-green);font-weight:800;}
+.blog-headline .bh-empty{font-size:1.05rem;font-weight:700;color:var(--gray-500);}
 
 /* J단계: 히스토리 추세 */
 .analysis-history-info{margin-top:8px;font-size:.82rem;color:var(--gray-500);text-align:center;}
@@ -946,15 +953,17 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
     <!-- GAUGE (공통) -->
     <div class="card">
-      <div class="card-title">종합 플레이스 점수</div>
+      <div class="card-title" id="gaugeCardTitle">종합 플레이스 점수</div>
       <div class="gauge-wrap">
         <span class="grade-badge" id="gradeBadge">-</span>
-        <svg class="gauge-svg" width="160" height="160" viewBox="0 0 160 160">
+        <svg class="gauge-svg" id="gaugeSvg" width="160" height="160" viewBox="0 0 160 160">
           <circle class="gauge-track" cx="80" cy="80" r="66"/>
           <circle class="gauge-fill" id="gaugeFill" cx="80" cy="80" r="66" stroke-dasharray="0 415" stroke="#22c55e"/>
           <text class="gauge-text" id="gaugeNum" x="80" y="76" fill="#111827">0</text>
           <text class="gauge-sub" x="80" y="98">/100점</text>
         </svg>
+        <!-- 블로그 노출 요약 (블로그 분석 시 게이지 대신 표시) -->
+        <div class="blog-headline" id="blogHeadline" style="display:none;"></div>
         <p class="gauge-summary" id="gaugeSummary"></p>
         <!-- J단계: 종합점수 직전 비교 -->
         <div class="score-trend" id="scoreTrend" style="display:none;"></div>
@@ -2131,46 +2140,113 @@ async function analyzeBlogOnly(){
   // 블로그 부팅 시퀀스 + 꿀팁 (플레이스와 동일 느낌, 내용은 블로그용)
   showBootSequence(name, '', '', 'blog');
 
-  const MIN_SHOW_MS = 1500;
+  function _showBlogPulse(){
+    const area = document.getElementById('kwPopupArea');
+    area.innerHTML = `
+      <div class="kw-analyzing">
+        <div class="kw-analyzing-icon"><i data-lucide="search" class="rpt-icon"></i></div>
+        <div class="kw-analyzing-text">블로그 노출 검색 중<span class="kw-analyzing-dots"><span></span><span></span><span></span></span></div>
+      </div>`;
+    if(window.lucide) lucide.createIcons();
+  }
 
-  // N단계: AbortController
-  _analysisAbortController = new AbortController();
+  let eventSource = null;
+  try {
+    const params = new URLSearchParams({ store_name: name, place_url: url, anon_id: _anonId || '' });
+    eventSource = new EventSource('/analyze-blog-stream?' + params.toString());
 
-  try{
-    const [res] = await Promise.all([
-      fetch('/analyze-blog-standalone',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({store_name:name,place_url:url,anon_id:_anonId}),
-        signal: _analysisAbortController.signal
-      }),
-      new Promise(r=>setTimeout(r, MIN_SHOW_MS))
-    ]);
-    _analysisAbortController = null;
-    const text = await res.text();
-    stopLoading();
-    if(!res.ok){
+    eventSource.addEventListener('started', (e) => {
+      document.getElementById('kwPopupArea').innerHTML = '';
+      document.getElementById('topKwChips').innerHTML = '';
+      _showBlogPulse();
+    });
+
+    eventSource.addEventListener('blog_keyword', (e) => {
+      const d = JSON.parse(e.data);
+      // 진행률 바
+      if(d.total > 0){
+        const pct = Math.min(95, Math.round((d.progress / d.total) * 90));
+        const bar = document.getElementById('lBar'); const pctEl = document.getElementById('lPct');
+        if(bar) bar.style.width = pct + '%';
+        if(pctEl) pctEl.textContent = pct + '%';
+      }
+      const area = document.getElementById('kwPopupArea');
+      const matched = d.matched || 0;
+      const best = d.best_rank;
+      // 검출된 키워드만 팝업 (없으면 담백하게 펄스 유지)
+      if(matched > 0){
+        let reaction = '', rankClass = '';
+        if(best === 1){ reaction='오~!'; rankClass='top'; }
+        else if(best <= 3){ reaction='Nice!'; rankClass='top'; }
+        else if(best <= 5){ reaction='Good!'; rankClass='top'; }
+        else if(best <= 10){ rankClass='top'; }
+
+        const popup = document.createElement('div');
+        popup.className = 'kw-popup';
+        popup.innerHTML = `
+          <div class="kw-text">${esc(d.keyword)}</div>
+          <div class="kw-rank ${rankClass}">${matched}개 검출${best?' · 최고 '+best+'위':''}</div>
+          ${reaction ? '<div class="kw-reaction">' + reaction + '</div>' : ''}
+        `;
+        area.innerHTML = '';
+        area.appendChild(popup);
+
+        // 칩 누적 (최고순위 기준 색)
+        const chipsArea = document.getElementById('topKwChips');
+        let chipClass = 'rank-11-plus';
+        if(best === 1) chipClass='rank-1';
+        else if(best <= 3) chipClass='rank-2-3';
+        else if(best <= 5) chipClass='rank-4-5';
+        else if(best <= 10) chipClass='rank-6-10';
+        const chip = document.createElement('span');
+        chip.className = 'top-kw-chip ' + chipClass;
+        chip.innerHTML = '<span class="chip-rank">' + (best ? best+'위' : '검출') + '</span>' + esc(d.keyword);
+        chipsArea.appendChild(chip);
+
+        if(d.progress < d.total){
+          setTimeout(() => { if(area.querySelector('.kw-popup')) _showBlogPulse(); }, 1200);
+        }
+      }
+    });
+
+    eventSource.addEventListener('complete', (e) => {
+      eventSource.close();
+      stopLoading();
+      const data = JSON.parse(e.data);
+      _prevAnalysis = data.prev_analysis || null;
+      setTimeout(() => {
+        document.getElementById('loading-section').style.display='none';
+        renderBlogOnlyResult(data);
+        document.getElementById('result').style.display='block';
+        switchTab('blog');
+        loadRecentStores();
+        btn.disabled=false; btn.textContent='내 순위 확인하기';
+        window.scrollTo({top:0,behavior:'smooth'});
+      }, 800);
+    });
+
+    eventSource.addEventListener('error', (e) => {
+      eventSource.close();
+      stopLoading();
+      let msg = '분석 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.';
+      try { const d = JSON.parse(e.data); if(d && d.message) msg = d.message; } catch(x){}
       document.getElementById('loading-section').style.display='none';
       document.getElementById('input-section').style.display='block';
-      let _emsg='분석 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.';
-      try{ const _j=JSON.parse(text); if(_j&&_j.detail&&_j.detail.length<160) _emsg=_j.detail; }catch(_){}
-      document.getElementById('errBox').innerHTML=`<div class="err-box">${esc(_emsg)}</div>`;
+      document.getElementById('errBox').innerHTML=`<div class="err-box">${esc(msg)}</div>`;
       btn.disabled=false; btn.textContent='내 순위 확인하기';
-      return;
-    }
-    document.getElementById('loading-section').style.display='none';
-    const data = JSON.parse(text);
-    _prevAnalysis = data.prev_analysis || null;
-    renderBlogOnlyResult(data);
-    document.getElementById('result').style.display='block';
-    switchTab('blog');
-    // K단계: 최근 매장 목록 새로고침
-    loadRecentStores();
-    window.scrollTo({top:0,behavior:'smooth'});
-  }catch(e){
-    _analysisAbortController = null;
+    });
+
+    eventSource.onerror = () => {
+      if(eventSource.readyState === EventSource.CLOSED) return;
+      eventSource.close();
+      stopLoading();
+      document.getElementById('loading-section').style.display='none';
+      document.getElementById('input-section').style.display='block';
+      document.getElementById('errBox').innerHTML=`<div class="err-box">서버 연결이 끊겼어요. 잠시 후 다시 시도해주세요.</div>`;
+      btn.disabled=false; btn.textContent='내 순위 확인하기';
+    };
+  } catch(e) {
     stopLoading();
-    if(e.name === 'AbortError') return;
     document.getElementById('loading-section').style.display='none';
     document.getElementById('input-section').style.display='block';
     document.getElementById('errBox').innerHTML=`<div class="err-box">요청 실패: ${esc(e.message)}</div>`;
@@ -2184,6 +2260,11 @@ function renderResult(d){
   _lastResultData = d;
   const sc = d.scores||{};
   const prev = _prevAnalysis;
+
+  // 게이지 복원 (직전에 블로그 결과를 봤을 수 있으므로 원위치)
+  document.getElementById('gaugeCardTitle').textContent = '종합 플레이스 점수';
+  document.getElementById('gaugeSvg').style.display = '';
+  document.getElementById('blogHeadline').style.display = 'none';
 
   // 매장 정보
   document.getElementById('rStoreName').textContent = d.store_name||'-';
@@ -2322,12 +2403,27 @@ function renderBlogOnlyResult(d){
   // J단계: 블로그 분석 횟수 표시
   renderAnalysisHistoryInfo(d, 'blog');
 
-  // 게이지 숨기기 (플레이스 분석 결과가 아님)
+  // 블로그 노출 요약 헤드라인 (빈 100점 게이지 대신 검출 건수 표시)
+  const _br = d.blog_results || [];
+  let _totalMatched = 0, _kwWithHits = 0, _best = null;
+  for(const r of _br){
+    const ranks = (r.hits||[]).filter(h=>h.rank!=null).map(h=>h.rank);
+    if(ranks.length){ _kwWithHits++; _totalMatched += ranks.length; const m = Math.min(...ranks); if(_best===null||m<_best) _best=m; }
+  }
+  document.getElementById('gaugeCardTitle').textContent = '블로그 노출 요약';
   document.getElementById('gradeBadge').textContent = '블로그';
   document.getElementById('gradeBadge').style.background = '#3b82f6';
-  document.getElementById('gaugeFill').setAttribute('stroke-dasharray', '0 415');
-  document.getElementById('gaugeNum').textContent = '-';
-  document.getElementById('gaugeSummary').innerHTML = '블로그 노출 분석 결과입니다.';
+  document.getElementById('gaugeSvg').style.display = 'none';
+  const _bh = document.getElementById('blogHeadline');
+  _bh.style.display = 'flex';
+  if(_totalMatched > 0){
+    _bh.innerHTML = `<div class="bh-num">${_totalMatched}<small>건 검출</small></div>`
+      + `<div class="bh-sub">노출 키워드 <b>${_kwWithHits}</b>개 · 최고 <b>${_best}위</b></div>`;
+  } else {
+    _bh.innerHTML = `<div class="bh-empty">아직 노출된 블로그가 없어요</div>`
+      + `<div class="bh-sub" style="color:var(--gray-500);font-weight:600">블로그 마케팅(체험단·협찬)을 시작하면 노출이 늘어나요</div>`;
+  }
+  document.getElementById('gaugeSummary').innerHTML = '';
   document.getElementById('scoreTrend').style.display = 'none';
 
   // 탭 숨기기 (블로그 결과만 표시)
@@ -2336,7 +2432,8 @@ function renderBlogOnlyResult(d){
   document.getElementById('tab-blog').classList.add('active');
   document.getElementById('tab-blog').style.display = 'block';
 
-  // 블로그 시작 카드 숨기고 결과 표시
+  // 블로그 시작 카드 숨기고 결과 표시 (_blogAnalyzed=true → switchTab이 시작카드로 덮어쓰지 않음)
+  _blogAnalyzed = true;
   document.getElementById('blogStartCard').style.display = 'none';
   document.getElementById('blogResultCard').style.display = 'block';
 
@@ -3780,6 +3877,124 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
     result["keyword_history"] = keyword_history
 
     return result
+
+
+@app.get("/analyze-blog-stream", tags=["진단"])
+async def analyze_blog_stream_endpoint(
+    store_name: str,
+    place_url: str,
+    anon_id: str = None,
+    db: Session = Depends(get_db),
+):
+    """
+    블로그 단독 분석 SSE 스트리밍 버전.
+    - started: 분석 시작 즉시 (504/타임아웃 방지)
+    - blog_keyword: 키워드별 검출 결과 하나씩 (실시간 팝업용)
+    - complete: 최종 결과
+    """
+    import json as json_module
+    from .core.scraper import analyze_blog_stream
+
+    place_id = _extract_place_id(place_url)
+    keywords = []
+    address = ""
+    category = ""
+
+    # 기존 place 분석이 있으면 키워드/주소 재사용 (크롤 생략 → 빠르고 차단↓)
+    if place_id:
+        prev_place = crud.get_previous_analysis(db, place_id, "place")
+        if prev_place and prev_place.result_json:
+            try:
+                pd = json_module.loads(prev_place.result_json)
+                keywords = pd.get("keywords_used", [])
+                address = pd.get("address", "")
+                category = pd.get("category", "")
+            except Exception:
+                pass
+
+    import queue
+    event_queue = queue.Queue()
+
+    async def run_stream_to_queue():
+        try:
+            async for ev in analyze_blog_stream(
+                store_name, place_url, place_id=place_id or "",
+                keywords=keywords, address=address, category=category,
+            ):
+                event_queue.put(ev)
+            event_queue.put(None)
+        except Exception:
+            import traceback, logging
+            logging.getLogger(__name__).error("블로그 스트림 실패:\n" + traceback.format_exc())
+            event_queue.put({"type": "error", "message": "분석 중 오류가 발생했어요. 잠시 후 다시 시도해주세요."})
+            event_queue.put(None)
+
+    asyncio.run_coroutine_threadsafe(run_stream_to_queue(), _proactor_loop)
+
+    async def event_generator():
+        try:
+            while True:
+                try:
+                    event = await asyncio.get_running_loop().run_in_executor(
+                        None, lambda: event_queue.get(timeout=1.0)
+                    )
+                except queue.Empty:
+                    continue
+                if event is None:
+                    break
+
+                et = event.get("type", "message")
+                if et == "error":
+                    yield f"event: error\ndata: {json_module.dumps(event, ensure_ascii=False)}\n\n"
+                    break
+
+                if et == "complete":
+                    result = event.get("result", {})
+                    rpid = result.get("place_id") or place_id
+
+                    if rpid:
+                        # 직전 블로그 기록 + 분석 횟수 (저장 전)
+                        prev_record = crud.get_previous_analysis(db, rpid, "blog")
+                        if prev_record:
+                            result["prev_analysis"] = {
+                                "total_score": prev_record.total_score,
+                                "analyzed_at": prev_record.analyzed_at.isoformat() if prev_record.analyzed_at else None,
+                                "result_json": prev_record.result_json,
+                            }
+                            result["prev_analyzed_at"] = prev_record.analyzed_at.strftime("%m/%d") if prev_record.analyzed_at else None
+                        analysis_count_before = crud.get_analysis_count(db, rpid, "blog")
+                        result["keyword_history"] = crud.get_keyword_rank_history(db, rpid, "blog", limit=5)
+
+                        try:
+                            crud.save_analysis_history(
+                                db, place_id=rpid, store_name=result.get("store_name", store_name),
+                                analysis_type="blog", total_score=None,
+                                result_json=json_module.dumps(result, ensure_ascii=False),
+                                anon_id=anon_id,
+                            )
+                        except Exception as e:
+                            import logging
+                            logging.getLogger(__name__).warning(f"블로그 히스토리 저장 실패: {e}")
+
+                        result["analysis_count"] = analysis_count_before + 1
+
+                    yield f"event: complete\ndata: {json_module.dumps(result, ensure_ascii=False)}\n\n"
+                else:
+                    yield f"event: {et}\ndata: {json_module.dumps(event, ensure_ascii=False)}\n\n"
+        except Exception:
+            import traceback, logging
+            logging.getLogger(__name__).error("블로그 스트림 전송 실패:\n" + traceback.format_exc())
+            yield f"event: error\ndata: {json_module.dumps({'type':'error','message':'분석 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.'}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.post("/lead", response_model=schemas.LeadResponse, tags=["리드"])
