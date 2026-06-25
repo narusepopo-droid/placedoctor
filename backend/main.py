@@ -3540,14 +3540,13 @@ async def analyze_blog(req: schemas.BlogAnalyzeRequest):
 
     # 플마 블로그 모드와 동일하게 키워드 구성:
     #   - place 대표키워드(keywordList 기반, keywords_used)를 "그대로" 사용
-    #   - 브랜드 단독 키워드만 제거 (브랜드명만으론 블로그 매칭 의미 없음)
-    # ※ 메뉴 재조합(generate_blog_keywords)은 플마에 없는 로직 → 사용 안 함.
-    #   플마는 대표키워드(예: '오산피부관리')를 그대로 검색해 우리 블로그를 잡아냄.
-    #   핵심은 키워드 "폭" — 히트가 여러 키워드에 흩어져 있어 충분히 많이 돌려야 함.
+    #   - 브랜드+분리단어 제거 (플마 스타일)
+    #   - 메뉴 키워드 우선 정렬
     import re as _re
 
     _brand_base = _re.sub(r"(본점|직영점|지점|점)$", "", req.store_name.strip()).strip()
-    _brand_only = {req.store_name.strip(), _brand_base}
+    _brand_parts = [bp for bp in _re.split(r"\s+", _brand_base) if len(bp) >= 2]
+    _brand_only = set([req.store_name.strip(), _brand_base] + _brand_parts)
     keywords = [k for k in (req.keywords or []) if k and k not in _brand_only]
 
     if not keywords:
@@ -3560,7 +3559,7 @@ async def analyze_blog(req: schemas.BlogAnalyzeRequest):
                 place_id=req.place_id,
                 address=req.address,
                 keywords=keywords,
-                max_keywords=15,
+                max_keywords=30,
             ),
             _proactor_loop,
         )
@@ -3650,21 +3649,20 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
                        "페이지를 연 뒤 그 URL(또는 공유 링크)을 입력해 주세요.",
             )
 
-        # 4. 블로그 키워드 정리: generate_blog_keywords(카테고리 무관 "맛집" 하드코딩)는
-        #    비음식 업종에 엉뚱한 키워드를 만들어 사용 안 함. 대표키워드는 카테고리 기반으로
-        #    이미 올바르게 생성됨(음식='{지역} 맛집', 비음식='{지역} {업종}'). 브랜드 단독만 제거.
+        # 4. 블로그 키워드 정리 (플마 스타일): 브랜드+분리단어 제거
         _brand_base = re.sub(r"(본점|직영점|지점|점)$", "", req.store_name.strip()).strip()
-        _brand_only = {req.store_name.strip(), _brand_base}
+        _brand_parts = [bp for bp in re.split(r"\s+", _brand_base) if len(bp) >= 2]
+        _brand_only = set([req.store_name.strip(), _brand_base] + _brand_parts)
         keywords = [k for k in keywords if k and k not in _brand_only]
 
-        # 5. 블로그 분석 (상위 15개 키워드 — 폭 확보가 핵심)
+        # 5. 블로그 분석 (30개 키워드 — 폭 확보가 핵심)
         future2 = asyncio.run_coroutine_threadsafe(
             analyze_blog_ranking(
                 store_name=req.store_name,
                 place_id=place_id,
                 address=address,
-                keywords=keywords[:15],
-                max_keywords=15,
+                keywords=keywords[:30],
+                max_keywords=30,
             ),
             _proactor_loop,
         )

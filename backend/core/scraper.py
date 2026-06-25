@@ -1773,7 +1773,7 @@ async def analyze_blog_ranking(
     Returns:
         [{"keyword": str, "hits": [{"rank", "title", "blog_link", ...}]}]  (입력 순서 유지)
     """
-    N_BLOG = 3  # 동시 블로그 처리 워커 수 (플마와 동일)
+    N_BLOG = 5  # 동시 블로그 처리 워커 수 (t3.medium 최적화, 플레이스와 동일)
 
     if not place_id or not keywords:
         logger.warning("[블로그 분석] place_id 또는 keywords 없음")
