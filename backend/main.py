@@ -2121,7 +2121,9 @@ async function analyzeBlogOnly(){
     if(!res.ok){
       document.getElementById('loading-section').style.display='none';
       document.getElementById('input-section').style.display='block';
-      document.getElementById('errBox').innerHTML=`<div class="err-box">오류 (${res.status})<br><small>${esc(text.slice(0,400))}</small></div>`;
+      let _emsg='분석 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.';
+      try{ const _j=JSON.parse(text); if(_j&&_j.detail&&_j.detail.length<160) _emsg=_j.detail; }catch(_){}
+      document.getElementById('errBox').innerHTML=`<div class="err-box">${esc(_emsg)}</div>`;
       btn.disabled=false; btn.textContent='내 순위 확인하기';
       return;
     }
@@ -3472,8 +3474,12 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
             None, future.result, 600
         )
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail=traceback.format_exc())
+        import traceback, logging, concurrent.futures
+        logging.getLogger(__name__).error("분석 실패:\n" + traceback.format_exc())
+        _is_to = isinstance(e, (TimeoutError, concurrent.futures.TimeoutError))
+        raise HTTPException(status_code=500, detail=(
+            "분석이 오래 걸려 시간이 초과됐어요. 잠시 후 다시 시도해주세요." if _is_to
+            else "분석 중 오류가 발생했어요. 잠시 후 다시 시도해주세요."))
 
     try:
         crud.save_diagnosis(db, result, req.place_url)
@@ -3572,8 +3578,12 @@ async def analyze_blog(req: schemas.BlogAnalyzeRequest):
             None, future.result, 300  # 최대 5분
         )
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail=traceback.format_exc())
+        import traceback, logging, concurrent.futures
+        logging.getLogger(__name__).error("분석 실패:\n" + traceback.format_exc())
+        _is_to = isinstance(e, (TimeoutError, concurrent.futures.TimeoutError))
+        raise HTTPException(status_code=500, detail=(
+            "분석이 오래 걸려 시간이 초과됐어요. 잠시 후 다시 시도해주세요." if _is_to
+            else "분석 중 오류가 발생했어요. 잠시 후 다시 시도해주세요."))
 
     total_matched = sum(
         len([h for h in r.get("hits", []) if h.get("rank")])
@@ -3677,8 +3687,12 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail=traceback.format_exc())
+        import traceback, logging, concurrent.futures
+        logging.getLogger(__name__).error("분석 실패:\n" + traceback.format_exc())
+        _is_to = isinstance(e, (TimeoutError, concurrent.futures.TimeoutError))
+        raise HTTPException(status_code=500, detail=(
+            "분석이 오래 걸려 시간이 초과됐어요. 잠시 후 다시 시도해주세요." if _is_to
+            else "분석 중 오류가 발생했어요. 잠시 후 다시 시도해주세요."))
 
     # 직전 블로그 분석 기록 조회 (place_id 확정 후 — naver.me도 이 시점엔 해석됨)
     prev_analysis = None
