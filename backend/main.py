@@ -240,9 +240,9 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
   .preview-kw-row{padding-left:236px;padding-right:236px;}
   .preview-kw-row{padding:12px 16px;}
   .step .step-num{flex:0 0 auto;}
-  .step .step-body{flex:1;display:flex;flex-direction:column;text-align:left;}
-  .step .step-body .s-title{text-align:left;}
-  .step .step-body .s-desc{text-align:left;}
+  .step .step-body{flex:1;display:flex;flex-direction:row;align-items:center;gap:24px;text-align:left;}
+  .step .step-body .s-title{flex:0 0 auto;text-align:left;white-space:nowrap;margin-bottom:0;}
+  .step .step-body .s-desc{flex:1;text-align:left;}
 }
 .preview-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:var(--spacing-lg) var(--spacing-md);text-align:center;box-shadow:var(--shadow);}
 .preview-gauge{position:relative;width:150px;height:150px;margin:0 auto;}
