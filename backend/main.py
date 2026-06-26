@@ -236,7 +236,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 @media(min-width:768px){
   .steps{flex-direction:column;gap:14px;max-width:none;margin-left:0;margin-right:0;}
   .step{min-height:84px;display:flex;flex-direction:row;align-items:center;justify-content:flex-start;width:100%;gap:18px;padding:20px 32px 20px 4rem;box-sizing:border-box;}
-  .preview-kw{margin-left:4rem;margin-right:4rem;}
+  .preview-kw{margin-left:44px;margin-right:44px;}
   .preview-kw-row{padding:12px 16px;}
   .step .step-num{flex:0 0 auto;}
   .step .step-body{flex:1;display:flex;flex-direction:column;text-align:left;}
