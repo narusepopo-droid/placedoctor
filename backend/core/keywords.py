@@ -546,4 +546,8 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
             deduped.append(k)
 
     deduped.sort(key=sort_weight, reverse=True)
+
+    # 띄어쓰기 없는 키워드 제거 (예: "노원구등갈비" → 제외, "노원구 등갈비" → 유지)
+    deduped = [k for k in deduped if ' ' in k]
+
     return deduped[:100]
