@@ -887,6 +887,15 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       <div class="registered-list" id="rivalStoresList"></div>
     </div>
 
+    <!-- K단계: 최근 본 매장 -->
+    <div class="recent-stores-section" id="recentStoresSection" style="display:none;">
+      <div class="recent-stores-header">
+        <span><i data-lucide="clock" class="rpt-icon is-info sec-icon"></i> 최근 본 매장</span>
+        <span class="btn-clear-all" onclick="clearAllRecentStores()">전체 지우기</span>
+      </div>
+      <div class="recent-stores-list" id="recentStoresList"></div>
+    </div>
+
     <!-- SEO 콘텐츠: CTA -->
     <section class="seo-cta-section">
       <p class="cta-label">순위 개선이 필요하다면?</p>
@@ -906,15 +915,6 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       })();
       </script>
     </section>
-
-    <!-- K단계: 최근 본 매장 -->
-    <div class="recent-stores-section" id="recentStoresSection" style="display:none;">
-      <div class="recent-stores-header">
-        <span><i data-lucide="clock" class="rpt-icon is-info sec-icon"></i> 최근 본 매장</span>
-        <span class="btn-clear-all" onclick="clearAllRecentStores()">전체 지우기</span>
-      </div>
-      <div class="recent-stores-list" id="recentStoresList"></div>
-    </div>
   </div>
 
   <!-- LOADING (R단계: 게임형 UI) -->
