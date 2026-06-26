@@ -1053,7 +1053,7 @@ async def inspect_blog_post(page, blog_url, store_name, place_id, address, card_
     try:
         url = clean_blog_url(blog_url)
         await page.goto(url, wait_until="domcontentloaded", timeout=12000)
-        await page.wait_for_timeout(250)
+        await page.wait_for_timeout(350)
 
         page_title = ""
         try:
@@ -1068,7 +1068,7 @@ async def inspect_blog_post(page, blog_url, store_name, place_id, address, card_
 
         for _ in range(2):
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            await page.wait_for_timeout(150)
+            await page.wait_for_timeout(200)
 
         outer_html = await page.evaluate("() => document.documentElement.outerHTML")
         html_decoded = urllib.parse.unquote(outer_html)
@@ -1215,8 +1215,8 @@ async def check_blog_ranking_deep(page, inspect_page, keyword, store_name, place
     # 레이트리밋 방어: 워커별 딥스캔(inspect_blog_post) 사이 지터 딜레이.
     # 카드 즉시감지·url_cache 히트(네트워크 없음)에는 걸지 않고,
     # 실제 블로그 본문 요청(딥스캔)에만 첫 건 제외 후 적용한다.
-    # N_BLOG=5 워커 × 키워드 폭 확대(최대 30) 환경에서 동시 요청 폭주를 완화.
-    INSPECT_DELAY = (0.3, 0.7)  # (min, max) 초 — 속도 최적화
+    # N_BLOG=3 워커 × 키워드 폭 확대(최대 15) 환경에서 동시 요청 폭주를 완화.
+    INSPECT_DELAY = (0.5, 1.2)  # (min, max) 초 — random.uniform
     did_inspect = False
     try:
         results = await collect_blog_results(page, keyword, limit=10, log_func=log_func)
@@ -1861,8 +1861,8 @@ async def analyze_blog_stream(
     """
     import re as _re
 
-    N_BLOG = 5       # t3.medium 최적화 (플레이스와 동일)
-    MAX_BLOG_KW = 30
+    N_BLOG = 3       # analyze_blog_ranking과 동일 (2 vCPU 안정)
+    MAX_BLOG_KW = 15
     keywords = list(keywords or [])
 
     playwright, browser, context = await create_browser()
