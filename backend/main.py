@@ -238,8 +238,10 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
   .step{min-height:84px;display:flex;flex-direction:row;align-items:center;justify-content:center;width:100%;gap:18px;padding:20px 32px 20px 56px;box-sizing:border-box;}
   .preview-kw{margin-left:0;margin-right:0;}
   .preview-kw-row{padding:12px 16px;}
-  .preview-kw-row .pk-name{margin-left:calc(50% - 216px);}
-  .preview-kw-row .pk-rank{margin-right:calc(50% - 216px);}
+  .preview-kw-row{display:flex;align-items:center;}
+  .preview-kw-row .pk-name{margin-left:calc(50% - 216px);flex:0 0 auto;}
+  .preview-kw-row .pk-dots{flex:1;border-bottom:2px dotted var(--gray-300);margin:0 12px;height:0;}
+  .preview-kw-row .pk-rank{margin-right:calc(50% - 216px);flex:0 0 auto;}
   .step .step-num{flex:0 0 auto;}
   .step .step-body{flex:0 0 450px;display:flex;flex-direction:row;align-items:center;gap:24px;text-align:left;}
   .step .step-body .s-title{flex:0 0 130px;text-align:left;white-space:nowrap;margin-bottom:0;}
@@ -764,8 +766,8 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
           </div>
           <div class="preview-trend">▲ 지난번 78점 → 이번 82점 (+4)</div>
           <div class="preview-kw">
-            <div class="preview-kw-row"><span class="pk-name">오산 피부관리</span><span class="pk-rank">13위 → 9위 → 2위</span></div>
-            <div class="preview-kw-row"><span class="pk-name">오산 에스테틱</span><span class="pk-rank">6위 → 3위</span></div>
+            <div class="preview-kw-row"><span class="pk-name">오산 피부관리</span><span class="pk-dots"></span><span class="pk-rank">13위 → 9위 → 2위</span></div>
+            <div class="preview-kw-row"><span class="pk-name">오산 에스테틱</span><span class="pk-dots"></span><span class="pk-rank">6위 → 3위</span></div>
           </div>
           <div class="preview-caption">* 실제 분석 결과 예시 화면입니다</div>
         </div>
