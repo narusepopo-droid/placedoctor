@@ -610,7 +610,8 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .l-progress-count span{transition:transform .15s;}
 
 /* S단계: 상위 키워드 칩 누적 */
-.top-kw-chips{display:flex;flex-direction:column;gap:10px;align-items:center;margin-bottom:16px;min-height:32px;}
+.top-kw-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px;min-height:32px;}
+.top-kw-chips.blog-mode{flex-direction:column;gap:10px;align-items:center;}
 .top-kw-chip{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:20px;font-size:.82rem;font-weight:600;animation:chipIn .4s ease-out;}
 .top-kw-chip .chip-rank{font-weight:700;margin-right:2px;}
 .top-kw-chip.rank-1{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;border:1px solid #fcd34d;}
@@ -1824,7 +1825,9 @@ function startLoading(type){
   document.getElementById('lPct').textContent='0%';
 
   // UI 초기화
-  document.getElementById('topKwChips').innerHTML = '';
+  const chipsEl = document.getElementById('topKwChips');
+  chipsEl.innerHTML = '';
+  chipsEl.classList.remove('blog-mode');
   document.getElementById('kwPopupArea').innerHTML = '';
   document.getElementById('boot-sequence').innerHTML = '';
   document.getElementById('boot-sequence').style.display = 'none';
@@ -2168,7 +2171,9 @@ async function analyzeBlogOnly(){
 
     eventSource.addEventListener('started', (e) => {
       document.getElementById('kwPopupArea').innerHTML = '';
-      document.getElementById('topKwChips').innerHTML = '';
+      const chipsEl = document.getElementById('topKwChips');
+      chipsEl.innerHTML = '';
+      chipsEl.classList.add('blog-mode');
       _showBlogPulse();
     });
 
