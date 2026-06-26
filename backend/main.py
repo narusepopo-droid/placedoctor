@@ -250,7 +250,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .preview-kw-row .pk-rank{color:var(--green-d);font-weight:700;}
 .preview-caption{font-size:.78rem;color:var(--gray-400);margin-top:var(--spacing-md);}
 .search-divider{text-align:center;margin:var(--spacing-xl) 0 var(--spacing-md);}
-.search-divider .sd-title{font-size:1.3rem;font-weight:800;color:var(--gray-900);letter-spacing:-.4px;}
+.search-divider .sd-title{font-size:1.4rem;font-weight:700;color:#2D3A4A;letter-spacing:-.5px;}
 .search-divider .sd-sub{font-size:.88rem;color:var(--gray-500);margin-top:6px;}
 
 /* RESULT */
@@ -314,10 +314,10 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
 /* SEO 콘텐츠 섹션 */
 .seo-why-section{max-width:100%;margin:var(--spacing-xl) 0;padding:var(--spacing-lg) var(--spacing-md);background:#fff;border-radius:var(--radius-lg);text-align:center;box-shadow:var(--shadow);border:1px solid var(--gray-200);}
-.seo-why-section h2{font-size:1.35rem;font-weight:800;background:var(--primary-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:var(--spacing-md);letter-spacing:-.4px;line-height:1.45;}
+.seo-why-section h2{font-size:1.4rem;font-weight:700;color:#2D3A4A;margin-bottom:var(--spacing-md);letter-spacing:-.5px;line-height:1.45;}
 .seo-why-section p{font-size:.9rem;color:var(--gray-600);line-height:1.8;margin-bottom:var(--spacing-sm);}
 .seo-faq-section{max-width:100%;margin:var(--spacing-xl) 0;padding:0;}
-.seo-faq-section h2{font-size:1.35rem;font-weight:800;color:var(--gray-900);margin-bottom:var(--spacing-md);text-align:center;letter-spacing:-.4px;}
+.seo-faq-section h2{font-size:1.4rem;font-weight:700;color:#2D3A4A;margin-bottom:var(--spacing-md);text-align:center;letter-spacing:-.5px;}
 .faq-item{border-bottom:1px solid var(--gray-200);background:#fff;margin-bottom:var(--spacing-xs);border-radius:var(--radius-sm);border:1px solid var(--gray-200);overflow:hidden;}
 .faq-q{width:100%;text-align:left;background:#fff;border:none;padding:18px 20px;font-size:.92rem;font-weight:600;color:var(--gray-800);cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:background .2s;}
 .faq-q:hover{background:var(--gray-50);}
