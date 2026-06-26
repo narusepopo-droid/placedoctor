@@ -242,7 +242,8 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
   .step .step-num{flex:0 0 auto;}
   .step .step-body{flex:0 0 450px;display:flex;flex-direction:row;align-items:center;gap:24px;text-align:left;}
   .step .step-body .s-title{flex:0 0 130px;text-align:left;white-space:nowrap;margin-bottom:0;}
-  .step .step-body .s-desc{flex:1;text-align:left;}
+  .step .step-body .s-desc{flex:1;text-align:left;position:relative;padding-left:16px;}
+  .step .step-body .s-desc::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:20px;border-radius:2px;background:var(--green);}
 }
 .preview-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:var(--spacing-lg) var(--spacing-md);text-align:center;box-shadow:var(--shadow);}
 .preview-gauge{position:relative;width:150px;height:150px;margin:0 auto;}
