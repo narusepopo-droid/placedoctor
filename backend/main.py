@@ -761,6 +761,73 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
         </div>
       </section>
 
+      <!-- SEO 콘텐츠: Why 섹션 -->
+      <section class="seo-why-section">
+        <h2>네이버 플레이스 순위, 왜 확인해야 하나요?</h2>
+        <p>
+          네이버 플레이스, 상위 3개 매장이 손님의 80%를 가져갑니다.
+        </p>
+        <p>
+          내 매장이 어떤 키워드에서 몇 위인지,<br>
+          경쟁 매장과 얼마나 차이 나는지 — 지금 무료로 확인하세요.
+        </p>
+        <p>
+          플레이스 광고 · 블로그 체험단 · 상위노출 작업 집행 중이라면<br>
+          실제 키워드 순위 변화를 직접 확인해보세요.
+        </p>
+      </section>
+
+      <!-- SEO 콘텐츠: FAQ 아코디언 -->
+      <section class="seo-faq-section">
+        <h2>플레이스 순위, 이런 게 궁금하셨죠?</h2>
+        <div class="faq-item">
+          <button class="faq-q">네이버 플레이스 상위노출은 어떻게 결정되나요?</button>
+          <div class="faq-a">
+            키워드 일치도, 리뷰 수·점수, 저장수, 최근 활동, 블로그 포스팅 노출 등
+            복합 알고리즘으로 결정됩니다. 플레이스랭킹에서 내 매장의
+            현재 점수와 부족한 항목을 무료로 확인할 수 있습니다.
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">플레이스 광고를 집행 중인데 순위 확인이 필요한가요?</button>
+          <div class="faq-a">
+            네이버 플레이스 광고는 유료 노출이고, 자연 순위는 별개입니다.
+            광고 없이도 어떤 키워드에서 자연 노출되는지 확인하는 것이
+            진짜 마케팅 실력 파악의 시작입니다.
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">블로그 체험단 효과, 실제로 순위에 반영되고 있나요?</button>
+          <div class="faq-a">
+            블로그 포스팅이 어떤 키워드로 몇 위에 노출되는지
+            플레이스랭킹 블로그 분석 탭에서 직접 확인할 수 있습니다.
+            체험단 효과를 데이터로 검증해보세요.
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">경쟁 매장이 왜 나보다 순위가 높은지 알 수 있나요?</button>
+          <div class="faq-a">
+            경쟁사 비교 기능으로 1위 매장과의 키워드 격차를 확인할 수 있습니다.
+            어떤 키워드에서 밀리는지 파악하면 개선 방향이 보입니다.
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">가게 오픈 전에도 경쟁 매장 분석이 가능한가요?</button>
+          <div class="faq-a">
+            오픈 예정이라면 경쟁 매장 분석으로 상권 내 키워드 경쟁 강도를
+            미리 파악할 수 있습니다. 플레이스 광고나 소상공인 마케팅 전략 수립에 활용하세요.
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">지역소상공인광고와 일반 플레이스 광고 차이는 무엇인가요?</button>
+          <div class="faq-a">
+            지역소상공인광고는 네이버가 지원하는 소상공인 전용 광고 상품으로
+            노출 영역과 비용 구조가 다릅니다.
+            어떤 광고가 적합한지는 현재 키워드 순위를 먼저 파악한 후 결정하는 것이 효율적입니다.
+          </div>
+        </div>
+      </section>
+
       <div class="search-divider" id="searchStart">
         <div class="sd-title">내 매장 순위, 지금 확인</div>
         <div class="sd-sub">아래에 매장 정보를 입력하세요</div>
@@ -819,73 +886,6 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       <div class="registered-desc">경쟁 매장 순위를 슬쩍 지켜보세요</div>
       <div class="registered-list" id="rivalStoresList"></div>
     </div>
-
-    <!-- SEO 콘텐츠: Why 섹션 -->
-    <section class="seo-why-section">
-      <h2>네이버 플레이스 순위, 왜 확인해야 하나요?</h2>
-      <p>
-        네이버 플레이스, 상위 3개 매장이 손님의 80%를 가져갑니다.
-      </p>
-      <p>
-        내 매장이 어떤 키워드에서 몇 위인지,<br>
-        경쟁 매장과 얼마나 차이 나는지 — 지금 무료로 확인하세요.
-      </p>
-      <p>
-        플레이스 광고 · 블로그 체험단 · 상위노출 작업 집행 중이라면<br>
-        실제 키워드 순위 변화를 직접 확인해보세요.
-      </p>
-    </section>
-
-    <!-- SEO 콘텐츠: FAQ 아코디언 -->
-    <section class="seo-faq-section">
-      <h2>플레이스 순위, 이런 게 궁금하셨죠?</h2>
-      <div class="faq-item">
-        <button class="faq-q">네이버 플레이스 상위노출은 어떻게 결정되나요?</button>
-        <div class="faq-a">
-          키워드 일치도, 리뷰 수·점수, 저장수, 최근 활동, 블로그 포스팅 노출 등
-          복합 알고리즘으로 결정됩니다. 플레이스랭킹에서 내 매장의
-          현재 점수와 부족한 항목을 무료로 확인할 수 있습니다.
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q">플레이스 광고를 집행 중인데 순위 확인이 필요한가요?</button>
-        <div class="faq-a">
-          네이버 플레이스 광고는 유료 노출이고, 자연 순위는 별개입니다.
-          광고 없이도 어떤 키워드에서 자연 노출되는지 확인하는 것이
-          진짜 마케팅 실력 파악의 시작입니다.
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q">블로그 체험단 효과, 실제로 순위에 반영되고 있나요?</button>
-        <div class="faq-a">
-          블로그 포스팅이 어떤 키워드로 몇 위에 노출되는지
-          플레이스랭킹 블로그 분석 탭에서 직접 확인할 수 있습니다.
-          체험단 효과를 데이터로 검증해보세요.
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q">경쟁 매장이 왜 나보다 순위가 높은지 알 수 있나요?</button>
-        <div class="faq-a">
-          경쟁사 비교 기능으로 1위 매장과의 키워드 격차를 확인할 수 있습니다.
-          어떤 키워드에서 밀리는지 파악하면 개선 방향이 보입니다.
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q">가게 오픈 전에도 경쟁 매장 분석이 가능한가요?</button>
-        <div class="faq-a">
-          오픈 예정이라면 경쟁 매장 분석으로 상권 내 키워드 경쟁 강도를
-          미리 파악할 수 있습니다. 플레이스 광고나 소상공인 마케팅 전략 수립에 활용하세요.
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q">지역소상공인광고와 일반 플레이스 광고 차이는 무엇인가요?</button>
-        <div class="faq-a">
-          지역소상공인광고는 네이버가 지원하는 소상공인 전용 광고 상품으로
-          노출 영역과 비용 구조가 다릅니다.
-          어떤 광고가 적합한지는 현재 키워드 순위를 먼저 파악한 후 결정하는 것이 효율적입니다.
-        </div>
-      </div>
-    </section>
 
     <!-- SEO 콘텐츠: CTA -->
     <section class="seo-cta-section">
