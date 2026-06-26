@@ -238,7 +238,8 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
   .step{min-height:84px;display:flex;flex-direction:row;align-items:center;justify-content:center;width:100%;gap:18px;padding:20px 32px 20px 56px;box-sizing:border-box;}
   .preview-kw{margin-left:0;margin-right:0;}
   .preview-kw-row{padding:12px 16px;}
-  .preview-kw-row .pk-name{margin-left:calc(50% - 280px);}
+  .preview-kw-row .pk-name{margin-left:calc(50% - 240px);}
+  .preview-kw-row .pk-rank{margin-right:calc(50% - 240px);}
   .step .step-num{flex:0 0 auto;}
   .step .step-body{flex:0 0 450px;display:flex;flex-direction:row;align-items:center;gap:24px;text-align:left;}
   .step .step-body .s-title{flex:0 0 130px;text-align:left;white-space:nowrap;margin-bottom:0;}
