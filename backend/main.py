@@ -611,7 +611,6 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
 /* S단계: 상위 키워드 칩 누적 */
 .top-kw-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px;min-height:32px;}
-.top-kw-chips.blog-mode{flex-direction:column;gap:10px;align-items:center;}
 .top-kw-chip{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:20px;font-size:.82rem;font-weight:600;animation:chipIn .4s ease-out;}
 .top-kw-chip .chip-rank{font-weight:700;margin-right:2px;}
 .top-kw-chip.rank-1{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;border:1px solid #fcd34d;}
@@ -620,7 +619,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .top-kw-chip.rank-6-10{background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb;}
 @keyframes chipIn{0%{opacity:0;transform:scale(0.5) translateY(10px);}100%{opacity:1;transform:scale(1) translateY(0);}}
 /* 블로그 키워드 행 (키워드명 + 순위칩들) */
-.blog-kw-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;animation:rowSlide .3s ease-out;}
+.blog-kw-row{display:inline-flex;align-items:center;gap:4px;animation:chipIn .4s ease-out;}
 .blog-kw-name{font-size:.85rem;font-weight:600;color:var(--gray-700);padding:4px 10px;background:var(--gray-50);border-radius:6px;}
 .blog-rank-chip{font-size:.75rem;font-weight:700;padding:3px 8px;border-radius:12px;animation:chipSnap .25s ease-out backwards;}
 .blog-rank-chip.rank-1{background:#fef3c7;color:#92400e;}
@@ -1825,9 +1824,7 @@ function startLoading(type){
   document.getElementById('lPct').textContent='0%';
 
   // UI 초기화
-  const chipsEl = document.getElementById('topKwChips');
-  chipsEl.innerHTML = '';
-  chipsEl.classList.remove('blog-mode');
+  document.getElementById('topKwChips').innerHTML = '';
   document.getElementById('kwPopupArea').innerHTML = '';
   document.getElementById('boot-sequence').innerHTML = '';
   document.getElementById('boot-sequence').style.display = 'none';
@@ -2171,9 +2168,7 @@ async function analyzeBlogOnly(){
 
     eventSource.addEventListener('started', (e) => {
       document.getElementById('kwPopupArea').innerHTML = '';
-      const chipsEl = document.getElementById('topKwChips');
-      chipsEl.innerHTML = '';
-      chipsEl.classList.add('blog-mode');
+      document.getElementById('topKwChips').innerHTML = '';
       _showBlogPulse();
     });
 
