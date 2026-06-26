@@ -234,7 +234,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .step-body .s-title{font-size:.95rem;font-weight:700;color:var(--gray-800);margin-bottom:4px;letter-spacing:-.2px;}
 .step-body .s-desc{font-size:.84rem;color:var(--gray-500);line-height:1.55;}
 @media(min-width:768px){
-  .steps{flex-direction:column;gap:14px;max-width:600px;margin-left:auto;margin-right:auto;}
+  .steps{flex-direction:column;gap:14px;max-width:none;margin-left:0;margin-right:0;}
   .step{min-height:88px;display:flex;flex-direction:row;align-items:center;width:100%;gap:12px;box-sizing:border-box;}
   .step .step-body{display:flex;flex-direction:column;}
 }
