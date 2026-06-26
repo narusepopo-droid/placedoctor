@@ -235,7 +235,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .step-body .s-desc{font-size:.84rem;color:var(--gray-500);line-height:1.55;}
 @media(min-width:768px){
   .steps{flex-direction:column;gap:14px;max-width:600px;margin-left:auto;margin-right:auto;}
-  .step{flex:1;display:flex;flex-direction:row;align-items:center;width:100%;gap:12px;}
+  .step{min-height:88px;display:flex;flex-direction:row;align-items:center;width:100%;gap:12px;box-sizing:border-box;}
   .step .step-body{display:flex;flex-direction:column;}
 }
 .preview-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:var(--spacing-lg) var(--spacing-md);text-align:center;box-shadow:var(--shadow);}
