@@ -610,7 +610,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .l-progress-count span{transition:transform .15s;}
 
 /* S단계: 상위 키워드 칩 누적 */
-.top-kw-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px;min-height:32px;}
+.top-kw-chips{display:flex;flex-direction:column;gap:10px;align-items:center;margin-bottom:16px;min-height:32px;}
 .top-kw-chip{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:20px;font-size:.82rem;font-weight:600;animation:chipIn .4s ease-out;}
 .top-kw-chip .chip-rank{font-weight:700;margin-right:2px;}
 .top-kw-chip.rank-1{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;border:1px solid #fcd34d;}
@@ -618,6 +618,17 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .top-kw-chip.rank-4-5{background:linear-gradient(135deg,#fed7aa,#fdba74);color:#9a3412;border:1px solid #fb923c;}
 .top-kw-chip.rank-6-10{background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb;}
 @keyframes chipIn{0%{opacity:0;transform:scale(0.5) translateY(10px);}100%{opacity:1;transform:scale(1) translateY(0);}}
+/* 블로그 키워드 행 (키워드명 + 순위칩들) */
+.blog-kw-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;animation:rowSlide .3s ease-out;}
+.blog-kw-name{font-size:.85rem;font-weight:600;color:var(--gray-700);padding:4px 10px;background:var(--gray-50);border-radius:6px;}
+.blog-rank-chip{font-size:.75rem;font-weight:700;padding:3px 8px;border-radius:12px;animation:chipSnap .25s ease-out backwards;}
+.blog-rank-chip.rank-1{background:#fef3c7;color:#92400e;}
+.blog-rank-chip.rank-2-3{background:#e5e7eb;color:#374151;}
+.blog-rank-chip.rank-4-5{background:#fed7aa;color:#9a3412;}
+.blog-rank-chip.rank-6-10{background:#f3f4f6;color:#6b7280;}
+.blog-rank-chip.rank-11-plus{background:#f9fafb;color:#9ca3af;}
+@keyframes rowSlide{0%{opacity:0;transform:translateY(-10px);}100%{opacity:1;transform:translateY(0);}}
+@keyframes chipSnap{0%{opacity:0;transform:scale(0) translateX(-10px);}60%{transform:scale(1.1) translateX(0);}100%{opacity:1;transform:scale(1) translateX(0);}}
 
 /* S단계: 분석 중 펄스 (키워드 사이 생동감) */
 .kw-analyzing{text-align:center;padding:20px;}
@@ -2173,6 +2184,7 @@ async function analyzeBlogOnly(){
       const area = document.getElementById('kwPopupArea');
       const matched = d.matched || 0;
       const best = d.best_rank;
+      const hits = d.hits || [];
       // 검출된 키워드만 팝업 (없으면 담백하게 펄스 유지)
       if(matched > 0){
         let reaction = '', rankClass = '';
@@ -2191,17 +2203,24 @@ async function analyzeBlogOnly(){
         area.innerHTML = '';
         area.appendChild(popup);
 
-        // 칩 누적 (최고순위 기준 색)
+        // 칩 누적 (키워드 + 모든 순위 칩이 탁탁 붙음)
         const chipsArea = document.getElementById('topKwChips');
-        let chipClass = 'rank-11-plus';
-        if(best === 1) chipClass='rank-1';
-        else if(best <= 3) chipClass='rank-2-3';
-        else if(best <= 5) chipClass='rank-4-5';
-        else if(best <= 10) chipClass='rank-6-10';
-        const chip = document.createElement('span');
-        chip.className = 'top-kw-chip ' + chipClass;
-        chip.innerHTML = '<span class="chip-rank">' + (best ? best+'위' : '검출') + '</span>' + esc(d.keyword);
-        chipsArea.appendChild(chip);
+        const kwRow = document.createElement('div');
+        kwRow.className = 'blog-kw-row';
+        kwRow.innerHTML = `<span class="blog-kw-name">${esc(d.keyword)}</span>`;
+        hits.sort((a,b) => a.rank - b.rank).forEach((h, i) => {
+          const rankChip = document.createElement('span');
+          let rc = 'rank-11-plus';
+          if(h.rank === 1) rc = 'rank-1';
+          else if(h.rank <= 3) rc = 'rank-2-3';
+          else if(h.rank <= 5) rc = 'rank-4-5';
+          else if(h.rank <= 10) rc = 'rank-6-10';
+          rankChip.className = 'blog-rank-chip ' + rc;
+          rankChip.textContent = h.rank + '위';
+          rankChip.style.animationDelay = (i * 0.1) + 's';
+          kwRow.appendChild(rankChip);
+        });
+        chipsArea.appendChild(kwRow);
 
         if(d.progress < d.total){
           setTimeout(() => { if(area.querySelector('.kw-popup')) _showBlogPulse(); }, 1200);

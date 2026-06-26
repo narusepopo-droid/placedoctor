@@ -1861,7 +1861,7 @@ async def analyze_blog_stream(
     """
     import re as _re
 
-    N_BLOG = 3       # analyze_blog_ranking과 동일 (2 vCPU 안정)
+    N_BLOG = 5       # t3.medium 최적화 (키워드 15개 유지로 안정)
     MAX_BLOG_KW = 15
     keywords = list(keywords or [])
 
@@ -1950,12 +1950,13 @@ async def analyze_blog_stream(
             idx, kw, hits = await results_queue.get()
             results_map[idx] = {"keyword": kw, "hits": hits}
             completed += 1
-            ranks = [h["rank"] for h in hits if h.get("rank")]
+            matched_hits = [{"rank": h["rank"], "title": h.get("title", "")[:30]} for h in hits if h.get("rank")]
             yield {
                 "type": "blog_keyword",
                 "keyword": kw,
-                "matched": len(ranks),
-                "best_rank": min(ranks) if ranks else None,
+                "matched": len(matched_hits),
+                "best_rank": min(h["rank"] for h in matched_hits) if matched_hits else None,
+                "hits": matched_hits,
                 "progress": completed,
                 "total": total,
             }
