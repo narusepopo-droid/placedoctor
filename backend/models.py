@@ -177,3 +177,18 @@ class AlimTemplate(Base):
     template_key = Column(String(50), primary_key=True)
     extra_text   = Column(Text, nullable=True)
     updated_at   = Column(DateTime(timezone=True), default=_now)
+
+
+class AlimtalkLog(Base):
+    """알림톡 발송 이력 (발송 시마다 1건 기록)"""
+    __tablename__ = "alimtalk_logs"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    sent_at       = Column(DateTime(timezone=True), default=_now, index=True)
+    template_key  = Column(String(50), nullable=True)   # signup / weekly
+    template_code = Column(String(50), nullable=True)   # UI_7449 / UI_7456
+    phone         = Column(String(20), nullable=True)
+    store_name    = Column(String(200), nullable=True)
+    success       = Column(Boolean, default=False)
+    result_code   = Column(String(20), nullable=True)
+    message       = Column(Text, nullable=True)

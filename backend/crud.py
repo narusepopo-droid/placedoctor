@@ -583,6 +583,16 @@ def resubscribe_alarm(db: Session, subscriber_id: int) -> bool:
     return False
 
 
+def delete_subscriber(db: Session, subscriber_id: int) -> bool:
+    """구독자 영구 삭제 (테스트/중복 데이터 정리용 — 관리자 수동 호출만)"""
+    sub = db.query(models.Subscriber).filter(models.Subscriber.id == subscriber_id).first()
+    if sub:
+        db.delete(sub)
+        db.commit()
+        return True
+    return False
+
+
 def get_all_subscribers(db: Session, alarm_on_only: bool = False) -> list[models.Subscriber]:
     """전체 구독자 목록"""
     q = db.query(models.Subscriber)
@@ -650,6 +660,38 @@ def upsert_alim_template(db: Session, template_key: str, extra_text: str) -> mod
     db.commit()
     db.refresh(tpl)
     return tpl
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 알림톡 발송 이력
+# ─────────────────────────────────────────────────────────────────────────────
+
+def create_alimtalk_log(db: Session, *, template_key: str, template_code: str,
+                        phone: str, store_name: str, success: bool,
+                        result_code: str = "", message: str = "") -> models.AlimtalkLog:
+    """발송 1건 기록 (실패해도 기록)"""
+    log = models.AlimtalkLog(
+        template_key=template_key,
+        template_code=template_code,
+        phone=phone,
+        store_name=store_name,
+        success=success,
+        result_code=str(result_code) if result_code is not None else "",
+        message=(message or "")[:500],
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+    return log
+
+
+def get_recent_alimtalk_logs(db: Session, limit: int = 50) -> list[models.AlimtalkLog]:
+    return (
+        db.query(models.AlimtalkLog)
+        .order_by(models.AlimtalkLog.sent_at.desc())
+        .limit(limit)
+        .all()
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

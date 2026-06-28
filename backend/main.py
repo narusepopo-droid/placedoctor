@@ -4363,6 +4363,46 @@ def admin_toggle_subscriber(
     return {"success": True, "alarm_on": not sub.alarm_on}
 
 
+@app.delete("/admin/api/subscriber/{subscriber_id}", tags=["관리자"])
+def admin_delete_subscriber(
+    subscriber_id: int,
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """구독자(리드) 영구 삭제 — 테스트/중복 데이터 정리용. 관리자가 직접 호출."""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    if not crud.delete_subscriber(db, subscriber_id):
+        raise HTTPException(status_code=404, detail="구독자를 찾을 수 없습니다")
+    return {"success": True}
+
+
+@app.get("/admin/api/send-history", tags=["관리자"])
+def admin_send_history(
+    limit: int = 50,
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """알림톡 발송 이력"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    _names = {"signup": "신청 완료", "weekly": "주간 리포트"}
+    logs = crud.get_recent_alimtalk_logs(db, limit)
+    out = []
+    for x in logs:
+        ph = x.phone or ""
+        masked = (ph[:3] + "****" + ph[-4:]) if len(ph) >= 7 else (ph or "-")
+        out.append({
+            "sent_at": x.sent_at.isoformat() if x.sent_at else None,
+            "template": _names.get(x.template_key, x.template_key or "-"),
+            "phone": masked,
+            "store_name": x.store_name or "-",
+            "success": bool(x.success),
+            "result_code": x.result_code or "",
+        })
+    return out
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 관리자 페이지 HTML
 # ─────────────────────────────────────────────────────────────────────────────
@@ -4446,6 +4486,9 @@ _ADMIN_HTML = """<!DOCTYPE html>
   .tag.off{background:#F1F4F7;color:var(--sub)}
   .rank{font-weight:800}
   .up{color:var(--green)} .down{color:var(--red)} .same{color:var(--sub)}
+  .del-btn{border:1px solid var(--line);background:#fff;color:var(--red);padding:5px 11px;
+    border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .del-btn:hover{background:#FDECEC;border-color:var(--red)}
 
   /* 알림톡 */
   .tpl{border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
@@ -4462,15 +4505,21 @@ _ADMIN_HTML = """<!DOCTYPE html>
   .saved-msg{color:var(--green-d);font-size:12px;margin-right:auto;display:none}
 
   @media(max-width:760px){
+    html,body{overflow-x:hidden}
     body{flex-direction:column}
-    .side{width:100%;flex-direction:row;flex-wrap:wrap;padding:12px;align-items:center}
+    .app{flex-direction:column;width:100%}
+    .side{width:100%;height:auto;flex-direction:row;flex-wrap:wrap;padding:12px;align-items:center;
+      border-right:0;border-bottom:1px solid var(--line)}
     .brand{padding:0 12px 0 8px}
     .nav{display:flex;flex:1;overflow:auto}
     .nav button{padding:9px 12px;border-left:0;border-bottom:3px solid transparent;white-space:nowrap}
     .nav button.on{border-left:0;border-bottom-color:var(--green)}
     .side-foot{display:none}
-    .main{padding:20px}
+    .main{width:100%;padding:18px 14px}
+    .head{flex-wrap:wrap;gap:10px}
     .cards{grid-template-columns:1fr 1fr}
+    .panel{overflow-x:auto}
+    .panel table{min-width:520px}
   }
 </style>
 </head>
@@ -4531,7 +4580,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
       <div class="panel">
         <h2>알림 신청자 <span id="subCount">0</span>명</h2><p class="desc">전화번호를 남긴 사장님 목록</p>
         <table>
-          <thead><tr><th>매장명</th><th>연락처</th><th>신청일</th><th>최근 진단</th><th>알림</th></tr></thead>
+          <thead><tr><th>매장명</th><th>연락처</th><th>신청일</th><th>최근 진단</th><th>알림</th><th>관리</th></tr></thead>
           <tbody id="subTable"></tbody>
         </table>
       </div>
@@ -4653,6 +4702,28 @@ async function loadAll(){
   loadSubs();
   loadMonitor();
   loadTemplates();
+  loadSendHistory();
+}
+
+async function loadSendHistory(){
+  const tb=document.getElementById('sendHistory');
+  try{
+    const r=await fetch('/admin/api/send-history?limit=50');
+    const d=await r.json();
+    if(!Array.isArray(d)||!d.length){
+      tb.innerHTML='<tr><td colspan="4" style="color:var(--sub);text-align:center;padding:24px">아직 발송 이력이 없습니다</td></tr>';
+      return;
+    }
+    let html='';
+    d.forEach(x=>{
+      const t=fmtAdminTime(x.sent_at);
+      const st=x.success?'<span class="tag on">성공</span>':'<span class="tag off">실패'+(x.result_code?' ('+x.result_code+')':'')+'</span>';
+      html+=`<tr><td>${t}</td><td>${x.template}</td><td>${x.store_name} · ${x.phone}</td><td>${st}</td></tr>`;
+    });
+    tb.innerHTML=html;
+  }catch(e){
+    tb.innerHTML='<tr><td colspan="4" style="color:var(--sub);text-align:center;padding:24px">이력을 불러오지 못했습니다</td></tr>';
+  }
 }
 
 async function loadStats(){
@@ -4664,12 +4735,24 @@ async function loadStats(){
   document.getElementById('statWeek').textContent=d.new_analyses_week.toLocaleString();
 }
 
+function fmtAdminTime(iso){
+  if(!iso) return '';
+  const d=new Date(iso), now=new Date();
+  const time=d.toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'});
+  const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+  const y=new Date(now); y.setDate(now.getDate()-1);
+  if(sameDay(d,now)) return '오늘 '+time;
+  if(sameDay(d,y)) return '어제 '+time;
+  const md=String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return md+' '+time;
+}
+
 async function loadRecent(){
   const r=await fetch('/admin/api/recent-analyses?limit=10');
   const d=await r.json();
   let html='';
   d.forEach(x=>{
-    const t=x.analyzed_at?new Date(x.analyzed_at).toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'}):'';
+    const t=fmtAdminTime(x.analyzed_at);
     html+=`<tr><td>${x.store_name}</td><td>${x.top_keyword||'-'}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${t}</td></tr>`;
   });
   document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="4" style="color:var(--sub);text-align:center">진단 기록이 없습니다</td></tr>';
@@ -4682,9 +4765,17 @@ async function loadSubs(){
   let html='';
   d.forEach(x=>{
     const tag=x.alarm_on?'<span class="tag on">수신중</span>':'<span class="tag off">해지</span>';
-    html+=`<tr><td>${x.store_name}</td><td>${x.phone}</td><td>${x.created_at||'-'}</td><td>${x.last_analyzed_at||'-'}</td><td>${tag}</td></tr>`;
+    const del=`<button class="del-btn" onclick="deleteSub(${x.id},'${(x.store_name||'').replace(/'/g,"")}')">삭제</button>`;
+    html+=`<tr><td>${x.store_name}</td><td>${x.phone}</td><td>${x.created_at||'-'}</td><td>${x.last_analyzed_at||'-'}</td><td>${tag}</td><td>${del}</td></tr>`;
   });
-  document.getElementById('subTable').innerHTML=html||'<tr><td colspan="5" style="color:var(--sub);text-align:center">알림 신청자가 없습니다</td></tr>';
+  document.getElementById('subTable').innerHTML=html||'<tr><td colspan="6" style="color:var(--sub);text-align:center">알림 신청자가 없습니다</td></tr>';
+}
+
+async function deleteSub(id, name){
+  if(!confirm('['+name+'] 리드를 정말 삭제하시겠어요?\n삭제하면 복구할 수 없습니다.')) return;
+  const r=await fetch('/admin/api/subscriber/'+id,{method:'DELETE'});
+  if(r.ok){ loadSubs(); loadStats(); }
+  else { alert('삭제 실패: 다시 시도해주세요.'); }
 }
 
 function downloadCsv(){

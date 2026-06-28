@@ -23,6 +23,32 @@ TPL_WEEKLY = os.getenv("ALIGO_TPL_WEEKLY", "UI_7456")
 TESTMODE = os.getenv("ALIGO_TESTMODE", "N")
 
 
+def _record_log(template_key: str, template_code: str, phone: str,
+                store_name: str, result: dict) -> None:
+    """발송 결과를 alimtalk_logs 테이블에 기록 (실패해도 발송 흐름엔 영향 없음)."""
+    try:
+        from ..database import SessionLocal
+        from .. import crud
+        code = result.get("code") if isinstance(result, dict) else None
+        success = str(code) == "0"
+        db = SessionLocal()
+        try:
+            crud.create_alimtalk_log(
+                db,
+                template_key=template_key,
+                template_code=template_code,
+                phone=phone,
+                store_name=store_name,
+                success=success,
+                result_code=code if code is not None else "",
+                message=(result.get("message", "") if isinstance(result, dict) else str(result)),
+            )
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[알림톡] 이력 기록 실패: {e}")
+
+
 async def send_signup_alimtalk(phone: str, store_name: str, day_of_week: str = "월요일") -> dict:
     """
     알림 신청 완료 알림톡 발송
@@ -57,10 +83,13 @@ async def send_signup_alimtalk(phone: str, store_name: str, day_of_week: str = "
             response = await client.post(ALIGO_ENDPOINT, data=data)
             result = response.json()
             print(f"[알림톡] phone={phone[-4:]}, tpl={TPL_SIGNUP}, result={result}")
+            _record_log("signup", TPL_SIGNUP, phone, store_name, result)
             return result
     except Exception as e:
         print(f"[알림톡] 발송 실패: {e}")
-        return {"code": -1, "message": str(e)}
+        err = {"code": -1, "message": str(e)}
+        _record_log("signup", TPL_SIGNUP, phone, store_name, err)
+        return err
 
 
 async def send_weekly_alimtalk(
@@ -111,7 +140,10 @@ async def send_weekly_alimtalk(
             response = await client.post(ALIGO_ENDPOINT, data=data)
             result = response.json()
             print(f"[알림톡] phone={phone[-4:]}, tpl={TPL_WEEKLY}, result={result}")
+            _record_log("weekly", TPL_WEEKLY, phone, store_name, result)
             return result
     except Exception as e:
         print(f"[알림톡] 발송 실패: {e}")
-        return {"code": -1, "message": str(e)}
+        err = {"code": -1, "message": str(e)}
+        _record_log("weekly", TPL_WEEKLY, phone, store_name, err)
+        return err
