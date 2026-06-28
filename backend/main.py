@@ -4641,7 +4641,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
 </div>
 
 <script>
-lucide.createIcons();
+if(window.lucide)lucide.createIcons();
 const btns=document.querySelectorAll('.nav button');
 const pages=document.querySelectorAll('.page');
 btns.forEach(b=>b.addEventListener('click',()=>{
@@ -4772,7 +4772,7 @@ async function loadSubs(){
 }
 
 async function deleteSub(id, name){
-  if(!confirm('['+name+'] 리드를 정말 삭제하시겠어요?\n삭제하면 복구할 수 없습니다.')) return;
+  if(!confirm('['+name+'] 리드를 정말 삭제하시겠어요?\\n삭제하면 복구할 수 없습니다.')) return;
   const r=await fetch('/admin/api/subscriber/'+id,{method:'DELETE'});
   if(r.ok){ loadSubs(); loadStats(); }
   else { alert('삭제 실패: 다시 시도해주세요.'); }
