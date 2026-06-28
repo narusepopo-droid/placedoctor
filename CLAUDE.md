@@ -39,6 +39,7 @@
 | V단계 | **알림톡 API 연동 (알리고) — 완료** — ① **services 모듈**: `backend/services/alimtalk.py` (발송 함수 2개). ② **신청 완료 알림톡(UI_7449)**: `/subscribe` API에서 구독 저장 후 `send_signup_alimtalk()` 자동 호출. ③ **주간 리포트 알림톡(UI_7456)**: `send_weekly_alimtalk()` — 강조 타이틀(`emtitle`) 포함. ④ **환경변수**: `ALIGO_API_KEY`, `ALIGO_USER_ID`, `ALIGO_SENDERKEY`, `ALIGO_SENDER`, `ALIGO_TESTMODE=N`, `ALIGO_TPL_SIGNUP=UI_7449`, `ALIGO_TPL_WEEKLY=UI_7456`. ⑤ **nginx 인코딩**: `charset utf-8` 추가 (한글 POST body 깨짐 해결). ⑥ **템플릿 변수**: 메시지에 직접 값 치환해서 전송 (알리고 방식). |
 | W단계 | **SEO + 카카오 채널** — ① **SEO 메타태그**: Open Graph, JSON-LD 구조화 데이터, canonical URL 추가. ② **검색엔진 인증**: Google/Naver Search Console 인증 태그. ③ **카카오 CTA 버튼**: 모바일=`/chat` 바로 채팅, PC=채널 홈으로 분기 (SDK 연동은 비즈앱 필요로 보류). ④ **SVG 로고**: 헤더 로고 + favicon 인라인 SVG 적용. |
 | X단계 | **랜딩 개선 + 카톡공유 + 분석중 UI 개편** — ① **랜딩 페이지**: placeholder 제거, Why 섹션 압축, FAQ 제목 변경, 제목 초록색 22px 강조, "무료 알림 신청하기" 버튼 텍스트. ② **카톡 공유**: 카카오 SDK → Web Share API 변경 (모바일: 시스템 공유창, PC: 링크 복사). ③ **분석 중 화면 개편**: "24/30" 숫자 카운터 제거, 부팅 시퀀스 애니메이션 (초반 4초, 매장명·카테고리·지역 표시), 업종별 맞춤형 팁 슬라이더 (5초마다 교체, 음식점/카페/헬스/병원/뷰티/교육 등 분류), 순위 없는 키워드는 팝업 애니메이션 제외 (결과 화면에는 전체 표시). |
+| Y단계 | **관리자 페이지 1차 개선 + 주간 cron 복구** — ① **모바일 어드민 레이아웃 수정**: 미디어쿼리가 `body`만 세로배치하고 `.app`(사이드바+본문 flex-row)는 안 풀려 본문이 화면 밖으로 밀리던 버그 → `.app{flex-direction:column}` + 본문 100%폭 + 표 패널 가로스크롤 + 페이지 가로스크롤 제거. ② **리드 삭제 기능**: 회원·리드 행별 "삭제" 버튼 + 확인 팝업 + `DELETE /admin/api/subscriber/{id}`(자동삭제 없음, 수동만). ③ **대시보드 최근진단 시각에 날짜**: `오늘/어제/MM-DD + 시:분`. ④ **알림톡 발송 이력**: `alimtalk_logs` 테이블 신규 + 발송함수(signup/weekly)가 발송 시마다 기록 + 관리자 "발송 이력" 실시간 조회(`GET /admin/api/send-history`). ⑤ **주간 cron 복구**: 미발송 원인=crontab이 직전 월요일 발송시각 이후(06-23 05:42 UTC) 생성돼 한 번도 안 돎(코드·환경·TZ·드라이런 모두 정상). cron `0 0 * * 1`=월 09:00 KST 확인. ⑥ **버그수정**: 삭제 confirm의 `\n`이 파이썬 `_ADMIN_HTML`(일반 삼중따옴표)에서 실제 개행으로 치환→어드민 JS 전체 파싱 실패(b1de85d 먹통) → `\\n` 이스케이프, lucide.createIcons 가드 추가. ⑦ **앞으로(미구현 로드맵)**: 진단 검색/필터, 리드 상태관리(연락/계약/보류), 일별 진단 추이 그래프, 유입경로, 리드 메모/전환율. |
 
 ---
 
@@ -74,7 +75,7 @@ placedoctor/
 │   ├── main.py          # FastAPI 앱 + 전체 HTML UI (인라인)
 │   │                    # ProactorEventLoop 데몬 스레드 포함
 │   ├── database.py      # SQLAlchemy 엔진·세션
-│   ├── models.py        # DB 테이블 8개
+│   ├── models.py        # DB 테이블 9개 (Y단계: alimtalk_logs 추가)
 │   ├── schemas.py       # Pydantic 요청/응답 스키마
 │   ├── crud.py          # DB 읽기·쓰기 (캐시 24h, 이력, 리드)
 │   ├── core/
@@ -170,6 +171,8 @@ URL      : postgresql://postgres:postgres@localhost:5432/placedoctor
 | GET | `/admin/api/monitored-stores` | (U단계) 모니터링 매장 목록 |
 | GET | `/admin/api/alim-templates` | (U단계) 알림톡 템플릿 조회 |
 | POST | `/admin/api/alim-templates` | (U단계) 알림톡 추가문구 저장 |
+| DELETE | `/admin/api/subscriber/{id}` | (Y단계) 구독자(리드) 영구 삭제 — 수동 정리용 |
+| GET | `/admin/api/send-history` | (Y단계) 알림톡 발송 이력 조회 (alimtalk_logs) |
 
 ---
 
