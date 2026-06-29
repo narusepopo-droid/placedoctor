@@ -895,6 +895,19 @@ def get_analyses_filtered(
                 cat_raw = data.get("category", "")
                 if cat_raw:
                     category = cat_raw.split(",")[0].strip()
+                # category 비어있으면 store_name에서 추론
+                if not category:
+                    sn = r.store_name or ""
+                    if "카페" in sn:
+                        category = "카페"
+                    elif "식당" in sn or "국밥" in sn:
+                        category = "음식점"
+                    elif "피부" in sn or "메디컬" in sn or "스킨" in sn:
+                        category = "피부관리"
+                    elif "학원" in sn or "교육" in sn:
+                        category = "학원"
+                    elif "헬스" in sn or "피트니스" in sn or "짐" in sn:
+                        category = "피트니스"
                 place_url = data.get("place_url", "")
                 if not place_url and r.place_id:
                     place_url = f"https://m.place.naver.com/place/{r.place_id}"
@@ -1095,6 +1108,19 @@ def get_subscribers_filtered(
                             category = cat_raw.split(">")[0].strip()
                         else:
                             category = cat_raw.strip()
+                    # category 비어있으면 store_name에서 추론
+                    if not category:
+                        sn = s.store_name or ""
+                        if "카페" in sn:
+                            category = "카페"
+                        elif "식당" in sn or "국밥" in sn:
+                            category = "음식점"
+                        elif "피부" in sn or "메디컬" in sn or "스킨" in sn:
+                            category = "피부관리"
+                        elif "학원" in sn or "교육" in sn:
+                            category = "학원"
+                        elif "헬스" in sn or "피트니스" in sn or "짐" in sn:
+                            category = "피트니스"
                     # place_url이 result에 있으면 그걸 사용
                     if data.get("place_url"):
                         place_url = data.get("place_url")
@@ -1244,6 +1270,19 @@ def get_popular_stores(db: Session, limit: int = 10) -> list[dict]:
                         category = cat_raw.split(">")[0].strip()
                     else:
                         category = cat_raw.strip()
+                # category 비어있으면 store_name에서 추론
+                if not category:
+                    sn = r.store_name or ""
+                    if "카페" in sn:
+                        category = "카페"
+                    elif "식당" in sn or "국밥" in sn:
+                        category = "음식점"
+                    elif "피부" in sn or "메디컬" in sn or "스킨" in sn:
+                        category = "피부관리"
+                    elif "학원" in sn or "교육" in sn:
+                        category = "학원"
+                    elif "헬스" in sn or "피트니스" in sn or "짐" in sn:
+                        category = "피트니스"
                 if data.get("place_url"):
                     place_url = data.get("place_url")
             except:
