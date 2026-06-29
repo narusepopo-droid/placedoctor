@@ -49,18 +49,39 @@ def _record_log(template_key: str, template_code: str, phone: str,
         print(f"[알림톡] 이력 기록 실패: {e}")
 
 
+def _get_extra_text(template_key: str) -> str:
+    """DB에서 추가문구 가져오기"""
+    try:
+        from ..database import SessionLocal
+        from .. import crud
+        db = SessionLocal()
+        try:
+            tpl = crud.get_alim_template(db, template_key)
+            return tpl.extra_text if tpl and tpl.extra_text else ""
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[알림톡] 추가문구 조회 실패: {e}")
+        return ""
+
+
 async def send_signup_alimtalk(phone: str, store_name: str, day_of_week: str = "월요일") -> dict:
     """
     알림 신청 완료 알림톡 발송
 
     템플릿 변수: #{매장명}, #{요일} → 직접 치환해서 전송
     """
+    # DB에서 추가문구 가져오기
+    extra_text = _get_extra_text("signup")
+
     # 변수를 직접 치환한 메시지
     message = (
         f"[플레이스랭킹] 순위 알림 신청이 완료되었습니다.\n\n"
         f"{store_name}님의 플레이스 순위 모니터링을 시작합니다.\n\n"
         f"매주 {day_of_week}에 키워드 순위 변화를 정리하여 보내드립니다."
     )
+    if extra_text:
+        message += f"\n\n{extra_text}"
 
     button_json = '{"button":[{"name":"순위 확인하기","linkType":"WL","linkTypeName":"웹링크","linkMo":"https://placeranking.com","linkPc":"https://placeranking.com"}]}'
 
@@ -107,6 +128,9 @@ async def send_weekly_alimtalk(
     last_str = str(last_rank) if last_rank else "-"
     this_str = str(this_rank) if this_rank else "-"
 
+    # DB에서 추가문구 가져오기
+    extra_text = _get_extra_text("weekly")
+
     # 강조 타이틀 (파란색 헤더)
     emtitle = "이번주 플레이스 순위 리포트"
 
@@ -117,6 +141,8 @@ async def send_weekly_alimtalk(
         f"{last_str}위 → {this_str}위\n\n"
         f"경쟁 매장 변화까지 전체 리포트를 정리했습니다."
     )
+    if extra_text:
+        message += f"\n\n{extra_text}"
 
     button_json = '{"button":[{"name":"키워드 전체 보기","linkType":"WL","linkTypeName":"웹링크","linkMo":"https://placeranking.com","linkPc":"https://placeranking.com"}]}'
 
