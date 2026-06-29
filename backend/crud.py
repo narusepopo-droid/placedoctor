@@ -898,16 +898,22 @@ def get_analyses_filtered(
                 # category 비어있으면 store_name에서 추론
                 if not category:
                     sn = r.store_name or ""
-                    if "카페" in sn:
+                    if "카페" in sn or "커피" in sn:
                         category = "카페"
-                    elif "식당" in sn or "국밥" in sn:
+                    elif any(x in sn for x in ["식당", "국밥", "고기", "육식", "삼겹", "갈비", "맛집", "식육", "정육"]):
                         category = "음식점"
-                    elif "피부" in sn or "메디컬" in sn or "스킨" in sn:
+                    elif any(x in sn for x in ["피부", "메디컬", "스킨", "에스테틱"]):
                         category = "피부관리"
-                    elif "학원" in sn or "교육" in sn:
+                    elif any(x in sn for x in ["성형", "의원", "병원", "클리닉", "치과", "한의원"]):
+                        category = "병원"
+                    elif any(x in sn for x in ["학원", "교육", "영재", "수학", "영어"]):
                         category = "학원"
-                    elif "헬스" in sn or "피트니스" in sn or "짐" in sn:
+                    elif any(x in sn for x in ["헬스", "피트니스", "짐", "PT", "필라테스", "요가"]):
                         category = "피트니스"
+                    elif any(x in sn for x in ["호텔", "펫", "애견", "고양이", "캣"]):
+                        category = "펫서비스"
+                    elif any(x in sn for x in ["미용", "헤어", "네일", "뷰티"]):
+                        category = "뷰티"
                 place_url = data.get("place_url", "")
                 if not place_url and r.place_id:
                     place_url = f"https://m.place.naver.com/place/{r.place_id}"
@@ -1111,16 +1117,22 @@ def get_subscribers_filtered(
                     # category 비어있으면 store_name에서 추론
                     if not category:
                         sn = s.store_name or ""
-                        if "카페" in sn:
+                        if "카페" in sn or "커피" in sn:
                             category = "카페"
-                        elif "식당" in sn or "국밥" in sn:
+                        elif any(x in sn for x in ["식당", "국밥", "고기", "육식", "삼겹", "갈비", "맛집", "식육", "정육"]):
                             category = "음식점"
-                        elif "피부" in sn or "메디컬" in sn or "스킨" in sn:
+                        elif any(x in sn for x in ["피부", "메디컬", "스킨", "에스테틱"]):
                             category = "피부관리"
-                        elif "학원" in sn or "교육" in sn:
+                        elif any(x in sn for x in ["성형", "의원", "병원", "클리닉", "치과", "한의원"]):
+                            category = "병원"
+                        elif any(x in sn for x in ["학원", "교육", "영재", "수학", "영어"]):
                             category = "학원"
-                        elif "헬스" in sn or "피트니스" in sn or "짐" in sn:
+                        elif any(x in sn for x in ["헬스", "피트니스", "짐", "PT", "필라테스", "요가"]):
                             category = "피트니스"
+                        elif any(x in sn for x in ["호텔", "펫", "애견", "고양이", "캣"]):
+                            category = "펫서비스"
+                        elif any(x in sn for x in ["미용", "헤어", "네일", "뷰티"]):
+                            category = "뷰티"
                     # place_url이 result에 있으면 그걸 사용
                     if data.get("place_url"):
                         place_url = data.get("place_url")
@@ -1273,16 +1285,22 @@ def get_popular_stores(db: Session, limit: int = 10) -> list[dict]:
                 # category 비어있으면 store_name에서 추론
                 if not category:
                     sn = r.store_name or ""
-                    if "카페" in sn:
+                    if "카페" in sn or "커피" in sn:
                         category = "카페"
-                    elif "식당" in sn or "국밥" in sn:
+                    elif any(x in sn for x in ["식당", "국밥", "고기", "육식", "삼겹", "갈비", "맛집", "식육", "정육"]):
                         category = "음식점"
-                    elif "피부" in sn or "메디컬" in sn or "스킨" in sn:
+                    elif any(x in sn for x in ["피부", "메디컬", "스킨", "에스테틱"]):
                         category = "피부관리"
-                    elif "학원" in sn or "교육" in sn:
+                    elif any(x in sn for x in ["성형", "의원", "병원", "클리닉", "치과", "한의원"]):
+                        category = "병원"
+                    elif any(x in sn for x in ["학원", "교육", "영재", "수학", "영어"]):
                         category = "학원"
-                    elif "헬스" in sn or "피트니스" in sn or "짐" in sn:
+                    elif any(x in sn for x in ["헬스", "피트니스", "짐", "PT", "필라테스", "요가"]):
                         category = "피트니스"
+                    elif any(x in sn for x in ["호텔", "펫", "애견", "고양이", "캣"]):
+                        category = "펫서비스"
+                    elif any(x in sn for x in ["미용", "헤어", "네일", "뷰티"]):
+                        category = "뷰티"
                 if data.get("place_url"):
                     place_url = data.get("place_url")
             except:
