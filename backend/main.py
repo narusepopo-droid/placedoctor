@@ -4829,7 +4829,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
       <div class="panel">
         <h2>구독자 매장 현황</h2><p class="desc">알림 신청자들의 순위 변화</p>
         <table>
-          <thead><tr><th>매장명</th><th>대표 키워드</th><th>지난주</th><th>이번주</th><th>변화</th></tr></thead>
+          <thead><tr><th>매장명</th><th>플레이스</th><th>대표 키워드</th><th>지난주</th><th>이번주</th><th>변화</th></tr></thead>
           <tbody id="subStoreTable"></tbody>
         </table>
       </div>
@@ -4838,7 +4838,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
       <div class="panel">
         <h2>인기 분석 매장 TOP 10</h2><p class="desc">가장 많이 분석된 매장</p>
         <table>
-          <thead><tr><th>순위</th><th>매장명</th><th>지역/업종</th><th>분석 횟수</th><th>최근 분석</th></tr></thead>
+          <thead><tr><th>순위</th><th>매장명</th><th>플레이스</th><th>지역/업종</th><th>분석 횟수</th><th>최근 분석</th></tr></thead>
           <tbody id="popularTable"></tbody>
         </table>
       </div>
@@ -5176,18 +5176,20 @@ async function loadInsight(){
       if(diff>0)change=`<span class="up">▲ ${diff}</span>`;
       else if(diff<0)change=`<span class="down">▼ ${Math.abs(diff)}</span>`;
     }
-    html1+=`<tr><td>${x.store_name}</td><td>${x.keyword||'-'}</td><td>${x.last_rank?x.last_rank+'위':'-'}</td><td class="rank">${x.this_rank?x.this_rank+'위':'-'}</td><td>${change}</td></tr>`;
+    const placeBtn=x.place_url?`<a href="${x.place_url}" target="_blank" class="go-btn">바로가기</a>`:'<span style="color:var(--sub)">-</span>';
+    html1+=`<tr><td>${x.store_name}</td><td>${placeBtn}</td><td>${x.keyword||'-'}</td><td>${x.last_rank?x.last_rank+'위':'-'}</td><td class="rank">${x.this_rank?x.this_rank+'위':'-'}</td><td>${change}</td></tr>`;
   });
-  document.getElementById('subStoreTable').innerHTML=html1||'<tr><td colspan="5" style="color:var(--sub);text-align:center">구독자가 없습니다</td></tr>';
+  document.getElementById('subStoreTable').innerHTML=html1||'<tr><td colspan="6" style="color:var(--sub);text-align:center">구독자가 없습니다</td></tr>';
 
   // 인기 분석 매장
   const r2=await fetch('/admin/api/popular-stores?limit=10');
   const d2=await r2.json();
   let html2='';
   d2.forEach(x=>{
-    html2+=`<tr><td>${x.rank}</td><td>${x.store_name}</td><td>${x.region||'-'} / ${x.category||'-'}</td><td>${x.count}회</td><td>${x.last_analyzed}</td></tr>`;
+    const placeBtn=x.place_url?`<a href="${x.place_url}" target="_blank" class="go-btn">바로가기</a>`:'<span style="color:var(--sub)">-</span>';
+    html2+=`<tr><td>${x.rank}</td><td>${x.store_name}</td><td>${placeBtn}</td><td>${x.region||'-'} / ${x.category||'-'}</td><td>${x.count}회</td><td>${x.last_analyzed}</td></tr>`;
   });
-  document.getElementById('popularTable').innerHTML=html2||'<tr><td colspan="5" style="color:var(--sub);text-align:center">분석 기록이 없습니다</td></tr>';
+  document.getElementById('popularTable').innerHTML=html2||'<tr><td colspan="6" style="color:var(--sub);text-align:center">분석 기록이 없습니다</td></tr>';
 
   // 업종별 통계
   const r3=await fetch('/admin/api/category-stats');

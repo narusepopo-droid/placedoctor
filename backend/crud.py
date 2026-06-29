@@ -1059,6 +1059,10 @@ def get_subscribers_filtered(
         keywords = []
         place_url = s.store_url or ""
 
+        # place_id가 있으면 URL 생성
+        if s.place_id and not place_url:
+            place_url = f"https://m.place.naver.com/place/{s.place_id}"
+
         if s.place_id:
             record = (
                 db.query(models.AnalysisHistory)
@@ -1081,10 +1085,19 @@ def get_subscribers_filtered(
                         parts = address.split()
                         if len(parts) >= 2:
                             region = parts[1] if len(parts[1]) >= 2 else parts[0]
-                    # 업종: category에서 첫번째 항목
+                    # 업종: category에서 첫번째 항목 (콤마 또는 > 구분)
                     cat_raw = data.get("category", "")
                     if cat_raw:
-                        category = cat_raw.split(",")[0].strip()
+                        # "카페,디저트" 또는 "음식점 > 한식" 형태 처리
+                        if "," in cat_raw:
+                            category = cat_raw.split(",")[0].strip()
+                        elif ">" in cat_raw:
+                            category = cat_raw.split(">")[0].strip()
+                        else:
+                            category = cat_raw.strip()
+                    # place_url이 result에 있으면 그걸 사용
+                    if data.get("place_url"):
+                        place_url = data.get("place_url")
                     # 키워드 목록 (순위 있는 것 우선)
                     place_results = data.get("place_results", [])
                     ranked = [p["keyword"] for p in place_results if p.get("rank")]
@@ -1121,6 +1134,8 @@ def get_subscriber_stores_status(db: Session) -> list[dict]:
         if not s.place_id:
             continue
 
+        place_url = s.store_url or f"https://m.place.naver.com/place/{s.place_id}"
+
         histories = (
             db.query(models.AnalysisHistory)
             .filter(
@@ -1142,6 +1157,8 @@ def get_subscriber_stores_status(db: Session) -> list[dict]:
                 try:
                     data = json.loads(latest.result_json)
                     place_results = data.get("place_results", [])
+                    if data.get("place_url"):
+                        place_url = data.get("place_url")
                     if keyword:
                         for p in place_results:
                             if p.get("keyword") == keyword:
@@ -1170,6 +1187,7 @@ def get_subscriber_stores_status(db: Session) -> list[dict]:
 
         result.append({
             "store_name": s.store_name,
+            "place_url": place_url,
             "keyword": keyword,
             "this_rank": this_rank,
             "last_rank": last_rank,
@@ -1200,6 +1218,7 @@ def get_popular_stores(db: Session, limit: int = 10) -> list[dict]:
     for i, r in enumerate(results):
         region = ""
         category = ""
+        place_url = f"https://m.place.naver.com/place/{r.place_id}" if r.place_id else ""
         record = (
             db.query(models.AnalysisHistory)
             .filter(models.AnalysisHistory.place_id == r.place_id)
@@ -1219,13 +1238,21 @@ def get_popular_stores(db: Session, limit: int = 10) -> list[dict]:
                         region = parts[1] if len(parts[1]) >= 2 else parts[0]
                 cat_raw = data.get("category", "")
                 if cat_raw:
-                    category = cat_raw.split(",")[0].strip()
+                    if "," in cat_raw:
+                        category = cat_raw.split(",")[0].strip()
+                    elif ">" in cat_raw:
+                        category = cat_raw.split(">")[0].strip()
+                    else:
+                        category = cat_raw.strip()
+                if data.get("place_url"):
+                    place_url = data.get("place_url")
             except:
                 pass
 
         items.append({
             "rank": i + 1,
             "store_name": r.store_name,
+            "place_url": place_url,
             "region": region,
             "category": category,
             "count": r.count,
