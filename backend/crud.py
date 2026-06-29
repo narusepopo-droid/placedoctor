@@ -1069,6 +1069,8 @@ def get_subscribers_filtered(
         if s.place_id and not place_url:
             place_url = f"https://m.place.naver.com/place/{s.place_id}"
 
+        # place_id로 분석 기록 찾기, 없으면 store_name으로 폴백
+        record = None
         if s.place_id:
             record = (
                 db.query(models.AnalysisHistory)
@@ -1079,44 +1081,77 @@ def get_subscribers_filtered(
                 .order_by(models.AnalysisHistory.analyzed_at.desc())
                 .first()
             )
-            if record and record.result_json:
-                try:
-                    data = json.loads(record.result_json)
-                    address = data.get("address", "")
-                    # 지역: 주소에서 구/시/군 추출
-                    import re
-                    match = re.search(r'([\w]+구|[\w]+시|[\w]+군)', address)
-                    region = match.group(1) if match else ""
-                    if not region and address:
-                        parts = address.split()
-                        if len(parts) >= 2:
-                            region = parts[1] if len(parts[1]) >= 2 else parts[0]
-                    # 업종: category에서 첫번째 항목 (콤마 또는 > 구분)
-                    cat_raw = data.get("category", "")
-                    if cat_raw:
-                        # "카페,디저트" 또는 "음식점 > 한식" 형태 처리
-                        if "," in cat_raw:
-                            category = cat_raw.split(",")[0].strip()
-                        elif ">" in cat_raw:
-                            category = cat_raw.split(">")[0].strip()
-                        else:
-                            category = cat_raw.strip()
-                    # category 비어있으면 store_name에서 추론
-                    if not category:
-                        category = _infer_category(s.store_name)
-                    # place_url이 result에 있으면 그걸 사용
-                    if data.get("place_url"):
-                        place_url = data.get("place_url")
-                    # 키워드 목록 (순위 있는 것 우선)
-                    place_results = data.get("place_results", [])
-                    ranked = [p["keyword"] for p in place_results if p.get("rank")]
-                    keywords = ranked[:15] if ranked else [p["keyword"] for p in place_results][:15]
-                except:
-                    pass
+        # place_id 없거나 분석 기록 없으면 store_name으로 찾기
+        if not record and s.store_name:
+            # 정확히 일치
+            record = (
+                db.query(models.AnalysisHistory)
+                .filter(
+                    models.AnalysisHistory.store_name == s.store_name,
+                    models.AnalysisHistory.analysis_type == "place",
+                )
+                .order_by(models.AnalysisHistory.analyzed_at.desc())
+                .first()
+            )
+            # 공백 제거 후 일치 (예: "배럴짐 대치점" vs "배럴짐대치점")
+            if not record:
+                store_name_no_space = s.store_name.replace(" ", "")
+                all_records = (
+                    db.query(models.AnalysisHistory)
+                    .filter(models.AnalysisHistory.analysis_type == "place")
+                    .order_by(models.AnalysisHistory.analyzed_at.desc())
+                    .limit(500)
+                    .all()
+                )
+                for r in all_records:
+                    if r.store_name and r.store_name.replace(" ", "") == store_name_no_space:
+                        record = r
+                        break
+        if record and record.result_json:
+            try:
+                data = json.loads(record.result_json)
+                # 분석 기록에서 place_id 발견 시 place_url 생성
+                if record.place_id and not place_url:
+                    place_url = f"https://m.place.naver.com/place/{record.place_id}"
+                address = data.get("address", "")
+                # 지역: 주소에서 구/시/군 추출
+                import re
+                match = re.search(r'([\w]+구|[\w]+시|[\w]+군)', address)
+                region = match.group(1) if match else ""
+                if not region and address:
+                    parts = address.split()
+                    if len(parts) >= 2:
+                        region = parts[1] if len(parts[1]) >= 2 else parts[0]
+                # 업종: category에서 첫번째 항목 (콤마 또는 > 구분)
+                cat_raw = data.get("category", "")
+                if cat_raw:
+                    # "카페,디저트" 또는 "음식점 > 한식" 형태 처리
+                    if "," in cat_raw:
+                        category = cat_raw.split(",")[0].strip()
+                    elif ">" in cat_raw:
+                        category = cat_raw.split(">")[0].strip()
+                    else:
+                        category = cat_raw.strip()
+                # category 비어있으면 store_name에서 추론
+                if not category:
+                    category = _infer_category(s.store_name)
+                # place_url이 result에 있으면 그걸 사용
+                if data.get("place_url"):
+                    place_url = data.get("place_url")
+                # 키워드 목록 (순위 있는 것 우선)
+                place_results = data.get("place_results", [])
+                ranked = [p["keyword"] for p in place_results if p.get("rank")]
+                keywords = ranked[:15] if ranked else [p["keyword"] for p in place_results][:15]
+            except:
+                pass
 
         # place_id 없어도 store_name에서 업종 추론
         if not category:
             category = _infer_category(s.store_name)
+
+        # 지역 없으면 store_name에서 추론 (예: "배럴짐 대치점" → "대치")
+        if not region:
+            region = _infer_region(s.store_name)
 
         items.append({
             "id": s.id,
@@ -1280,6 +1315,25 @@ def get_popular_stores(db: Session, limit: int = 10) -> list[dict]:
         })
 
     return items
+
+
+def _infer_region(store_name: str) -> str:
+    """store_name에서 지역 추론 (공통 헬퍼)"""
+    import re
+    sn = store_name or ""
+    # "OO점" 패턴에서 지역 추출 (예: 대치점 → 대치, 강남역점 → 강남역)
+    match = re.search(r'([가-힣]{2,4})점$', sn)
+    if match:
+        return match.group(1)
+    # "OO지점" 패턴
+    match = re.search(r'([가-힣]{2,4})지점$', sn)
+    if match:
+        return match.group(1)
+    # "OO구" 또는 "OO동" 패턴
+    match = re.search(r'([가-힣]+(?:구|동|시|군))', sn)
+    if match:
+        return match.group(1)
+    return ""
 
 
 def _infer_category(store_name: str) -> str:
