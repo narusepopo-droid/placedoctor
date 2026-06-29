@@ -189,7 +189,11 @@ def _find_tokens_in_kw(kw, locations):
 
     # 2) 지역 제거 후 남은 전체 문자열도 토큰으로 추가 (대형베이커리카페 같은 복합어 지원)
     # 단, 8글자 이상 긴 복합어는 제외 (과학영재고입시사고력유아수학 같은 SEO 합성어)
-    if re.match(r'^[가-힣]+$', remaining) and remaining not in found and 3 <= len(remaining) <= 7:
+    # v8.43: 지역 suffix로 끝나면 제외 (변동금호강 같은 지역 합성어)
+    _loc_suffixes = ('산', '강', '천', '동', '역', '구', '읍', '면', '리', '계곡', '공원', '호수')
+    if (re.match(r'^[가-힣]+$', remaining) and remaining not in found
+        and 3 <= len(remaining) <= 7
+        and not any(remaining.endswith(s) for s in _loc_suffixes)):
         found.append(remaining)
 
     return list(dict.fromkeys(found))
@@ -295,19 +299,29 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
 
     # ── keywordList에서 추가 지역 토큰 추출 ──
     for kw in kw_list_raw:
-        m = re.match(r'^[가-힣]{2,3}(?:역|동|구|대)', kw)
+        # v8.43: "대"로 끝나는 건 2글자만 허용 (상대, 홍대 등), 3글자 이상은 오인식 위험
+        m = re.match(r'^[가-힣]{2,3}(?:역|동|구)|^[가-힣]{2}대', kw)
         added_by_method1 = False
         if m:
             extra = m.group()
             is_derived_dong = (extra.endswith("동") and
                                any(extra == loc + "동" for loc in locations if loc.endswith("구")))
-            if extra not in locations and not is_derived_dong:
+            # v8.43: 기존 지역을 포함하면 제외 (동변동대 ← 동변동 포함)
+            contains_existing = any(loc in extra and loc != extra for loc in locations if len(loc) >= 2)
+            if extra not in locations and not is_derived_dong and not contains_existing:
                 locations.append(extra)
                 added_by_method1 = True
 
         # v8.42: 랜드마크 전체 검색 (산/강/천/계곡/공원/호수)
         # keywordList 어디에 있든 추출 — 금호강, 용오름계곡, 팔공산 등
-        for landmark in re.findall(r'[가-힣]{2,4}(?:산|강|천|계곡|공원|호수)', kw):
+        # v8.43: 짧은 것 우선 추출 (동금호강보다 금호강 우선)
+        landmarks_found = []
+        for landmark in re.findall(r'[가-힣]{2}(?:산|강|천)|[가-힣]{2}(?:계곡|공원|호수)', kw):
+            landmarks_found.append(landmark)
+        for landmark in re.findall(r'[가-힣]{3}(?:산|강|천)|[가-힣]{3,4}(?:계곡|공원|호수)', kw):
+            if not any(lm in landmark for lm in landmarks_found):
+                landmarks_found.append(landmark)
+        for landmark in landmarks_found:
             if landmark not in locations and landmark not in _INTENT_TOKENS:
                 locations.append(landmark)
 
@@ -318,7 +332,8 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                     rest = kw[plen:]
                     is_derived2 = (prefix.endswith("동") and
                                    any(prefix == loc + "동" for loc in locations if loc.endswith("구")))
-                    is_extension2 = any(prefix.startswith(loc) and loc != prefix
+                    # v8.43: 기존 지역을 prefix로 포함하면 확장형이므로 제외 (동변동대 ← 동변동 포함)
+                    is_extension2 = any(loc in prefix and loc != prefix
                                         for loc in locations if len(loc) >= 2)
                     _is_intent_prefix = (prefix in _INTENT_TOKENS or
                                          any(t.startswith(prefix) and len(t) > len(prefix)
@@ -366,21 +381,24 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
         _LOC_SFXS2 = {'공원', '호수', '댐', '계곡'}
         for chunk in re.findall(r'[가-힣]{2,5}', remaining4):
             loc_suffix_ok = (chunk[-1] in _LOC_SFXS or chunk[-2:] in _LOC_SFXS2)
+            # v8.43: 기존 지역(특히 랜드마크)을 포함하면 제외 (변동금호강 ← 금호강 포함)
             is_superset = any(loc in chunk and loc != chunk for loc in locations if len(loc) >= 2)
             if (chunk not in locations and chunk not in _INTENT_TOKENS
                     and not any(chunk == loc + "동" for loc in locations if loc.endswith("구"))
                     and loc_suffix_ok and not is_superset):
                 locations.append(chunk)
 
-        # 방식 5: keywordList 앞 3~5글자가 지명 suffix로 끝나면 추출 (화담공원, 팔공산, 용오름 등)
-        # 기존 방식들로 못 잡는 신규 지명용
-        for plen in [4, 5, 3]:  # 4글자 우선 (화담공원), 5글자, 3글자 순
+        # 방식 5: keywordList 앞 3~4글자가 지명 suffix로 끝나면 추출 (화담공원, 팔공산 등)
+        # v8.43: 5글자 제외 (변동금호강 같은 합성어 오인식 방지), 기존 랜드마크 포함 시 제외
+        for plen in [4, 3]:  # 4글자 우선 (화담공원), 3글자
             if len(kw) >= plen + 2:
                 prefix = kw[:plen]
                 if re.match(r'^[가-힣]+$', prefix) and prefix not in locations:
                     has_loc_suffix = (prefix[-1] in _LOC_SFXS or prefix[-2:] in _LOC_SFXS2)
                     is_intent = prefix in _INTENT_TOKENS
-                    if has_loc_suffix and not is_intent:
+                    # 기존 랜드마크를 포함하면 추가하지 않음 (변동금호강 → 금호강 이미 있음)
+                    contains_existing = any(loc in prefix and loc != prefix for loc in locations if len(loc) >= 2)
+                    if has_loc_suffix and not is_intent and not contains_existing:
                         locations.append(prefix)
                         break
 
