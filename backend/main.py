@@ -4662,8 +4662,11 @@ _ADMIN_HTML = """<!DOCTYPE html>
   .memo-input{padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;width:100px}
   .go-btn{display:inline-block;padding:4px 10px;background:var(--green-soft);color:var(--green-d);border-radius:6px;font-size:11px;font-weight:700;text-decoration:none}
   .go-btn:hover{background:var(--green);color:#fff}
-  .kw-display{font-size:12px;margin-right:4px}
-  .kw-dropdown{padding:3px 6px;border:1px solid var(--line);border-radius:4px;font-size:11px;width:24px;cursor:pointer;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236B7C8F'/%3E%3C/svg%3E") no-repeat right 6px center;-webkit-appearance:none;appearance:none}
+  .kw-wrap{display:inline-flex;align-items:center;gap:4px}
+  .kw-text{font-size:12px}
+  .kw-arrow{font-size:10px;color:var(--sub);cursor:pointer;padding:2px 4px}
+  .kw-arrow:hover{color:var(--green)}
+  .kw-select-hidden{display:none;padding:4px 8px;border:1px solid var(--line);border-radius:4px;font-size:12px;max-width:140px}
   /* 차트 그리드 */
   .chart-grid{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px}
   .insight-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
@@ -5107,10 +5110,10 @@ async function loadSubscribersFiltered(page=0){
     const memoInput=`<input type="text" class="memo-input" value="${(x.memo||'').replace(/"/g,'&quot;')}" placeholder="메모..." onblur="updateMemo(${x.id},this.value)">`;
     const placeBtn=x.place_url?`<a href="${x.place_url}" target="_blank" class="go-btn">바로가기</a>`:'<span style="color:var(--sub)">-</span>';
     const regionCat=`${x.region||'-'} / ${x.category||'-'}`;
-    // 대표 키워드: 현재값 + 드롭다운
+    // 대표 키워드: 현재값 + ▼ 화살표 (클릭 시 드롭다운)
     const currentKw=x.selected_keyword||x.keywords[0]||'-';
     let kwOptions=x.keywords.map(k=>`<option value="${k}" ${(x.selected_keyword||x.keywords[0])===k?'selected':''}>${k}</option>`).join('');
-    const kwSelect=x.keywords.length?`<span class="kw-display">${currentKw}</span><select class="kw-dropdown" onchange="updateKeyword(${x.id},this.value)">${kwOptions}</select>`:`<span style="color:var(--sub)">-</span>`;
+    const kwSelect=x.keywords.length?`<span class="kw-wrap"><span class="kw-text">${currentKw}</span><span class="kw-arrow" onclick="this.nextElementSibling.style.display='inline';this.style.display='none'">▼</span><select class="kw-select-hidden" onchange="updateKeyword(${x.id},this.value);this.previousElementSibling.style.display='inline';this.style.display='none';this.previousElementSibling.previousElementSibling.textContent=this.value" onblur="this.previousElementSibling.style.display='inline';this.style.display='none'">${kwOptions}</select></span>`:`<span style="color:var(--sub)">-</span>`;
     html+=`<tr><td>${x.store_name}</td><td>${placeBtn}</td><td style="font-size:12px">${regionCat}</td><td>${x.phone}</td><td>${statusBadge}</td><td>${kwSelect}</td><td>${memoInput}</td><td>${x.created_at||'-'}</td><td>${tag}</td><td>${del}</td></tr>`;
   });
   document.getElementById('subTable').innerHTML=html||'<tr><td colspan="10" style="color:var(--sub);text-align:center">알림 신청자가 없습니다</td></tr>';
