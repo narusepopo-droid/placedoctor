@@ -1945,6 +1945,9 @@ async function analyzePlaceOnly(){
   showBootSequence(name, '', '');
 
   // R단계: SSE로 실시간 스트리밍
+  // 유입경로 추적: URL에서 utm_source 파라미터 읽기
+  const urlParams = new URLSearchParams(window.location.search);
+  const utmSource = urlParams.get('utm_source') || (document.referrer ? 'referrer' : 'direct');
   const params = new URLSearchParams({
     store_name: name,
     place_url: url,
@@ -1954,6 +1957,7 @@ async function analyzePlaceOnly(){
     ad_powerlink: adFlags.ad_powerlink,
     ad_local: adFlags.ad_local,
     ad_blog: adFlags.ad_blog,
+    source: utmSource,
   });
 
   // R단계: 게임 점수 상태
@@ -2173,7 +2177,9 @@ async function analyzeBlogOnly(){
 
   let eventSource = null;
   try {
-    const params = new URLSearchParams({ store_name: name, place_url: url, anon_id: _anonId || '' });
+    const urlParams = new URLSearchParams(window.location.search);
+    const utmSource = urlParams.get('utm_source') || (document.referrer ? 'referrer' : 'direct');
+    const params = new URLSearchParams({ store_name: name, place_url: url, anon_id: _anonId || '', source: utmSource });
     eventSource = new EventSource('/analyze-blog-stream?' + params.toString());
 
     eventSource.addEventListener('started', (e) => {
@@ -3376,6 +3382,7 @@ async def diagnose_stream_endpoint(
     ad_blog: bool = False,
     anon_id: str = None,
     force_refresh: bool = False,
+    source: str = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -3426,6 +3433,7 @@ async def diagnose_stream_endpoint(
                         total_score=cached.get("scores", {}).get("total"),
                         result_json=json_module.dumps(cached, ensure_ascii=False),
                         anon_id=anon_id,
+                        source=source,
                     )
                 except Exception as e:
                     import logging
@@ -3508,6 +3516,7 @@ async def diagnose_stream_endpoint(
                                 total_score=result.get("scores", {}).get("total"),
                                 result_json=json_module.dumps(result, ensure_ascii=False),
                                 anon_id=anon_id,
+                                source=source,
                             )
                         except Exception as e:
                             import logging
@@ -3913,6 +3922,7 @@ async def analyze_blog_stream_endpoint(
     store_name: str,
     place_url: str,
     anon_id: str = None,
+    source: str = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -4000,6 +4010,7 @@ async def analyze_blog_stream_endpoint(
                                 analysis_type="blog", total_score=None,
                                 result_json=json_module.dumps(result, ensure_ascii=False),
                                 anon_id=anon_id,
+                                source=source,
                             )
                         except Exception as e:
                             import logging
@@ -4404,6 +4415,100 @@ def admin_send_history(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 관리자 2차: 검색/필터 + 리드 상태 + 일별 추이 + 유입경로 API
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/admin/api/analyses", tags=["관리자"])
+def admin_analyses_filtered(
+    search: str = "",
+    date_range: str = "all",
+    has_score: str = "all",
+    offset: int = 0,
+    limit: int = 20,
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """검색/필터가 적용된 분석 목록 (페이지네이션)"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    return crud.get_analyses_filtered(db, search, date_range, has_score, offset, limit)
+
+
+@app.get("/admin/api/daily-counts", tags=["관리자"])
+def admin_daily_counts(
+    days: int = 30,
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """일별 진단 수 집계 (Chart.js용)"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    return crud.get_daily_analysis_counts(db, days)
+
+
+@app.get("/admin/api/source-stats", tags=["관리자"])
+def admin_source_stats(
+    days: int = 30,
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """유입경로별 통계"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    return crud.get_source_stats(db, days)
+
+
+@app.put("/admin/api/subscriber/{subscriber_id}/status", tags=["관리자"])
+def admin_update_subscriber_status(
+    subscriber_id: int,
+    status: str,
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """리드 상태 업데이트"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    valid_statuses = ["new", "contacted", "contracted", "hold", "rejected"]
+    if status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"유효한 상태: {valid_statuses}")
+    sub = crud.update_subscriber_status(db, subscriber_id, status)
+    if not sub:
+        raise HTTPException(status_code=404, detail="구독자를 찾을 수 없습니다")
+    return {"success": True, "status": sub.status}
+
+
+@app.put("/admin/api/subscriber/{subscriber_id}/memo", tags=["관리자"])
+def admin_update_subscriber_memo(
+    subscriber_id: int,
+    memo: str = "",
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """리드 메모 업데이트"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    sub = crud.update_subscriber_memo(db, subscriber_id, memo)
+    if not sub:
+        raise HTTPException(status_code=404, detail="구독자를 찾을 수 없습니다")
+    return {"success": True, "memo": sub.memo}
+
+
+@app.get("/admin/api/subscribers-filtered", tags=["관리자"])
+def admin_subscribers_filtered(
+    search: str = "",
+    status: str = "all",
+    offset: int = 0,
+    limit: int = 20,
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """필터가 적용된 구독자 목록 (페이지네이션)"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    return crud.get_subscribers_filtered(db, search, status, offset, limit)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 관리자 페이지 HTML
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -4414,6 +4519,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>플레이스랭킹 관리자</title>
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.294.0/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   .adm-icon{width:16px;height:16px;stroke-width:2;vertical-align:-3px;margin-right:6px;}
   :root{
@@ -4484,6 +4590,15 @@ _ADMIN_HTML = """<!DOCTYPE html>
   .tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:700}
   .tag.on{background:var(--green-soft);color:var(--green-d)}
   .tag.off{background:#F1F4F7;color:var(--sub)}
+  /* 리드 상태 뱃지 */
+  .status-badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer}
+  .status-badge.new{background:#F1F4F7;color:var(--sub)}
+  .status-badge.contacted{background:#E3F2FD;color:#1976D2}
+  .status-badge.contracted{background:var(--green-soft);color:var(--green-d)}
+  .status-badge.hold{background:#FFF3E0;color:#F57C00}
+  .status-badge.rejected{background:#FFEBEE;color:#D32F2F}
+  .status-select{padding:4px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px}
+  .memo-input{padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;width:140px}
   .rank{font-weight:800}
   .up{color:var(--green)} .down{color:var(--red)} .same{color:var(--sub)}
   .del-btn{border:1px solid var(--line);background:#fff;color:var(--red);padding:5px 11px;
@@ -4520,6 +4635,8 @@ _ADMIN_HTML = """<!DOCTYPE html>
     .cards{grid-template-columns:1fr 1fr}
     .panel{overflow-x:auto}
     .panel table{min-width:520px}
+    /* 차트 그리드 모바일 */
+    div[style*="grid-template-columns:2fr 1fr"]{grid-template-columns:1fr!important}
   }
 </style>
 </head>
@@ -4562,12 +4679,41 @@ _ADMIN_HTML = """<!DOCTYPE html>
         <div class="card hl"><div class="lbl">알림 신청자 (리드)</div><div class="num" id="statSubs">-</div></div>
         <div class="card"><div class="lbl">이번주 신규 진단</div><div class="num" id="statWeek">-</div></div>
       </div>
+      <!-- 일별 추이 + 유입경로 -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px">
+        <div class="panel" style="margin-bottom:0">
+          <h2>일별 진단 추이 (30일)</h2><p class="desc">홍보 효과를 한눈에</p>
+          <canvas id="dailyChart" height="180"></canvas>
+        </div>
+        <div class="panel" style="margin-bottom:0">
+          <h2>유입 경로</h2><p class="desc">어디서 왔나요?</p>
+          <canvas id="sourceChart" height="180"></canvas>
+        </div>
+      </div>
       <div class="panel">
         <h2>최근 진단</h2><p class="desc">사장님들이 방금 진단한 매장들</p>
+        <!-- 검색/필터 -->
+        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <input type="text" id="analysisSearch" placeholder="매장명 검색..." style="flex:1;min-width:150px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+          <select id="analysisDateRange" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+            <option value="all">전체 기간</option>
+            <option value="today">오늘</option>
+            <option value="week">이번 주</option>
+            <option value="month">이번 달</option>
+          </select>
+          <select id="analysisHasScore" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+            <option value="all">전체</option>
+            <option value="yes">플레이스</option>
+            <option value="no">블로그만</option>
+          </select>
+          <button onclick="loadAnalysesFiltered()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">검색</button>
+        </div>
         <table>
-          <thead><tr><th>매장명</th><th>대표 키워드</th><th>플레이스 지수</th><th>시각</th></tr></thead>
+          <thead><tr><th>매장명</th><th>유형</th><th>대표 키워드</th><th>지수</th><th>유입</th><th>시각</th></tr></thead>
           <tbody id="recentTable"></tbody>
         </table>
+        <!-- 페이지네이션 -->
+        <div id="analysisPaging" style="display:flex;justify-content:center;gap:8px;margin-top:14px"></div>
       </div>
     </section>
 
@@ -4579,10 +4725,25 @@ _ADMIN_HTML = """<!DOCTYPE html>
       </div>
       <div class="panel">
         <h2>알림 신청자 <span id="subCount">0</span>명</h2><p class="desc">전화번호를 남긴 사장님 목록</p>
+        <!-- 검색/필터 -->
+        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <input type="text" id="subSearch" placeholder="매장명/연락처 검색..." style="flex:1;min-width:150px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+          <select id="subStatusFilter" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+            <option value="all">전체 상태</option>
+            <option value="new">신규</option>
+            <option value="contacted">연락함</option>
+            <option value="contracted">계약함</option>
+            <option value="hold">보류</option>
+            <option value="rejected">거절</option>
+          </select>
+          <button onclick="loadSubscribersFiltered()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">검색</button>
+        </div>
         <table>
-          <thead><tr><th>매장명</th><th>연락처</th><th>신청일</th><th>최근 진단</th><th>알림</th><th>관리</th></tr></thead>
+          <thead><tr><th>매장명</th><th>연락처</th><th>상태</th><th>메모</th><th>신청일</th><th>알림</th><th>관리</th></tr></thead>
           <tbody id="subTable"></tbody>
         </table>
+        <!-- 페이지네이션 -->
+        <div id="subPaging" style="display:flex;justify-content:center;gap:8px;margin-top:14px"></div>
       </div>
     </section>
 
@@ -4698,11 +4859,80 @@ async function doLogout(){
 
 async function loadAll(){
   loadStats();
-  loadRecent();
-  loadSubs();
+  loadDailyChart();
+  loadSourceChart();
+  loadAnalysesFiltered();
+  loadSubscribersFiltered();
   loadMonitor();
   loadTemplates();
   loadSendHistory();
+}
+
+let dailyChart=null, sourceChart=null;
+let analysisPage=0, subPage=0;
+
+async function loadDailyChart(){
+  const r=await fetch('/admin/api/daily-counts?days=30');
+  const d=await r.json();
+  const labels=d.map(x=>x.date.slice(5));
+  const data=d.map(x=>x.count);
+  const ctx=document.getElementById('dailyChart').getContext('2d');
+  if(dailyChart) dailyChart.destroy();
+  dailyChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:labels,
+      datasets:[{label:'진단 수',data:data,borderColor:'#00C896',backgroundColor:'rgba(0,200,150,0.1)',fill:true,tension:0.3}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+  });
+}
+
+async function loadSourceChart(){
+  const r=await fetch('/admin/api/source-stats?days=30');
+  const d=await r.json();
+  const labels=d.map(x=>{
+    const src=x.source;
+    if(src==='direct') return '직접';
+    if(src==='blog') return '블로그';
+    if(src==='search') return '검색';
+    if(src==='referrer') return '추천';
+    return src||'미분류';
+  });
+  const data=d.map(x=>x.count);
+  const colors=['#00C896','#4DB8FF','#FFB74D','#A1887F','#90CAF9','#CE93D8'];
+  const ctx=document.getElementById('sourceChart').getContext('2d');
+  if(sourceChart) sourceChart.destroy();
+  sourceChart=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels:labels,datasets:[{data:data,backgroundColor:colors}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}
+  });
+}
+
+async function loadAnalysesFiltered(page=0){
+  analysisPage=page;
+  const search=document.getElementById('analysisSearch').value;
+  const dateRange=document.getElementById('analysisDateRange').value;
+  const hasScore=document.getElementById('analysisHasScore').value;
+  const limit=15;
+  const r=await fetch(`/admin/api/analyses?search=${encodeURIComponent(search)}&date_range=${dateRange}&has_score=${hasScore}&offset=${page*limit}&limit=${limit}`);
+  const d=await r.json();
+  let html='';
+  d.items.forEach(x=>{
+    const t=fmtAdminTime(x.analyzed_at);
+    const type=x.analysis_type==='place'?'<span style="color:var(--green)">플레이스</span>':'<span style="color:#4DB8FF">블로그</span>';
+    const src=x.source||'-';
+    html+=`<tr><td>${x.store_name}</td><td>${type}</td><td>${x.top_keyword||'-'}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${src}</td><td>${t}</td></tr>`;
+  });
+  document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="6" style="color:var(--sub);text-align:center">검색 결과가 없습니다</td></tr>';
+  // 페이지네이션
+  const pages=Math.ceil(d.total/limit);
+  let paging='';
+  for(let i=0;i<pages&&i<10;i++){
+    paging+=`<button onclick="loadAnalysesFiltered(${i})" style="padding:6px 12px;border:1px solid ${i===page?'var(--green)':'var(--line)'};background:${i===page?'var(--green-soft)':'#fff'};border-radius:6px;cursor:pointer">${i+1}</button>`;
+  }
+  document.getElementById('analysisPaging').innerHTML=paging;
 }
 
 async function loadSendHistory(){
@@ -4748,27 +4978,61 @@ function fmtAdminTime(iso){
 }
 
 async function loadRecent(){
-  const r=await fetch('/admin/api/recent-analyses?limit=10');
+  loadAnalysesFiltered(0);
+}
+
+async function loadSubscribersFiltered(page=0){
+  subPage=page;
+  const search=document.getElementById('subSearch').value;
+  const status=document.getElementById('subStatusFilter').value;
+  const limit=15;
+  const r=await fetch(`/admin/api/subscribers-filtered?search=${encodeURIComponent(search)}&status=${status}&offset=${page*limit}&limit=${limit}`);
   const d=await r.json();
+  document.getElementById('subCount').textContent=d.total;
   let html='';
-  d.forEach(x=>{
-    const t=fmtAdminTime(x.analyzed_at);
-    html+=`<tr><td>${x.store_name}</td><td>${x.top_keyword||'-'}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${t}</td></tr>`;
+  const statusLabels={new:'신규',contacted:'연락함',contracted:'계약함',hold:'보류',rejected:'거절'};
+  d.items.forEach(x=>{
+    const tag=x.alarm_on?'<span class="tag on">수신중</span>':'<span class="tag off">해지</span>';
+    const del=`<button class="del-btn" onclick="deleteSub(${x.id},'${(x.store_name||'').replace(/'/g,"")}')">삭제</button>`;
+    const statusBadge=`<span class="status-badge ${x.status}" onclick="toggleStatusDropdown(${x.id})">${statusLabels[x.status]||'신규'}</span><select id="status-${x.id}" class="status-select" style="display:none" onchange="updateStatus(${x.id},this.value)"><option value="new" ${x.status==='new'?'selected':''}>신규</option><option value="contacted" ${x.status==='contacted'?'selected':''}>연락함</option><option value="contracted" ${x.status==='contracted'?'selected':''}>계약함</option><option value="hold" ${x.status==='hold'?'selected':''}>보류</option><option value="rejected" ${x.status==='rejected'?'selected':''}>거절</option></select>`;
+    const memoInput=`<input type="text" class="memo-input" value="${(x.memo||'').replace(/"/g,'&quot;')}" placeholder="메모 입력..." onblur="updateMemo(${x.id},this.value)">`;
+    html+=`<tr><td>${x.store_name}</td><td>${x.phone}</td><td>${statusBadge}</td><td>${memoInput}</td><td>${x.created_at||'-'}</td><td>${tag}</td><td>${del}</td></tr>`;
   });
-  document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="4" style="color:var(--sub);text-align:center">진단 기록이 없습니다</td></tr>';
+  document.getElementById('subTable').innerHTML=html||'<tr><td colspan="7" style="color:var(--sub);text-align:center">알림 신청자가 없습니다</td></tr>';
+  // 페이지네이션
+  const pages=Math.ceil(d.total/limit);
+  let paging='';
+  for(let i=0;i<pages&&i<10;i++){
+    paging+=`<button onclick="loadSubscribersFiltered(${i})" style="padding:6px 12px;border:1px solid ${i===page?'var(--green)':'var(--line)'};background:${i===page?'var(--green-soft)':'#fff'};border-radius:6px;cursor:pointer">${i+1}</button>`;
+  }
+  document.getElementById('subPaging').innerHTML=paging;
+}
+
+function toggleStatusDropdown(id){
+  const badge=event.target;
+  const sel=document.getElementById('status-'+id);
+  badge.style.display='none';
+  sel.style.display='inline';
+  sel.focus();
+  sel.addEventListener('blur',()=>{
+    setTimeout(()=>{
+      sel.style.display='none';
+      badge.style.display='inline';
+    },100);
+  },{once:true});
+}
+
+async function updateStatus(id,status){
+  await fetch(`/admin/api/subscriber/${id}/status?status=${status}`,{method:'PUT'});
+  loadSubscribersFiltered(subPage);
+}
+
+async function updateMemo(id,memo){
+  await fetch(`/admin/api/subscriber/${id}/memo?memo=${encodeURIComponent(memo)}`,{method:'PUT'});
 }
 
 async function loadSubs(){
-  const r=await fetch('/admin/api/subscribers');
-  const d=await r.json();
-  document.getElementById('subCount').textContent=d.length;
-  let html='';
-  d.forEach(x=>{
-    const tag=x.alarm_on?'<span class="tag on">수신중</span>':'<span class="tag off">해지</span>';
-    const del=`<button class="del-btn" onclick="deleteSub(${x.id},'${(x.store_name||'').replace(/'/g,"")}')">삭제</button>`;
-    html+=`<tr><td>${x.store_name}</td><td>${x.phone}</td><td>${x.created_at||'-'}</td><td>${x.last_analyzed_at||'-'}</td><td>${tag}</td><td>${del}</td></tr>`;
-  });
-  document.getElementById('subTable').innerHTML=html||'<tr><td colspan="6" style="color:var(--sub);text-align:center">알림 신청자가 없습니다</td></tr>';
+  loadSubscribersFiltered(0);
 }
 
 async function deleteSub(id, name){

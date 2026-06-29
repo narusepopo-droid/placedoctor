@@ -139,6 +139,7 @@ class AnalysisHistory(Base):
     total_score    = Column(Float, nullable=True)  # 플레이스 분석 시 종합점수
     result_json    = Column(Text, nullable=True)   # 키워드별 순위 등 전체 결과 JSON
     anon_id        = Column(String(36), index=True, nullable=True)  # K단계: 익명 식별자 (UUID)
+    source         = Column(String(20), nullable=True)  # 유입경로: direct | blog | search | etc
 
 
 class RegisteredStore(Base):
@@ -168,6 +169,7 @@ class Subscriber(Base):
     created_at       = Column(DateTime(timezone=True), default=_now)
     last_analyzed_at = Column(DateTime(timezone=True), nullable=True)
     memo             = Column(Text, nullable=True)
+    status           = Column(String(20), default="new")  # new | contacted | contracted | hold | rejected
 
 
 class AlimTemplate(Base):

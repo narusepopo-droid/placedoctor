@@ -153,6 +153,7 @@ def save_analysis_history(
     total_score: float | None,
     result_json: str,
     anon_id: str | None = None,
+    source: str | None = None,
 ) -> models.AnalysisHistory:
     """분석 결과를 히스토리에 누적 저장 (덮어쓰기 X)"""
     history = models.AnalysisHistory(
@@ -162,6 +163,7 @@ def save_analysis_history(
         total_score=total_score,
         result_json=result_json,
         anon_id=anon_id,
+        source=source,
     )
     db.add(history)
     db.commit()
@@ -822,3 +824,192 @@ def get_monitored_stores(db: Session, limit: int = 50) -> list[dict]:
         })
 
     return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 관리자 2차: 검색/필터 + 리드 상태 + 일별 추이 + 유입경로
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_analyses_filtered(
+    db: Session,
+    search: str = "",
+    date_range: str = "all",
+    has_score: str = "all",
+    offset: int = 0,
+    limit: int = 20,
+) -> dict:
+    """검색/필터가 적용된 분석 목록 + 페이지네이션"""
+    from datetime import timedelta
+    now = datetime.now(timezone.utc)
+
+    query = db.query(models.AnalysisHistory)
+
+    # 검색: 매장명
+    if search:
+        query = query.filter(models.AnalysisHistory.store_name.ilike(f"%{search}%"))
+
+    # 날짜 범위 필터
+    if date_range == "today":
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(models.AnalysisHistory.analyzed_at >= start)
+    elif date_range == "week":
+        start = now - timedelta(days=7)
+        query = query.filter(models.AnalysisHistory.analyzed_at >= start)
+    elif date_range == "month":
+        start = now - timedelta(days=30)
+        query = query.filter(models.AnalysisHistory.analyzed_at >= start)
+
+    # 플레이스 지수 유무 필터
+    if has_score == "yes":
+        query = query.filter(models.AnalysisHistory.total_score.isnot(None))
+    elif has_score == "no":
+        query = query.filter(models.AnalysisHistory.total_score.is_(None))
+
+    total = query.count()
+    records = (
+        query.order_by(models.AnalysisHistory.analyzed_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    items = []
+    for r in records:
+        top_keyword = ""
+        if r.result_json:
+            try:
+                data = json.loads(r.result_json)
+                place_results = data.get("place_results", [])
+                ranked = [p for p in place_results if p.get("rank")]
+                if ranked:
+                    best = min(ranked, key=lambda x: x["rank"])
+                    top_keyword = best.get("keyword", "")
+            except:
+                pass
+        items.append({
+            "id": r.id,
+            "store_name": r.store_name,
+            "analysis_type": r.analysis_type,
+            "top_keyword": top_keyword,
+            "total_score": r.total_score,
+            "source": r.source,
+            "analyzed_at": r.analyzed_at.isoformat() if r.analyzed_at else None,
+        })
+
+    return {"total": total, "items": items}
+
+
+def get_daily_analysis_counts(db: Session, days: int = 30) -> list[dict]:
+    """일별 진단 수 집계"""
+    from sqlalchemy import func, cast, Date
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    start = now - timedelta(days=days)
+
+    results = (
+        db.query(
+            cast(models.AnalysisHistory.analyzed_at, Date).label("date"),
+            func.count().label("count"),
+        )
+        .filter(models.AnalysisHistory.analyzed_at >= start)
+        .group_by(cast(models.AnalysisHistory.analyzed_at, Date))
+        .order_by(cast(models.AnalysisHistory.analyzed_at, Date))
+        .all()
+    )
+
+    return [{"date": r.date.isoformat(), "count": r.count} for r in results]
+
+
+def get_source_stats(db: Session, days: int = 30) -> list[dict]:
+    """유입경로별 통계"""
+    from sqlalchemy import func
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    start = now - timedelta(days=days)
+
+    results = (
+        db.query(
+            models.AnalysisHistory.source,
+            func.count().label("count"),
+        )
+        .filter(models.AnalysisHistory.analyzed_at >= start)
+        .group_by(models.AnalysisHistory.source)
+        .all()
+    )
+
+    return [
+        {"source": r.source or "unknown", "count": r.count}
+        for r in results
+    ]
+
+
+def update_subscriber_status(
+    db: Session, subscriber_id: int, status: str
+) -> models.Subscriber | None:
+    """리드 상태 업데이트"""
+    sub = db.query(models.Subscriber).filter(models.Subscriber.id == subscriber_id).first()
+    if sub:
+        sub.status = status
+        db.commit()
+        db.refresh(sub)
+    return sub
+
+
+def update_subscriber_memo(
+    db: Session, subscriber_id: int, memo: str
+) -> models.Subscriber | None:
+    """리드 메모 업데이트"""
+    sub = db.query(models.Subscriber).filter(models.Subscriber.id == subscriber_id).first()
+    if sub:
+        sub.memo = memo
+        db.commit()
+        db.refresh(sub)
+    return sub
+
+
+def get_subscribers_filtered(
+    db: Session,
+    search: str = "",
+    status: str = "all",
+    offset: int = 0,
+    limit: int = 20,
+) -> dict:
+    """필터가 적용된 구독자 목록 + 페이지네이션"""
+    query = db.query(models.Subscriber)
+
+    # 검색: 매장명 또는 전화번호
+    if search:
+        query = query.filter(
+            (models.Subscriber.store_name.ilike(f"%{search}%")) |
+            (models.Subscriber.phone.ilike(f"%{search}%"))
+        )
+
+    # 상태 필터
+    if status != "all":
+        query = query.filter(models.Subscriber.status == status)
+
+    total = query.count()
+    records = (
+        query.order_by(models.Subscriber.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    items = []
+    for s in records:
+        items.append({
+            "id": s.id,
+            "store_name": s.store_name,
+            "phone": s.phone,
+            "place_id": s.place_id,
+            "status": s.status or "new",
+            "memo": s.memo or "",
+            "alarm_on": s.alarm_on,
+            "created_at": s.created_at.strftime("%m-%d") if s.created_at else None,
+            "last_analyzed_at": s.last_analyzed_at.strftime("%m-%d") if s.last_analyzed_at else None,
+        })
+
+    return {"total": total, "items": items}
