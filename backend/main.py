@@ -4599,6 +4599,8 @@ _ADMIN_HTML = """<!DOCTYPE html>
   .status-badge.rejected{background:#FFEBEE;color:#D32F2F}
   .status-select{padding:4px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px}
   .memo-input{padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;width:140px}
+  /* 차트 그리드 */
+  .chart-grid{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px}
   .rank{font-weight:800}
   .up{color:var(--green)} .down{color:var(--red)} .same{color:var(--sub)}
   .del-btn{border:1px solid var(--line);background:#fff;color:var(--red);padding:5px 11px;
@@ -4636,7 +4638,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
     .panel{overflow-x:auto}
     .panel table{min-width:520px}
     /* 차트 그리드 모바일 */
-    div[style*="grid-template-columns:2fr 1fr"]{grid-template-columns:1fr!important}
+    .chart-grid{grid-template-columns:1fr}
   }
 </style>
 </head>
@@ -4680,14 +4682,14 @@ _ADMIN_HTML = """<!DOCTYPE html>
         <div class="card"><div class="lbl">이번주 신규 진단</div><div class="num" id="statWeek">-</div></div>
       </div>
       <!-- 일별 추이 + 유입경로 -->
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px">
+      <div class="chart-grid">
         <div class="panel" style="margin-bottom:0">
           <h2>일별 진단 추이 (30일)</h2><p class="desc">홍보 효과를 한눈에</p>
-          <canvas id="dailyChart" height="180"></canvas>
+          <div style="height:200px"><canvas id="dailyChart"></canvas></div>
         </div>
         <div class="panel" style="margin-bottom:0">
           <h2>유입 경로</h2><p class="desc">어디서 왔나요?</p>
-          <canvas id="sourceChart" height="180"></canvas>
+          <div style="height:200px"><canvas id="sourceChart"></canvas></div>
         </div>
       </div>
       <div class="panel">
@@ -4876,21 +4878,31 @@ async function loadDailyChart(){
   const d=await r.json();
   const labels=d.map(x=>x.date.slice(5));
   const data=d.map(x=>x.count);
-  const ctx=document.getElementById('dailyChart').getContext('2d');
+  const canvas=document.getElementById('dailyChart');
+  const ctx=canvas.getContext('2d');
   if(dailyChart) dailyChart.destroy();
   dailyChart=new Chart(ctx,{
     type:'line',
     data:{
       labels:labels,
-      datasets:[{label:'진단 수',data:data,borderColor:'#00C896',backgroundColor:'rgba(0,200,150,0.1)',fill:true,tension:0.3}]
+      datasets:[{label:'진단 수',data:data,borderColor:'#00C896',backgroundColor:'rgba(0,200,150,0.1)',fill:true,tension:0.3,pointRadius:2}]
     },
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:10}}}
+    }
   });
 }
 
 async function loadSourceChart(){
   const r=await fetch('/admin/api/source-stats?days=30');
   const d=await r.json();
+  if(!d.length){
+    document.getElementById('sourceChart').parentElement.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--sub)">아직 유입 데이터가 없습니다</div>';
+    return;
+  }
   const labels=d.map(x=>{
     const src=x.source;
     if(src==='direct') return '직접';
@@ -4901,12 +4913,13 @@ async function loadSourceChart(){
   });
   const data=d.map(x=>x.count);
   const colors=['#00C896','#4DB8FF','#FFB74D','#A1887F','#90CAF9','#CE93D8'];
-  const ctx=document.getElementById('sourceChart').getContext('2d');
+  const canvas=document.getElementById('sourceChart');
+  const ctx=canvas.getContext('2d');
   if(sourceChart) sourceChart.destroy();
   sourceChart=new Chart(ctx,{
     type:'doughnut',
     data:{labels:labels,datasets:[{data:data,backgroundColor:colors}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:12,padding:8}}}}
   });
 }
 
