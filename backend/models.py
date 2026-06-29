@@ -170,6 +170,7 @@ class Subscriber(Base):
     last_analyzed_at = Column(DateTime(timezone=True), nullable=True)
     memo             = Column(Text, nullable=True)
     status           = Column(String(20), default="new")  # new | contacted | contracted | hold | rejected
+    selected_keyword = Column(String(200), nullable=True)  # 관리자가 선택한 대표 키워드
 
 
 class AlimTemplate(Base):

@@ -4508,6 +4508,67 @@ def admin_subscribers_filtered(
     return crud.get_subscribers_filtered(db, search, status, offset, limit)
 
 
+@app.put("/admin/api/subscriber/{subscriber_id}/keyword", tags=["관리자"])
+def admin_update_subscriber_keyword(
+    subscriber_id: int,
+    keyword: str = "",
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """리드 대표 키워드 업데이트"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    sub = crud.update_subscriber_keyword(db, subscriber_id, keyword)
+    if not sub:
+        raise HTTPException(status_code=404, detail="구독자를 찾을 수 없습니다")
+    return {"success": True, "selected_keyword": sub.selected_keyword}
+
+
+@app.get("/admin/api/subscriber-stores", tags=["관리자"])
+def admin_subscriber_stores(
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """구독자 매장들의 순위 현황"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    return crud.get_subscriber_stores_status(db)
+
+
+@app.get("/admin/api/popular-stores", tags=["관리자"])
+def admin_popular_stores(
+    limit: int = 10,
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """인기 분석 매장 TOP N"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    return crud.get_popular_stores(db, limit)
+
+
+@app.get("/admin/api/category-stats", tags=["관리자"])
+def admin_category_stats(
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """업종별 통계"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    return crud.get_category_stats(db)
+
+
+@app.get("/admin/api/region-stats", tags=["관리자"])
+def admin_region_stats(
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """지역별 통계"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    return crud.get_region_stats(db)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 관리자 페이지 HTML
 # ─────────────────────────────────────────────────────────────────────────────
@@ -4601,6 +4662,12 @@ _ADMIN_HTML = """<!DOCTYPE html>
   .memo-input{padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;width:140px}
   /* 차트 그리드 */
   .chart-grid{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px}
+  .insight-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+  .stat-bar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .stat-bar .label{flex:0 0 100px;font-size:13px;color:var(--ink)}
+  .stat-bar .bar{flex:1;height:20px;background:var(--line);border-radius:4px;overflow:hidden}
+  .stat-bar .fill{height:100%;background:var(--green);border-radius:4px}
+  .stat-bar .count{flex:0 0 50px;text-align:right;font-size:12px;color:var(--sub)}
   .rank{font-weight:800}
   .up{color:var(--green)} .down{color:var(--red)} .same{color:var(--sub)}
   .del-btn{border:1px solid var(--line);background:#fff;color:var(--red);padding:5px 11px;
@@ -4639,6 +4706,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
     .panel table{min-width:520px}
     /* 차트 그리드 모바일 */
     .chart-grid{grid-template-columns:1fr}
+    .insight-grid{grid-template-columns:1fr}
   }
 </style>
 </head>
@@ -4664,7 +4732,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
     <nav class="nav">
       <button class="on" data-p="dash"><i data-lucide="layout-dashboard" class="adm-icon"></i> 대시보드</button>
       <button data-p="lead"><i data-lucide="users" class="adm-icon"></i> 회원·리드</button>
-      <button data-p="store"><i data-lucide="store" class="adm-icon"></i> 매장 모니터링</button>
+      <button data-p="store"><i data-lucide="bar-chart-3" class="adm-icon"></i> 분석 인사이트</button>
       <button data-p="alim"><i data-lucide="message-square" class="adm-icon"></i> 알림톡 관리</button>
     </nav>
     <div class="side-foot"><a onclick="doLogout()">로그아웃</a></div>
@@ -4711,7 +4779,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
           <button onclick="loadAnalysesFiltered()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">검색</button>
         </div>
         <table>
-          <thead><tr><th>매장명</th><th>유형</th><th>대표 키워드</th><th>지수</th><th>유입</th><th>시각</th></tr></thead>
+          <thead><tr><th>매장명</th><th>유형</th><th>지역</th><th>업종</th><th>지수</th><th>유입</th><th>시각</th></tr></thead>
           <tbody id="recentTable"></tbody>
         </table>
         <!-- 페이지네이션 -->
@@ -4741,7 +4809,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
           <button onclick="loadSubscribersFiltered()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">검색</button>
         </div>
         <table>
-          <thead><tr><th>매장명</th><th>연락처</th><th>상태</th><th>메모</th><th>신청일</th><th>알림</th><th>관리</th></tr></thead>
+          <thead><tr><th>매장명</th><th>지역/업종</th><th>연락처</th><th>상태</th><th>대표 키워드</th><th>메모</th><th>신청일</th><th>알림</th><th>관리</th></tr></thead>
           <tbody id="subTable"></tbody>
         </table>
         <!-- 페이지네이션 -->
@@ -4749,15 +4817,38 @@ _ADMIN_HTML = """<!DOCTYPE html>
       </div>
     </section>
 
-    <!-- 매장 모니터링 -->
+    <!-- 분석 인사이트 -->
     <section class="page" id="store">
-      <div class="head"><div><h1>매장 모니터링</h1><p>"내 매장"으로 등록돼 추적 중인 매장들</p></div></div>
+      <div class="head"><div><h1>분석 인사이트</h1><p>트렌드와 통계를 한눈에</p></div></div>
+
+      <!-- 구독자 매장 현황 -->
       <div class="panel">
-        <h2>모니터링 매장 <span id="monitorCount">0</span>곳</h2><p class="desc">대표 키워드 기준 최신 순위</p>
+        <h2>구독자 매장 현황</h2><p class="desc">알림 신청자들의 순위 변화</p>
         <table>
           <thead><tr><th>매장명</th><th>대표 키워드</th><th>지난주</th><th>이번주</th><th>변화</th></tr></thead>
-          <tbody id="monitorTable"></tbody>
+          <tbody id="subStoreTable"></tbody>
         </table>
+      </div>
+
+      <!-- 인기 분석 매장 -->
+      <div class="panel">
+        <h2>인기 분석 매장 TOP 10</h2><p class="desc">가장 많이 분석된 매장</p>
+        <table>
+          <thead><tr><th>순위</th><th>매장명</th><th>지역/업종</th><th>분석 횟수</th><th>최근 분석</th></tr></thead>
+          <tbody id="popularTable"></tbody>
+        </table>
+      </div>
+
+      <!-- 업종별/지역별 통계 -->
+      <div class="insight-grid">
+        <div class="panel" style="margin-bottom:0">
+          <h2>업종별 통계</h2><p class="desc">어떤 업종이 많이 분석했나요?</p>
+          <div id="categoryStats"></div>
+        </div>
+        <div class="panel" style="margin-bottom:0">
+          <h2>지역별 통계</h2><p class="desc">어느 지역에서 많이 왔나요?</p>
+          <div id="regionStats"></div>
+        </div>
       </div>
     </section>
 
@@ -4936,10 +5027,10 @@ async function loadAnalysesFiltered(page=0){
     const t=fmtAdminTime(x.analyzed_at);
     const type=x.analysis_type==='place'?'<span style="color:var(--green)">플레이스</span>':'<span style="color:#4DB8FF">블로그</span>';
     const src=x.source||'-';
-    html+=`<tr><td>${x.store_name}</td><td>${type}</td><td>${x.top_keyword||'-'}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${src}</td><td>${t}</td></tr>`;
+    const link=x.place_url?`<a href="${x.place_url}" target="_blank" style="color:var(--green);text-decoration:none">${x.store_name} ↗</a>`:x.store_name;
+    html+=`<tr><td>${link}</td><td>${type}</td><td>${x.region||'-'}</td><td>${x.category||'-'}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${src}</td><td>${t}</td></tr>`;
   });
-  document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="6" style="color:var(--sub);text-align:center">검색 결과가 없습니다</td></tr>';
-  // 페이지네이션
+  document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="7" style="color:var(--sub);text-align:center">검색 결과가 없습니다</td></tr>';
   const pages=Math.ceil(d.total/limit);
   let paging='';
   for(let i=0;i<pages&&i<10;i++){
@@ -5009,16 +5100,24 @@ async function loadSubscribersFiltered(page=0){
     const del=`<button class="del-btn" onclick="deleteSub(${x.id},'${(x.store_name||'').replace(/'/g,"")}')">삭제</button>`;
     const statusBadge=`<span class="status-badge ${x.status}" onclick="toggleStatusDropdown(${x.id})">${statusLabels[x.status]||'신규'}</span><select id="status-${x.id}" class="status-select" style="display:none" onchange="updateStatus(${x.id},this.value)"><option value="new" ${x.status==='new'?'selected':''}>신규</option><option value="contacted" ${x.status==='contacted'?'selected':''}>연락함</option><option value="contracted" ${x.status==='contracted'?'selected':''}>계약함</option><option value="hold" ${x.status==='hold'?'selected':''}>보류</option><option value="rejected" ${x.status==='rejected'?'selected':''}>거절</option></select>`;
     const memoInput=`<input type="text" class="memo-input" value="${(x.memo||'').replace(/"/g,'&quot;')}" placeholder="메모 입력..." onblur="updateMemo(${x.id},this.value)">`;
-    html+=`<tr><td>${x.store_name}</td><td>${x.phone}</td><td>${statusBadge}</td><td>${memoInput}</td><td>${x.created_at||'-'}</td><td>${tag}</td><td>${del}</td></tr>`;
+    const link=x.place_url?`<a href="${x.place_url}" target="_blank" style="color:var(--green);text-decoration:none">${x.store_name} ↗</a>`:x.store_name;
+    const regionCat=`${x.region||'-'} / ${x.category||'-'}`;
+    // 대표 키워드 드롭다운
+    let kwOptions=x.keywords.map(k=>`<option value="${k}" ${x.selected_keyword===k?'selected':''}>${k}</option>`).join('');
+    const kwSelect=x.keywords.length?`<select class="status-select" style="width:120px" onchange="updateKeyword(${x.id},this.value)"><option value="">선택...</option>${kwOptions}</select>`:'<span style="color:var(--sub)">-</span>';
+    html+=`<tr><td>${link}</td><td style="font-size:12px">${regionCat}</td><td>${x.phone}</td><td>${statusBadge}</td><td>${kwSelect}</td><td>${memoInput}</td><td>${x.created_at||'-'}</td><td>${tag}</td><td>${del}</td></tr>`;
   });
-  document.getElementById('subTable').innerHTML=html||'<tr><td colspan="7" style="color:var(--sub);text-align:center">알림 신청자가 없습니다</td></tr>';
-  // 페이지네이션
+  document.getElementById('subTable').innerHTML=html||'<tr><td colspan="9" style="color:var(--sub);text-align:center">알림 신청자가 없습니다</td></tr>';
   const pages=Math.ceil(d.total/limit);
   let paging='';
   for(let i=0;i<pages&&i<10;i++){
     paging+=`<button onclick="loadSubscribersFiltered(${i})" style="padding:6px 12px;border:1px solid ${i===page?'var(--green)':'var(--line)'};background:${i===page?'var(--green-soft)':'#fff'};border-radius:6px;cursor:pointer">${i+1}</button>`;
   }
   document.getElementById('subPaging').innerHTML=paging;
+}
+
+async function updateKeyword(id,keyword){
+  await fetch(`/admin/api/subscriber/${id}/keyword?keyword=${encodeURIComponent(keyword)}`,{method:'PUT'});
 }
 
 function toggleStatusDropdown(id){
@@ -5059,21 +5158,52 @@ function downloadCsv(){
   window.location.href='/admin/api/subscribers/csv';
 }
 
-async function loadMonitor(){
-  const r=await fetch('/admin/api/monitored-stores');
-  const d=await r.json();
-  document.getElementById('monitorCount').textContent=d.length;
-  let html='';
-  d.forEach(x=>{
+async function loadInsight(){
+  // 구독자 매장 현황
+  const r1=await fetch('/admin/api/subscriber-stores');
+  const d1=await r1.json();
+  let html1='';
+  d1.forEach(x=>{
     let change='<span class="same">- 유지</span>';
     if(x.last_rank&&x.this_rank){
       const diff=x.last_rank-x.this_rank;
       if(diff>0)change=`<span class="up">▲ ${diff}</span>`;
       else if(diff<0)change=`<span class="down">▼ ${Math.abs(diff)}</span>`;
     }
-    html+=`<tr><td>${x.store_name}</td><td>${x.top_keyword||'-'}</td><td>${x.last_rank?x.last_rank+'위':'-'}</td><td class="rank">${x.this_rank?x.this_rank+'위':'-'}</td><td>${change}</td></tr>`;
+    html1+=`<tr><td>${x.store_name}</td><td>${x.keyword||'-'}</td><td>${x.last_rank?x.last_rank+'위':'-'}</td><td class="rank">${x.this_rank?x.this_rank+'위':'-'}</td><td>${change}</td></tr>`;
   });
-  document.getElementById('monitorTable').innerHTML=html||'<tr><td colspan="5" style="color:var(--sub);text-align:center">모니터링 매장이 없습니다</td></tr>';
+  document.getElementById('subStoreTable').innerHTML=html1||'<tr><td colspan="5" style="color:var(--sub);text-align:center">구독자가 없습니다</td></tr>';
+
+  // 인기 분석 매장
+  const r2=await fetch('/admin/api/popular-stores?limit=10');
+  const d2=await r2.json();
+  let html2='';
+  d2.forEach(x=>{
+    html2+=`<tr><td>${x.rank}</td><td>${x.store_name}</td><td>${x.region||'-'} / ${x.category||'-'}</td><td>${x.count}회</td><td>${x.last_analyzed}</td></tr>`;
+  });
+  document.getElementById('popularTable').innerHTML=html2||'<tr><td colspan="5" style="color:var(--sub);text-align:center">분석 기록이 없습니다</td></tr>';
+
+  // 업종별 통계
+  const r3=await fetch('/admin/api/category-stats');
+  const d3=await r3.json();
+  let html3='';
+  d3.forEach(x=>{
+    html3+=`<div class="stat-bar"><span class="label">${x.category}</span><div class="bar"><div class="fill" style="width:${x.percent}%"></div></div><span class="count">${x.count}</span></div>`;
+  });
+  document.getElementById('categoryStats').innerHTML=html3||'<div style="color:var(--sub)">데이터 없음</div>';
+
+  // 지역별 통계
+  const r4=await fetch('/admin/api/region-stats');
+  const d4=await r4.json();
+  let html4='';
+  d4.forEach(x=>{
+    html4+=`<div class="stat-bar"><span class="label">${x.region}</span><div class="bar"><div class="fill" style="width:${x.percent}%"></div></div><span class="count">${x.count}</span></div>`;
+  });
+  document.getElementById('regionStats').innerHTML=html4||'<div style="color:var(--sub)">데이터 없음</div>';
+}
+
+async function loadMonitor(){
+  loadInsight();
 }
 
 let templates={};

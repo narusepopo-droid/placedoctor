@@ -875,22 +875,30 @@ def get_analyses_filtered(
 
     items = []
     for r in records:
-        top_keyword = ""
+        region = ""
+        category = ""
+        place_url = ""
         if r.result_json:
             try:
                 data = json.loads(r.result_json)
-                place_results = data.get("place_results", [])
-                ranked = [p for p in place_results if p.get("rank")]
-                if ranked:
-                    best = min(ranked, key=lambda x: x["rank"])
-                    top_keyword = best.get("keyword", "")
+                address = data.get("address", "")
+                # 지역: 주소에서 구/동 추출
+                import re
+                match = re.search(r'([\w]+구|[\w]+시|[\w]+군)', address)
+                region = match.group(1) if match else address[:10] if address else ""
+                category = data.get("category", "")
+                place_url = data.get("place_url", "")
+                if not place_url and r.place_id:
+                    place_url = f"https://m.place.naver.com/place/{r.place_id}"
             except:
                 pass
         items.append({
             "id": r.id,
             "store_name": r.store_name,
             "analysis_type": r.analysis_type,
-            "top_keyword": top_keyword,
+            "region": region,
+            "category": category,
+            "place_url": place_url,
             "total_score": r.total_score,
             "source": r.source,
             "analyzed_at": r.analyzed_at.isoformat() if r.analyzed_at else None,
@@ -969,6 +977,43 @@ def update_subscriber_memo(
     return sub
 
 
+def update_subscriber_keyword(
+    db: Session, subscriber_id: int, keyword: str
+) -> models.Subscriber | None:
+    """리드 대표 키워드 업데이트"""
+    sub = db.query(models.Subscriber).filter(models.Subscriber.id == subscriber_id).first()
+    if sub:
+        sub.selected_keyword = keyword
+        db.commit()
+        db.refresh(sub)
+    return sub
+
+
+def get_subscriber_keywords(db: Session, place_id: str) -> list[str]:
+    """해당 매장의 분석 결과에서 키워드 목록 추출"""
+    record = (
+        db.query(models.AnalysisHistory)
+        .filter(
+            models.AnalysisHistory.place_id == place_id,
+            models.AnalysisHistory.analysis_type == "place",
+        )
+        .order_by(models.AnalysisHistory.analyzed_at.desc())
+        .first()
+    )
+    if not record or not record.result_json:
+        return []
+    try:
+        data = json.loads(record.result_json)
+        place_results = data.get("place_results", [])
+        # 순위 있는 키워드 우선, 없으면 전체
+        ranked = [p["keyword"] for p in place_results if p.get("rank")]
+        if ranked:
+            return ranked[:20]
+        return [p["keyword"] for p in place_results][:20]
+    except:
+        return []
+
+
 def get_subscribers_filtered(
     db: Session,
     search: str = "",
@@ -1000,16 +1045,228 @@ def get_subscribers_filtered(
 
     items = []
     for s in records:
+        # 분석 결과에서 지역/업종/키워드 추출
+        region = ""
+        category = ""
+        keywords = []
+        place_url = s.store_url or ""
+
+        if s.place_id:
+            record = (
+                db.query(models.AnalysisHistory)
+                .filter(
+                    models.AnalysisHistory.place_id == s.place_id,
+                    models.AnalysisHistory.analysis_type == "place",
+                )
+                .order_by(models.AnalysisHistory.analyzed_at.desc())
+                .first()
+            )
+            if record and record.result_json:
+                try:
+                    data = json.loads(record.result_json)
+                    address = data.get("address", "")
+                    # 지역: 주소에서 구/동 추출
+                    import re
+                    match = re.search(r'([\w]+구|[\w]+시|[\w]+군)', address)
+                    region = match.group(1) if match else address[:10] if address else ""
+                    category = data.get("category", "")
+                    # 키워드 목록 (순위 있는 것 우선)
+                    place_results = data.get("place_results", [])
+                    ranked = [p["keyword"] for p in place_results if p.get("rank")]
+                    keywords = ranked[:15] if ranked else [p["keyword"] for p in place_results][:15]
+                except:
+                    pass
+
         items.append({
             "id": s.id,
             "store_name": s.store_name,
             "phone": s.phone,
             "place_id": s.place_id,
+            "place_url": place_url,
+            "region": region,
+            "category": category,
             "status": s.status or "new",
             "memo": s.memo or "",
+            "selected_keyword": s.selected_keyword or "",
+            "keywords": keywords,
             "alarm_on": s.alarm_on,
             "created_at": s.created_at.strftime("%m-%d") if s.created_at else None,
             "last_analyzed_at": s.last_analyzed_at.strftime("%m-%d") if s.last_analyzed_at else None,
         })
 
     return {"total": total, "items": items}
+
+
+def get_subscriber_stores_status(db: Session) -> list[dict]:
+    """구독자 매장들의 순위 변화 현황"""
+    subs = db.query(models.Subscriber).filter(models.Subscriber.alarm_on == True).all()
+    result = []
+
+    for s in subs:
+        if not s.place_id:
+            continue
+
+        histories = (
+            db.query(models.AnalysisHistory)
+            .filter(
+                models.AnalysisHistory.place_id == s.place_id,
+                models.AnalysisHistory.analysis_type == "place",
+            )
+            .order_by(models.AnalysisHistory.analyzed_at.desc())
+            .limit(2)
+            .all()
+        )
+
+        keyword = s.selected_keyword or ""
+        this_rank = None
+        last_rank = None
+
+        if histories:
+            latest = histories[0]
+            if latest.result_json:
+                try:
+                    data = json.loads(latest.result_json)
+                    place_results = data.get("place_results", [])
+                    if keyword:
+                        for p in place_results:
+                            if p.get("keyword") == keyword:
+                                this_rank = p.get("rank")
+                                break
+                    if not this_rank:
+                        ranked = [p for p in place_results if p.get("rank")]
+                        if ranked:
+                            best = min(ranked, key=lambda x: x["rank"])
+                            keyword = best.get("keyword", "")
+                            this_rank = best.get("rank")
+                except:
+                    pass
+
+            if len(histories) > 1 and keyword:
+                prev = histories[1]
+                if prev.result_json:
+                    try:
+                        data = json.loads(prev.result_json)
+                        for p in data.get("place_results", []):
+                            if p.get("keyword") == keyword:
+                                last_rank = p.get("rank")
+                                break
+                    except:
+                        pass
+
+        result.append({
+            "store_name": s.store_name,
+            "keyword": keyword,
+            "this_rank": this_rank,
+            "last_rank": last_rank,
+        })
+
+    return result
+
+
+def get_popular_stores(db: Session, limit: int = 10) -> list[dict]:
+    """가장 많이 분석된 매장 TOP N"""
+    from sqlalchemy import func
+
+    results = (
+        db.query(
+            models.AnalysisHistory.place_id,
+            models.AnalysisHistory.store_name,
+            func.count().label("count"),
+            func.max(models.AnalysisHistory.analyzed_at).label("last_analyzed"),
+        )
+        .filter(models.AnalysisHistory.place_id.isnot(None))
+        .group_by(models.AnalysisHistory.place_id, models.AnalysisHistory.store_name)
+        .order_by(func.count().desc())
+        .limit(limit)
+        .all()
+    )
+
+    items = []
+    for i, r in enumerate(results):
+        region = ""
+        category = ""
+        record = (
+            db.query(models.AnalysisHistory)
+            .filter(models.AnalysisHistory.place_id == r.place_id)
+            .order_by(models.AnalysisHistory.analyzed_at.desc())
+            .first()
+        )
+        if record and record.result_json:
+            try:
+                data = json.loads(record.result_json)
+                address = data.get("address", "")
+                import re
+                match = re.search(r'([\w]+구|[\w]+시|[\w]+군)', address)
+                region = match.group(1) if match else ""
+                category = data.get("category", "")
+            except:
+                pass
+
+        items.append({
+            "rank": i + 1,
+            "store_name": r.store_name,
+            "region": region,
+            "category": category,
+            "count": r.count,
+            "last_analyzed": r.last_analyzed.strftime("%m-%d") if r.last_analyzed else "",
+        })
+
+    return items
+
+
+def get_category_stats(db: Session, limit: int = 10) -> list[dict]:
+    """업종별 분석 통계"""
+    records = (
+        db.query(models.AnalysisHistory)
+        .filter(models.AnalysisHistory.result_json.isnot(None))
+        .order_by(models.AnalysisHistory.analyzed_at.desc())
+        .limit(500)
+        .all()
+    )
+
+    category_count = {}
+    for r in records:
+        try:
+            data = json.loads(r.result_json)
+            cat = data.get("category", "")
+            if cat:
+                main_cat = cat.split(",")[0].strip()
+                if main_cat:
+                    category_count[main_cat] = category_count.get(main_cat, 0) + 1
+        except:
+            pass
+
+    sorted_cats = sorted(category_count.items(), key=lambda x: x[1], reverse=True)[:limit]
+    total = sum(c for _, c in sorted_cats)
+
+    return [{"category": cat, "count": cnt, "percent": round(cnt / total * 100) if total else 0} for cat, cnt in sorted_cats]
+
+
+def get_region_stats(db: Session, limit: int = 10) -> list[dict]:
+    """지역별 분석 통계"""
+    import re
+
+    records = (
+        db.query(models.AnalysisHistory)
+        .filter(models.AnalysisHistory.result_json.isnot(None))
+        .order_by(models.AnalysisHistory.analyzed_at.desc())
+        .limit(500)
+        .all()
+    )
+
+    region_count = {}
+    for r in records:
+        try:
+            data = json.loads(r.result_json)
+            address = data.get("address", "")
+            match = re.search(r'([\w]+구|[\w]+시|[\w]+군)', address)
+            if match:
+                region = match.group(1)
+                region_count[region] = region_count.get(region, 0) + 1
+        except:
+            pass
+
+    sorted_regions = sorted(region_count.items(), key=lambda x: x[1], reverse=True)[:limit]
+    total = sum(c for _, c in sorted_regions)
+
+    return [{"region": reg, "count": cnt, "percent": round(cnt / total * 100) if total else 0} for reg, cnt in sorted_regions]
