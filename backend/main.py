@@ -4659,7 +4659,11 @@ _ADMIN_HTML = """<!DOCTYPE html>
   .status-badge.hold{background:#FFF3E0;color:#F57C00}
   .status-badge.rejected{background:#FFEBEE;color:#D32F2F}
   .status-select{padding:4px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px}
-  .memo-input{padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;width:140px}
+  .memo-input{padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;width:100px}
+  .go-btn{display:inline-block;padding:4px 10px;background:var(--green-soft);color:var(--green-d);border-radius:6px;font-size:11px;font-weight:700;text-decoration:none}
+  .go-btn:hover{background:var(--green);color:#fff}
+  .kw-display{font-size:12px;margin-right:4px}
+  .kw-dropdown{padding:3px 6px;border:1px solid var(--line);border-radius:4px;font-size:11px;width:24px;cursor:pointer;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236B7C8F'/%3E%3C/svg%3E") no-repeat right 6px center;-webkit-appearance:none;appearance:none}
   /* 차트 그리드 */
   .chart-grid{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px}
   .insight-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
@@ -4779,7 +4783,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
           <button onclick="loadAnalysesFiltered()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">검색</button>
         </div>
         <table>
-          <thead><tr><th>매장명</th><th>유형</th><th>지역</th><th>업종</th><th>지수</th><th>유입</th><th>시각</th></tr></thead>
+          <thead><tr><th>매장명</th><th>플레이스</th><th>지역/업종</th><th>지수</th><th>유입</th><th>시각</th></tr></thead>
           <tbody id="recentTable"></tbody>
         </table>
         <!-- 페이지네이션 -->
@@ -4809,7 +4813,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
           <button onclick="loadSubscribersFiltered()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">검색</button>
         </div>
         <table>
-          <thead><tr><th>매장명</th><th>지역/업종</th><th>연락처</th><th>상태</th><th>대표 키워드</th><th>메모</th><th>신청일</th><th>알림</th><th>관리</th></tr></thead>
+          <thead><tr><th>매장명</th><th>플레이스</th><th>지역/업종</th><th>연락처</th><th>상태</th><th>대표 키워드</th><th>메모</th><th>신청일</th><th>알림</th><th>관리</th></tr></thead>
           <tbody id="subTable"></tbody>
         </table>
         <!-- 페이지네이션 -->
@@ -5023,14 +5027,15 @@ async function loadAnalysesFiltered(page=0){
   const r=await fetch(`/admin/api/analyses?search=${encodeURIComponent(search)}&date_range=${dateRange}&has_score=${hasScore}&offset=${page*limit}&limit=${limit}`);
   const d=await r.json();
   let html='';
+  const srcLabels={direct:'직접',blog:'블로그',search:'검색',referrer:'추천',unknown:'미분류'};
   d.items.forEach(x=>{
     const t=fmtAdminTime(x.analyzed_at);
-    const type=x.analysis_type==='place'?'<span style="color:var(--green)">플레이스</span>':'<span style="color:#4DB8FF">블로그</span>';
-    const src=x.source||'-';
-    const link=x.place_url?`<a href="${x.place_url}" target="_blank" style="color:var(--green);text-decoration:none">${x.store_name} ↗</a>`:x.store_name;
-    html+=`<tr><td>${link}</td><td>${type}</td><td>${x.region||'-'}</td><td>${x.category||'-'}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${src}</td><td>${t}</td></tr>`;
+    const placeBtn=x.place_url?`<a href="${x.place_url}" target="_blank" class="go-btn">바로가기</a>`:'<span style="color:var(--sub)">-</span>';
+    const regionCat=`${x.region||'-'} / ${x.category||'-'}`;
+    const srcLabel=srcLabels[x.source]||x.source||'-';
+    html+=`<tr><td>${x.store_name}</td><td>${placeBtn}</td><td>${regionCat}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${srcLabel}</td><td>${t}</td></tr>`;
   });
-  document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="7" style="color:var(--sub);text-align:center">검색 결과가 없습니다</td></tr>';
+  document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="6" style="color:var(--sub);text-align:center">검색 결과가 없습니다</td></tr>';
   const pages=Math.ceil(d.total/limit);
   let paging='';
   for(let i=0;i<pages&&i<10;i++){
@@ -5099,15 +5104,16 @@ async function loadSubscribersFiltered(page=0){
     const tag=x.alarm_on?'<span class="tag on">수신중</span>':'<span class="tag off">해지</span>';
     const del=`<button class="del-btn" onclick="deleteSub(${x.id},'${(x.store_name||'').replace(/'/g,"")}')">삭제</button>`;
     const statusBadge=`<span class="status-badge ${x.status}" onclick="toggleStatusDropdown(${x.id})">${statusLabels[x.status]||'신규'}</span><select id="status-${x.id}" class="status-select" style="display:none" onchange="updateStatus(${x.id},this.value)"><option value="new" ${x.status==='new'?'selected':''}>신규</option><option value="contacted" ${x.status==='contacted'?'selected':''}>연락함</option><option value="contracted" ${x.status==='contracted'?'selected':''}>계약함</option><option value="hold" ${x.status==='hold'?'selected':''}>보류</option><option value="rejected" ${x.status==='rejected'?'selected':''}>거절</option></select>`;
-    const memoInput=`<input type="text" class="memo-input" value="${(x.memo||'').replace(/"/g,'&quot;')}" placeholder="메모 입력..." onblur="updateMemo(${x.id},this.value)">`;
-    const link=x.place_url?`<a href="${x.place_url}" target="_blank" style="color:var(--green);text-decoration:none">${x.store_name} ↗</a>`:x.store_name;
+    const memoInput=`<input type="text" class="memo-input" value="${(x.memo||'').replace(/"/g,'&quot;')}" placeholder="메모..." onblur="updateMemo(${x.id},this.value)">`;
+    const placeBtn=x.place_url?`<a href="${x.place_url}" target="_blank" class="go-btn">바로가기</a>`:'<span style="color:var(--sub)">-</span>';
     const regionCat=`${x.region||'-'} / ${x.category||'-'}`;
-    // 대표 키워드 드롭다운
-    let kwOptions=x.keywords.map(k=>`<option value="${k}" ${x.selected_keyword===k?'selected':''}>${k}</option>`).join('');
-    const kwSelect=x.keywords.length?`<select class="status-select" style="width:120px" onchange="updateKeyword(${x.id},this.value)"><option value="">선택...</option>${kwOptions}</select>`:'<span style="color:var(--sub)">-</span>';
-    html+=`<tr><td>${link}</td><td style="font-size:12px">${regionCat}</td><td>${x.phone}</td><td>${statusBadge}</td><td>${kwSelect}</td><td>${memoInput}</td><td>${x.created_at||'-'}</td><td>${tag}</td><td>${del}</td></tr>`;
+    // 대표 키워드: 현재값 + 드롭다운
+    const currentKw=x.selected_keyword||x.keywords[0]||'-';
+    let kwOptions=x.keywords.map(k=>`<option value="${k}" ${(x.selected_keyword||x.keywords[0])===k?'selected':''}>${k}</option>`).join('');
+    const kwSelect=x.keywords.length?`<span class="kw-display">${currentKw}</span><select class="kw-dropdown" onchange="updateKeyword(${x.id},this.value)">${kwOptions}</select>`:`<span style="color:var(--sub)">-</span>`;
+    html+=`<tr><td>${x.store_name}</td><td>${placeBtn}</td><td style="font-size:12px">${regionCat}</td><td>${x.phone}</td><td>${statusBadge}</td><td>${kwSelect}</td><td>${memoInput}</td><td>${x.created_at||'-'}</td><td>${tag}</td><td>${del}</td></tr>`;
   });
-  document.getElementById('subTable').innerHTML=html||'<tr><td colspan="9" style="color:var(--sub);text-align:center">알림 신청자가 없습니다</td></tr>';
+  document.getElementById('subTable').innerHTML=html||'<tr><td colspan="10" style="color:var(--sub);text-align:center">알림 신청자가 없습니다</td></tr>';
   const pages=Math.ceil(d.total/limit);
   let paging='';
   for(let i=0;i<pages&&i<10;i++){

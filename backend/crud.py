@@ -882,11 +882,19 @@ def get_analyses_filtered(
             try:
                 data = json.loads(r.result_json)
                 address = data.get("address", "")
-                # 지역: 주소에서 구/동 추출
+                # 지역: 주소에서 구/시/군 추출
                 import re
                 match = re.search(r'([\w]+구|[\w]+시|[\w]+군)', address)
-                region = match.group(1) if match else address[:10] if address else ""
-                category = data.get("category", "")
+                region = match.group(1) if match else ""
+                if not region and address:
+                    # 시/도 + 구 형태로 재시도
+                    parts = address.split()
+                    if len(parts) >= 2:
+                        region = parts[1] if len(parts[1]) >= 2 else parts[0]
+                # 업종: category에서 첫번째 항목
+                cat_raw = data.get("category", "")
+                if cat_raw:
+                    category = cat_raw.split(",")[0].strip()
                 place_url = data.get("place_url", "")
                 if not place_url and r.place_id:
                     place_url = f"https://m.place.naver.com/place/{r.place_id}"
@@ -1065,11 +1073,18 @@ def get_subscribers_filtered(
                 try:
                     data = json.loads(record.result_json)
                     address = data.get("address", "")
-                    # 지역: 주소에서 구/동 추출
+                    # 지역: 주소에서 구/시/군 추출
                     import re
                     match = re.search(r'([\w]+구|[\w]+시|[\w]+군)', address)
-                    region = match.group(1) if match else address[:10] if address else ""
-                    category = data.get("category", "")
+                    region = match.group(1) if match else ""
+                    if not region and address:
+                        parts = address.split()
+                        if len(parts) >= 2:
+                            region = parts[1] if len(parts[1]) >= 2 else parts[0]
+                    # 업종: category에서 첫번째 항목
+                    cat_raw = data.get("category", "")
+                    if cat_raw:
+                        category = cat_raw.split(",")[0].strip()
                     # 키워드 목록 (순위 있는 것 우선)
                     place_results = data.get("place_results", [])
                     ranked = [p["keyword"] for p in place_results if p.get("rank")]
@@ -1198,7 +1213,13 @@ def get_popular_stores(db: Session, limit: int = 10) -> list[dict]:
                 import re
                 match = re.search(r'([\w]+구|[\w]+시|[\w]+군)', address)
                 region = match.group(1) if match else ""
-                category = data.get("category", "")
+                if not region and address:
+                    parts = address.split()
+                    if len(parts) >= 2:
+                        region = parts[1] if len(parts[1]) >= 2 else parts[0]
+                cat_raw = data.get("category", "")
+                if cat_raw:
+                    category = cat_raw.split(",")[0].strip()
             except:
                 pass
 
