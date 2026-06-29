@@ -897,28 +897,15 @@ def get_analyses_filtered(
                     category = cat_raw.split(",")[0].strip()
                 # category 비어있으면 store_name에서 추론
                 if not category:
-                    sn = r.store_name or ""
-                    if "카페" in sn or "커피" in sn:
-                        category = "카페"
-                    elif any(x in sn for x in ["식당", "국밥", "고기", "육식", "삼겹", "갈비", "맛집", "식육", "정육"]):
-                        category = "음식점"
-                    elif any(x in sn for x in ["피부", "메디컬", "스킨", "에스테틱"]):
-                        category = "피부관리"
-                    elif any(x in sn for x in ["성형", "의원", "병원", "클리닉", "치과", "한의원"]):
-                        category = "병원"
-                    elif any(x in sn for x in ["학원", "교육", "영재", "수학", "영어"]):
-                        category = "학원"
-                    elif any(x in sn for x in ["헬스", "피트니스", "짐", "PT", "필라테스", "요가"]):
-                        category = "피트니스"
-                    elif any(x in sn for x in ["호텔", "펫", "애견", "고양이", "캣"]):
-                        category = "펫서비스"
-                    elif any(x in sn for x in ["미용", "헤어", "네일", "뷰티"]):
-                        category = "뷰티"
+                    category = _infer_category(r.store_name)
                 place_url = data.get("place_url", "")
                 if not place_url and r.place_id:
                     place_url = f"https://m.place.naver.com/place/{r.place_id}"
             except:
                 pass
+        # result_json 없어도 store_name에서 업종 추론
+        if not category:
+            category = _infer_category(r.store_name)
         items.append({
             "id": r.id,
             "store_name": r.store_name,
@@ -1116,23 +1103,7 @@ def get_subscribers_filtered(
                             category = cat_raw.strip()
                     # category 비어있으면 store_name에서 추론
                     if not category:
-                        sn = s.store_name or ""
-                        if "카페" in sn or "커피" in sn:
-                            category = "카페"
-                        elif any(x in sn for x in ["식당", "국밥", "고기", "육식", "삼겹", "갈비", "맛집", "식육", "정육"]):
-                            category = "음식점"
-                        elif any(x in sn for x in ["피부", "메디컬", "스킨", "에스테틱"]):
-                            category = "피부관리"
-                        elif any(x in sn for x in ["성형", "의원", "병원", "클리닉", "치과", "한의원"]):
-                            category = "병원"
-                        elif any(x in sn for x in ["학원", "교육", "영재", "수학", "영어"]):
-                            category = "학원"
-                        elif any(x in sn for x in ["헬스", "피트니스", "짐", "PT", "필라테스", "요가"]):
-                            category = "피트니스"
-                        elif any(x in sn for x in ["호텔", "펫", "애견", "고양이", "캣"]):
-                            category = "펫서비스"
-                        elif any(x in sn for x in ["미용", "헤어", "네일", "뷰티"]):
-                            category = "뷰티"
+                        category = _infer_category(s.store_name)
                     # place_url이 result에 있으면 그걸 사용
                     if data.get("place_url"):
                         place_url = data.get("place_url")
@@ -1142,6 +1113,10 @@ def get_subscribers_filtered(
                     keywords = ranked[:15] if ranked else [p["keyword"] for p in place_results][:15]
                 except:
                     pass
+
+        # place_id 없어도 store_name에서 업종 추론
+        if not category:
+            category = _infer_category(s.store_name)
 
         items.append({
             "id": s.id,
@@ -1284,27 +1259,15 @@ def get_popular_stores(db: Session, limit: int = 10) -> list[dict]:
                         category = cat_raw.strip()
                 # category 비어있으면 store_name에서 추론
                 if not category:
-                    sn = r.store_name or ""
-                    if "카페" in sn or "커피" in sn:
-                        category = "카페"
-                    elif any(x in sn for x in ["식당", "국밥", "고기", "육식", "삼겹", "갈비", "맛집", "식육", "정육"]):
-                        category = "음식점"
-                    elif any(x in sn for x in ["피부", "메디컬", "스킨", "에스테틱"]):
-                        category = "피부관리"
-                    elif any(x in sn for x in ["성형", "의원", "병원", "클리닉", "치과", "한의원"]):
-                        category = "병원"
-                    elif any(x in sn for x in ["학원", "교육", "영재", "수학", "영어"]):
-                        category = "학원"
-                    elif any(x in sn for x in ["헬스", "피트니스", "짐", "PT", "필라테스", "요가"]):
-                        category = "피트니스"
-                    elif any(x in sn for x in ["호텔", "펫", "애견", "고양이", "캣"]):
-                        category = "펫서비스"
-                    elif any(x in sn for x in ["미용", "헤어", "네일", "뷰티"]):
-                        category = "뷰티"
+                    category = _infer_category(r.store_name)
                 if data.get("place_url"):
                     place_url = data.get("place_url")
             except:
                 pass
+
+        # record 없거나 category 비어있으면 store_name에서 추론
+        if not category:
+            category = _infer_category(r.store_name)
 
         items.append({
             "rank": i + 1,
@@ -1317,6 +1280,31 @@ def get_popular_stores(db: Session, limit: int = 10) -> list[dict]:
         })
 
     return items
+
+
+def _infer_category(store_name: str) -> str:
+    """store_name에서 업종 추론 (공통 헬퍼)"""
+    sn = store_name or ""
+    # 순서 중요: 더 구체적인 것 먼저 체크
+    if "카페" in sn or "커피" in sn:
+        return "카페"
+    elif any(x in sn for x in ["음악", "피아노", "기타", "드럼", "보컬"]):
+        return "음악학원"
+    elif any(x in sn for x in ["식당", "국밥", "고기", "육식", "삼겹", "갈비", "맛집", "식육", "정육", "푸고"]):
+        return "음식점"
+    elif any(x in sn for x in ["피부", "메디컬", "스킨", "에스테틱"]):
+        return "피부관리"
+    elif any(x in sn for x in ["성형", "의원", "병원", "클리닉", "치과", "한의원"]):
+        return "병원"
+    elif any(x in sn for x in ["헬스", "피트니스", "짐", "PT", "필라테스", "요가", "휘트니스", "배럴", "크로스핏", "트레이닝"]):
+        return "피트니스"
+    elif any(x in sn for x in ["학원", "교육", "영재", "수학", "영어", "사고력"]):
+        return "학원"
+    elif any(x in sn for x in ["호텔", "펫", "애견", "고양이", "캣"]):
+        return "펫서비스"
+    elif any(x in sn for x in ["미용", "헤어", "네일", "뷰티"]):
+        return "뷰티"
+    return ""
 
 
 def get_category_stats(db: Session, limit: int = 10) -> list[dict]:
@@ -1336,8 +1324,11 @@ def get_category_stats(db: Session, limit: int = 10) -> list[dict]:
             cat = data.get("category", "")
             if cat:
                 main_cat = cat.split(",")[0].strip()
-                if main_cat:
-                    category_count[main_cat] = category_count.get(main_cat, 0) + 1
+            else:
+                # store_name에서 추론
+                main_cat = _infer_category(r.store_name)
+            if main_cat:
+                category_count[main_cat] = category_count.get(main_cat, 0) + 1
         except:
             pass
 
