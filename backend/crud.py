@@ -1063,7 +1063,12 @@ def get_subscribers_filtered(
         region = ""
         category = ""
         keywords = []
-        place_url = s.store_url or ""
+
+        # store_url에서 URL만 추출 (매장명+주소+URL 혼합 입력 대응)
+        import re
+        raw_url = s.store_url or ""
+        url_match = re.search(r'(https?://[^\s]+)', raw_url)
+        place_url = url_match.group(1) if url_match else ""
 
         # place_id가 있으면 URL 생성
         if s.place_id and not place_url:
