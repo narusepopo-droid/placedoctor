@@ -74,11 +74,12 @@ async def send_signup_alimtalk(phone: str, store_name: str, day_of_week: str = "
     extra_text = _get_extra_text("signup")
 
     # 템플릿 (UJ_0602)과 정확히 일치해야 함
+    extra_part = f"\n{extra_text}" if extra_text else ""
     message = (
         f"[플레이스랭킹] 순위 알림 신청이 완료되었습니다.\n\n"
         f"{store_name}님의 플레이스 순위 모니터링을 시작합니다.\n\n"
-        f"매주 {day_of_week}에 플레이스 키워드 순위 변화를 정리하여 보내드립니다.\n"
-        f"{extra_text}"
+        f"매주 {day_of_week}에 플레이스 키워드 순위 변화를 정리하여 보내드립니다."
+        f"{extra_part}"
     )
 
     button_json = '{"button":[{"name":"순위 확인하기","linkType":"WL","linkTypeName":"웹링크","linkMo":"https://placeranking.com","linkPc":"https://placeranking.com"}]}'
@@ -131,6 +132,7 @@ async def send_weekly_alimtalk(
     emtitle = "이번주 플레이스 순위 리포트"
 
     # 템플릿 (UJ_0612)과 정확히 일치해야 함
+    extra_part = f"\n{extra_text}" if extra_text else ""
     message = (
         f"[플레이스랭킹] {store_name} 이번주 순위 리포트\n\n"
         f"대표 키워드 '{keyword}'\n"
@@ -138,8 +140,8 @@ async def send_weekly_alimtalk(
         f"{store_name}의 플레이스 전체 키워드별\n"
         f"순위변화를 확인하실 수 있습니다.\n\n"
         f"경쟁 매장 변화까지 리포트로\n"
-        f"정리해 두었으니 확인해 보세요.\n\n"
-        f"{extra_text}"
+        f"정리해 두었으니 확인해 보세요."
+        f"{extra_part}"
     )
 
     button_json = '{"button":[{"name":"키워드 전체 보기","linkType":"WL","linkTypeName":"웹링크","linkMo":"https://placeranking.com","linkPc":"https://placeranking.com"}]}'
