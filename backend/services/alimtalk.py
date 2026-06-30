@@ -74,7 +74,7 @@ async def send_signup_alimtalk(phone: str, store_name: str, day_of_week: str = "
     extra_text = _get_extra_text("signup")
 
     # 템플릿 (UJ_0602)과 정확히 일치해야 함
-    extra_part = f"\n{extra_text}" if extra_text else ""
+    extra_part = f"\n\n{extra_text}" if extra_text else ""
     message = (
         f"[플레이스랭킹] 순위 알림 신청이 완료되었습니다.\n\n"
         f"{store_name}님의 플레이스 순위 모니터링을 시작합니다.\n\n"
@@ -132,7 +132,7 @@ async def send_weekly_alimtalk(
     emtitle = "이번주 플레이스 순위 리포트"
 
     # 템플릿 (UJ_0612)과 정확히 일치해야 함
-    extra_part = f"\n{extra_text}" if extra_text else ""
+    extra_part = f"\n\n{extra_text}" if extra_text else ""
     message = (
         f"[플레이스랭킹] {store_name} 이번주 순위 리포트\n\n"
         f"대표 키워드 '{keyword}'\n"
