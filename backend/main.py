@@ -1947,7 +1947,28 @@ async function analyzePlaceOnly(){
   // R단계: SSE로 실시간 스트리밍
   // 유입경로 추적: URL에서 utm_source 파라미터 읽기
   const urlParams = new URLSearchParams(window.location.search);
-  const utmSource = urlParams.get('utm_source') || (document.referrer ? 'referrer' : 'direct');
+  let utmSource = urlParams.get('utm_source');
+  if (!utmSource) {
+    const ref = document.referrer.toLowerCase();
+    if (!ref) utmSource = '직접유입';
+    else if (ref.includes('blog.naver.com') || ref.includes('m.blog.naver.com')) utmSource = '블로그';
+    else if (ref.includes('tistory.com')) utmSource = '블로그';
+    else if (ref.includes('naver.com')) utmSource = '네이버검색';
+    else if (ref.includes('google.com') || ref.includes('google.co.kr')) utmSource = '구글검색';
+    else if (ref.includes('daum.net') || ref.includes('zum.com')) utmSource = '포털검색';
+    else if (ref.includes('chatgpt.com') || ref.includes('openai.com')) utmSource = 'ChatGPT';
+    else if (ref.includes('perplexity.ai')) utmSource = 'Perplexity';
+    else if (ref.includes('claude.ai') || ref.includes('anthropic.com')) utmSource = 'Claude';
+    else if (ref.includes('gemini.google.com') || ref.includes('bard.google.com')) utmSource = 'Gemini';
+    else if (ref.includes('copilot.microsoft.com') || ref.includes('bing.com/chat')) utmSource = 'Copilot';
+    else if (ref.includes('bing.com')) utmSource = 'Bing검색';
+    else if (ref.includes('instagram.com') || ref.includes('facebook.com')) utmSource = 'SNS';
+    else if (ref.includes('youtube.com')) utmSource = '유튜브';
+    else if (ref.includes('twitter.com') || ref.includes('x.com')) utmSource = 'X(트위터)';
+    else utmSource = '기타';
+  } else if (utmSource === 'blog') {
+    utmSource = '블로그';
+  }
   const params = new URLSearchParams({
     store_name: name,
     place_url: url,
@@ -2178,7 +2199,28 @@ async function analyzeBlogOnly(){
   let eventSource = null;
   try {
     const urlParams = new URLSearchParams(window.location.search);
-    const utmSource = urlParams.get('utm_source') || (document.referrer ? 'referrer' : 'direct');
+    let utmSource = urlParams.get('utm_source');
+    if (!utmSource) {
+      const ref = document.referrer.toLowerCase();
+      if (!ref) utmSource = '직접유입';
+      else if (ref.includes('blog.naver.com') || ref.includes('m.blog.naver.com')) utmSource = '블로그';
+      else if (ref.includes('tistory.com')) utmSource = '블로그';
+      else if (ref.includes('naver.com')) utmSource = '네이버검색';
+      else if (ref.includes('google.com') || ref.includes('google.co.kr')) utmSource = '구글검색';
+      else if (ref.includes('daum.net') || ref.includes('zum.com')) utmSource = '포털검색';
+      else if (ref.includes('chatgpt.com') || ref.includes('openai.com')) utmSource = 'ChatGPT';
+      else if (ref.includes('perplexity.ai')) utmSource = 'Perplexity';
+      else if (ref.includes('claude.ai') || ref.includes('anthropic.com')) utmSource = 'Claude';
+      else if (ref.includes('gemini.google.com') || ref.includes('bard.google.com')) utmSource = 'Gemini';
+      else if (ref.includes('copilot.microsoft.com') || ref.includes('bing.com/chat')) utmSource = 'Copilot';
+      else if (ref.includes('bing.com')) utmSource = 'Bing검색';
+      else if (ref.includes('instagram.com') || ref.includes('facebook.com')) utmSource = 'SNS';
+      else if (ref.includes('youtube.com')) utmSource = '유튜브';
+      else if (ref.includes('twitter.com') || ref.includes('x.com')) utmSource = 'X(트위터)';
+      else utmSource = '기타';
+    } else if (utmSource === 'blog') {
+      utmSource = '블로그';
+    }
     const params = new URLSearchParams({ store_name: name, place_url: url, anon_id: _anonId || '', source: utmSource });
     eventSource = new EventSource('/analyze-blog-stream?' + params.toString());
 
