@@ -5132,10 +5132,11 @@ async function loadSourceChart(){
   }
   const labels=d.map(x=>{
     const src=x.source;
-    if(src==='direct') return '직접';
+    if(src==='direct') return '직접유입(구)';
     if(src==='blog') return '블로그';
     if(src==='search') return '검색';
-    if(src==='referrer') return '추천';
+    if(src==='referrer') return '외부링크(구)';
+    if(src==='chatgpt.com') return 'ChatGPT(구)';
     return src||'미분류';
   });
   const data=d.map(x=>x.count);
@@ -5159,7 +5160,7 @@ async function loadAnalysesFiltered(page=0){
   const r=await fetch(`/admin/api/analyses?search=${encodeURIComponent(search)}&date_range=${dateRange}&has_score=${hasScore}&offset=${page*limit}&limit=${limit}`);
   const d=await r.json();
   let html='';
-  const srcLabels={direct:'직접',blog:'블로그',search:'검색',referrer:'추천',unknown:'미분류'};
+  const srcLabels={direct:'직접유입(구)',blog:'블로그',search:'검색',referrer:'외부링크(구)','chatgpt.com':'ChatGPT(구)',unknown:'미분류'};
   d.items.forEach(x=>{
     const t=fmtAdminTime(x.analyzed_at);
     const placeBtn=x.place_url?`<a href="${x.place_url}" target="_blank" class="go-btn">바로가기</a>`:'<span style="color:var(--sub)">-</span>';
