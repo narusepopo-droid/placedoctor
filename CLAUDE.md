@@ -181,7 +181,7 @@ URL      : postgresql://postgres:postgres@localhost:5432/placedoctor
 `backend/main.py`의 `_HTML`에 인라인. 섹션 순서:
 
 1. 헤더 — 그린 sticky + "무료 진단" 뱃지
-2. 입력폼 — 매장명+URL, 진단하기 버튼
+2. 입력폼 — 매장명 검색(+URL 직접입력 토글), 진단하기 버튼
 3. **로딩 화면** — 5단계 순차 진행 (도트 애니메이션, 진행바 95%→100%)
 4. **결과** (진단 후)
    - 매장 정보 카드

@@ -718,12 +718,20 @@ def get_admin_stats(db: Session) -> dict:
         .count()
     )
 
+    # 방문 통계
+    total_visits = db.query(models.SiteVisit).count()
+    visits_this_week = db.query(models.SiteVisit).filter(
+        models.SiteVisit.visited_at >= week_ago
+    ).count()
+
     return {
         "total_analyses": total_analyses,
         "registered_stores": registered_stores,
         "subscriber_count": subscriber_count,
         "new_subscribers_week": new_subscribers_week,
         "new_analyses_week": new_analyses_week,
+        "total_visits": total_visits,
+        "visits_this_week": visits_this_week,
     }
 
 
@@ -1026,6 +1034,80 @@ def get_subscriber_keywords(db: Session, place_id: str) -> list[str]:
         return [p["keyword"] for p in place_results][:20]
     except:
         return []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 사이트 방문 추적
+# ─────────────────────────────────────────────────────────────────────────────
+
+def record_site_visit(
+    db: Session,
+    anon_id: str | None = None,
+    source: str | None = None,
+    path: str | None = None
+) -> models.SiteVisit:
+    """사이트 방문 기록"""
+    visit = models.SiteVisit(
+        anon_id=anon_id,
+        source=source,
+        path=path
+    )
+    db.add(visit)
+    db.commit()
+    return visit
+
+
+def get_total_visits(db: Session) -> int:
+    """총 방문 횟수"""
+    return db.query(models.SiteVisit).count()
+
+
+def get_visits_this_week(db: Session) -> int:
+    """이번주 방문 횟수"""
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    return db.query(models.SiteVisit).filter(
+        models.SiteVisit.visited_at >= week_ago
+    ).count()
+
+
+def get_today_visits(db: Session) -> int:
+    """오늘 방문 횟수"""
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    return db.query(models.SiteVisit).filter(
+        models.SiteVisit.visited_at >= today
+    ).count()
+
+
+def get_visit_source_stats(db: Session) -> dict:
+    """방문 유입경로별 통계"""
+    from sqlalchemy import func
+    results = (
+        db.query(models.SiteVisit.source, func.count(models.SiteVisit.id))
+        .group_by(models.SiteVisit.source)
+        .all()
+    )
+    stats = {}
+    for source, count in results:
+        key = source if source else "direct"
+        stats[key] = stats.get(key, 0) + count
+    return stats
+
+
+def get_daily_visits(db: Session, days: int = 30) -> list[dict]:
+    """일별 방문 통계"""
+    from sqlalchemy import func, cast, Date
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    results = (
+        db.query(
+            cast(models.SiteVisit.visited_at, Date).label("date"),
+            func.count(models.SiteVisit.id).label("count")
+        )
+        .filter(models.SiteVisit.visited_at >= cutoff)
+        .group_by(cast(models.SiteVisit.visited_at, Date))
+        .order_by(cast(models.SiteVisit.visited_at, Date))
+        .all()
+    )
+    return [{"date": str(r.date), "count": r.count} for r in results]
 
 
 def get_subscribers_filtered(

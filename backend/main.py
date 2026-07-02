@@ -196,6 +196,32 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .field input{width:100%;padding:14px 16px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:.95rem;outline:none;transition:all .2s ease;background:#fff;}
 .field input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(0,184,148,.1);}
 .field input::placeholder{color:var(--gray-400);}
+/* 검색 입력 + 버튼 */
+.search-input-wrap{display:flex;gap:8px;}
+.search-input-wrap input{flex:1;}
+.search-btn{flex-shrink:0;width:48px;height:48px;border:none;border-radius:var(--radius-sm);background:var(--green);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s ease;}
+.search-btn:hover{background:#00a347;transform:scale(1.02);}
+.search-btn:active{transform:scale(0.98);}
+.search-btn i,.search-btn svg{width:22px;height:22px;stroke-width:2.5;}
+.url-toggle-wrap{text-align:right;margin-top:-8px;margin-bottom:8px;}
+.url-toggle-btn{background:none;border:none;color:var(--gray-400);font-size:.8rem;cursor:pointer;padding:4px 0;text-decoration:underline;}
+.url-toggle-btn:hover{color:var(--gray-600);}
+.url-fallback-btn{margin-top:10px;padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-size:.85rem;cursor:pointer;transition:all .2s ease;}
+.url-fallback-btn:hover{background:#00a347;}
+/* 자동완성 드롭다운 */
+.autocomplete-wrap{position:relative;}
+.autocomplete-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-sm);box-shadow:0 8px 32px rgba(0,0,0,.12);z-index:100;max-height:320px;overflow-y:auto;display:none;margin-top:4px;}
+.autocomplete-dropdown.show{display:block;}
+.autocomplete-item{display:flex;align-items:center;gap:14px;padding:12px 16px;cursor:pointer;transition:background .15s ease;border-bottom:1px solid var(--gray-100);}
+.autocomplete-item:last-child{border-bottom:none;}
+.autocomplete-item:hover,.autocomplete-item.active{background:var(--gray-50);}
+.autocomplete-thumb{width:56px;height:56px;border-radius:var(--radius-sm);object-fit:cover;background:var(--gray-100);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--gray-400);font-size:1.5rem;}
+.autocomplete-thumb.no-img{background:linear-gradient(135deg,var(--gray-100),var(--gray-200));}
+.autocomplete-info{flex:1;min-width:0;}
+.autocomplete-name{font-size:.95rem;font-weight:600;color:var(--gray-900);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.autocomplete-meta{font-size:.8rem;color:var(--gray-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.autocomplete-loading{padding:20px;text-align:center;color:var(--gray-400);font-size:.9rem;}
+.autocomplete-empty{padding:20px;text-align:center;color:var(--gray-500);font-size:.9rem;}
 .btn-diagnose{width:100%;padding:16px;background:var(--primary-gradient);color:#fff;border:none;border-radius:var(--radius-sm);font-size:1.02rem;font-weight:700;cursor:pointer;transition:all .25s ease;margin-top:8px;box-shadow:var(--shadow-glow);letter-spacing:-.2px;}
 .btn-diagnose:hover{transform:translateY(-2px);box-shadow:0 6px 28px rgba(0,184,148,.35);}
 .btn-diagnose:active{transform:translateY(0);}
@@ -212,7 +238,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .hero-cta{width:100%;max-width:320px;padding:17px 28px;background:var(--primary-gradient);color:#fff;border:none;border-radius:var(--radius);font-size:1.08rem;font-weight:700;cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1);box-shadow:var(--shadow-glow);letter-spacing:-.2px;}
 .hero-cta:hover{transform:translateY(-3px);box-shadow:0 8px 32px rgba(0,184,148,.4);}
 .hero-cta:active{transform:translateY(-1px);}
-.hero-note{font-size:.8rem;color:var(--gray-400);margin-top:var(--spacing-sm);display:flex;align-items:center;justify-content:center;gap:8px;}
+.hero-note{font-size:.95rem;color:var(--gray-600);font-weight:600;margin-top:var(--spacing-sm);display:flex;align-items:center;justify-content:center;gap:8px;}
 .hero-note::before,.hero-note::after{content:'';width:24px;height:1px;background:var(--gray-200);}
 .lp-section{margin-top:48px;}
 @media(min-width:768px){.lp-section{margin-top:72px;}}
@@ -730,7 +756,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
         <h1>내 매장, 네이버에서<br><span class="accent">몇 위</span>인지 아세요?</h1>
         <p class="hero-sub">플레이스 순위 · 블로그 노출 · 경쟁사까지<br>1분 만에 무료로 확인하세요.</p>
         <button class="hero-cta" onclick="scrollToSearch()">내 순위 확인하기</button>
-        <div class="hero-note">가입 없이 바로 · 네이버 URL만 있으면 OK</div>
+        <div class="hero-note">가입 없이 · 매장명으로 3초만에 분석 시작</div>
       </section>
 
       <section class="lp-section">
@@ -746,7 +772,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       <section class="lp-section">
         <div class="lp-section-title">어떻게 작동하나요</div>
         <div class="steps">
-          <div class="step"><div class="step-num">1</div><div class="step-body"><div class="s-title">URL 입력</div><div class="s-desc">매장명과 네이버 플레이스 URL만 넣으면 끝</div></div></div>
+          <div class="step"><div class="step-num">1</div><div class="step-body"><div class="s-title">매장명 검색</div><div class="s-desc">매장명만 입력하면 3초만에 분석 시작</div></div></div>
           <div class="step"><div class="step-num">2</div><div class="step-body"><div class="s-title">1분 분석</div><div class="s-desc">순위·리뷰·경쟁사를 자동으로 분석해요</div></div></div>
           <div class="step"><div class="step-num">3</div><div class="step-body"><div class="s-title">결과 확인 + 추적</div><div class="s-desc">점수와 순위를 받고, 다음 분석과 비교까지</div></div></div>
         </div>
@@ -845,8 +871,23 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
     </div>
 
     <div class="input-card" id="searchFormCard">
-      <div class="field"><label>매장명</label><input type="text" id="storeName" placeholder=""></div>
-      <div class="field"><label>네이버 플레이스 URL</label><input type="text" id="placeUrl" placeholder=""></div>
+      <div class="field autocomplete-wrap">
+        <label>매장명</label>
+        <div class="search-input-wrap">
+          <input type="text" id="storeName" placeholder="매장명 입력 후 검색 버튼 클릭" autocomplete="off">
+          <button type="button" class="search-btn" id="searchPlaceBtn" title="매장 검색">
+            <i data-lucide="search"></i>
+          </button>
+        </div>
+        <div class="autocomplete-dropdown" id="autocompleteDropdown"></div>
+      </div>
+      <div class="field url-field" id="urlFieldWrap" style="display:none;">
+        <label>네이버 플레이스 URL</label>
+        <input type="text" id="placeUrl" placeholder="https://m.place.naver.com/...">
+      </div>
+      <div class="url-toggle-wrap">
+        <button type="button" class="url-toggle-btn" id="urlToggleBtn">URL로 직접 입력하기</button>
+      </div>
       <div class="field">
         <label>분석 유형</label>
         <div class="analysis-type-grid">
@@ -1079,6 +1120,25 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
         <div class="card-title">📝 블로그 노출 분석 결과</div>
         <div class="blog-list" id="blogList"></div>
         <div class="blog-summary" id="blogSummary"></div>
+      </div>
+
+      <!-- 블로그 분석 후 알림 받기 -->
+      <div class="card" id="blogSubscribeCard" style="display:none;">
+        <div class="card-title"><i data-lucide="bell" class="rpt-icon is-info"></i>매주 순위 알림 받기</div>
+        <div class="subscribe-form" id="blogSubscribeForm">
+          <p class="subscribe-desc">매주 블로그 노출 순위 변화를 카카오 알림톡으로 보내드려요.</p>
+          <input type="tel" id="blogSubscribePhone" class="subscribe-input" placeholder="휴대폰 번호 (예: 01012345678)" maxlength="13">
+          <label class="subscribe-agree">
+            <input type="checkbox" id="blogSubscribeAgree">
+            <span>개인정보 수집·이용 및 마케팅 정보 수신에 동의합니다.</span>
+          </label>
+          <button class="btn-subscribe" id="btnBlogSubscribe" onclick="submitBlogSubscribe()">무료 알림 신청하기</button>
+        </div>
+        <div class="subscribe-done" id="blogSubscribeDone" style="display:none;">
+          <div class="subscribe-done-icon">✅</div>
+          <div class="subscribe-done-text">알림 신청이 완료되었습니다!</div>
+          <div class="subscribe-done-sub">매주 순위 변화를 알림톡으로 보내드릴게요.</div>
+        </div>
       </div>
     </div>
 
@@ -1732,6 +1792,11 @@ document.addEventListener('DOMContentLoaded', () => {
   loadRegisteredStores();  // M단계: 내 매장 / 경쟁 매장 먼저
   loadRecentStores();
 
+  // 방문 기록 추적
+  const urlParams = new URLSearchParams(window.location.search);
+  const utmSource = urlParams.get('utm_source') || '';
+  fetch(`/track-visit?anon_id=${_anonId || ''}&source=${encodeURIComponent(utmSource)}&path=/`, {method:'POST'}).catch(()=>{});
+
   document.querySelectorAll('.analysis-type-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.analysis-type-btn').forEach(b => b.classList.remove('selected'));
@@ -1757,7 +1822,220 @@ document.addEventListener('DOMContentLoaded', () => {
       answer.classList.toggle('open');
     });
   });
+
+  // 자동완성 드롭다운 초기화
+  initAutocomplete();
 });
+
+// ── 자동완성 (매장 검색) ──────────────────────────────────────────────────────
+let _acTimeout = null;
+let _acController = null;
+let _acSelectedIdx = -1;
+
+function initAutocomplete() {
+  const input = document.getElementById('storeName');
+  const dropdown = document.getElementById('autocompleteDropdown');
+  if (!input || !dropdown) return;
+
+  // 입력 중에는 검색하지 않음 (엔터 시에만 검색)
+  input.addEventListener('input', () => {
+    dropdown.classList.remove('show');
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const items = dropdown.querySelectorAll('.autocomplete-item');
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // 드롭다운 열려있고 선택된 항목 있으면 그것 클릭
+      if (dropdown.classList.contains('show') && _acSelectedIdx >= 0) {
+        items[_acSelectedIdx]?.click();
+      }
+      // 드롭다운 열려있고 항목 있으면 (키보드 선택 안 했으면) 검색 목록 유지
+      else if (dropdown.classList.contains('show') && items.length > 0) {
+        // 아무것도 안함 - 사용자가 클릭 또는 방향키로 선택하도록
+      }
+      // 드롭다운 안 열려있으면 검색해서 목록 표시
+      else {
+        const q = input.value.trim();
+        if (q.length >= 2) {
+          searchPlaces(q);
+        }
+      }
+      return;
+    }
+
+    if (!dropdown.classList.contains('show')) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      _acSelectedIdx = Math.min(_acSelectedIdx + 1, items.length - 1);
+      updateAcSelection(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      _acSelectedIdx = Math.max(_acSelectedIdx - 1, 0);
+      updateAcSelection(items);
+    } else if (e.key === 'Escape') {
+      dropdown.classList.remove('show');
+    }
+  });
+
+  // 외부 클릭 시 닫기
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.autocomplete-wrap')) {
+      dropdown.classList.remove('show');
+    }
+  });
+
+  // 검색 버튼 클릭
+  const searchBtn = document.getElementById('searchPlaceBtn');
+  if (searchBtn) {
+    searchBtn.addEventListener('click', () => {
+      const q = input.value.trim();
+      if (q.length >= 2) {
+        searchPlaces(q);
+      }
+    });
+  }
+
+  // URL 직접 입력 토글
+  const urlToggleBtn = document.getElementById('urlToggleBtn');
+  const urlFieldWrap = document.getElementById('urlFieldWrap');
+  if (urlToggleBtn && urlFieldWrap) {
+    urlToggleBtn.addEventListener('click', () => {
+      const isHidden = urlFieldWrap.style.display === 'none';
+      urlFieldWrap.style.display = isHidden ? 'block' : 'none';
+      urlToggleBtn.textContent = isHidden ? 'URL 입력란 닫기' : 'URL로 직접 입력하기';
+    });
+  }
+}
+
+function updateAcSelection(items) {
+  items.forEach((it, i) => {
+    it.classList.toggle('active', i === _acSelectedIdx);
+  });
+}
+
+function openUrlField() {
+  const urlFieldWrap = document.getElementById('urlFieldWrap');
+  const urlToggleBtn = document.getElementById('urlToggleBtn');
+  const dropdown = document.getElementById('autocompleteDropdown');
+
+  if (urlFieldWrap) {
+    urlFieldWrap.style.display = 'block';
+    if (urlToggleBtn) urlToggleBtn.textContent = 'URL 입력란 닫기';
+  }
+  if (dropdown) dropdown.classList.remove('show');
+
+  // URL 입력란에 포커스
+  setTimeout(() => {
+    const urlInput = document.getElementById('placeUrl');
+    if (urlInput) urlInput.focus();
+  }, 100);
+}
+
+async function searchPlaces(query) {
+  const dropdown = document.getElementById('autocompleteDropdown');
+  dropdown.innerHTML = '<div class="autocomplete-loading">검색 중...</div>';
+  dropdown.classList.add('show');
+  _acSelectedIdx = -1;
+
+  // 기존 요청 취소
+  if (_acController) _acController.abort();
+  _acController = new AbortController();
+
+  try {
+    const res = await fetch(`/search-place?query=${encodeURIComponent(query)}`, {
+      signal: _acController.signal
+    });
+    const results = await res.json();
+
+    if (!results || results.length === 0) {
+      dropdown.innerHTML = '<div class="autocomplete-empty">검색 결과가 없습니다<br><button type="button" class="url-fallback-btn" onclick="openUrlField()">URL로 직접 입력하기</button></div>';
+      return;
+    }
+
+    dropdown.innerHTML = results.map((r, i) => {
+      const thumbHtml = r.thumbnail
+        ? `<img class="autocomplete-thumb" src="${r.thumbnail}" onerror="this.outerHTML='<div class=\\'autocomplete-thumb no-img\\'>📍</div>'" alt="">`
+        : `<div class="autocomplete-thumb no-img">📍</div>`;
+      return `
+      <div class="autocomplete-item" data-url="${esc(r.url)}" data-name="${esc(r.name)}">
+        ${thumbHtml}
+        <div class="autocomplete-info">
+          <div class="autocomplete-name">${esc(r.name)}</div>
+          <div class="autocomplete-meta">${esc(r.category)}${r.category && r.address ? ' · ' : ''}${esc(r.address)}</div>
+        </div>
+      </div>
+    `;
+    }).join('');
+
+    dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const storeInput = document.getElementById('storeName');
+        const urlInput = document.getElementById('placeUrl');
+
+        // 값 설정
+        storeInput.value = item.dataset.name;
+        urlInput.value = item.dataset.url;
+        dropdown.classList.remove('show');
+
+        // 선택 완료 피드백: URL 입력란 하이라이트
+        urlInput.style.transition = 'all 0.3s ease';
+        urlInput.style.borderColor = 'var(--green)';
+        urlInput.style.backgroundColor = 'rgba(0,184,148,0.05)';
+        setTimeout(() => {
+          urlInput.style.borderColor = '';
+          urlInput.style.backgroundColor = '';
+        }, 1500);
+
+        // 포커스를 분석 버튼으로 이동
+        document.querySelector('.btn-diagnose')?.focus();
+      });
+    });
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      dropdown.innerHTML = '<div class="autocomplete-empty">검색 중 오류가 발생했습니다</div>';
+    }
+  }
+}
+
+// 엔터키로 검색 후 첫번째 결과 자동 선택
+async function searchPlacesAndSelect(query) {
+  const dropdown = document.getElementById('autocompleteDropdown');
+  dropdown.innerHTML = '<div class="autocomplete-loading">검색 중...</div>';
+  dropdown.classList.add('show');
+
+  try {
+    const res = await fetch(`/search-place?query=${encodeURIComponent(query)}`);
+    const results = await res.json();
+
+    if (results && results.length > 0) {
+      const r = results[0];
+      const storeInput = document.getElementById('storeName');
+      const urlInput = document.getElementById('placeUrl');
+
+      storeInput.value = r.name;
+      urlInput.value = r.url;
+      dropdown.classList.remove('show');
+
+      // 선택 완료 피드백
+      urlInput.style.transition = 'all 0.3s ease';
+      urlInput.style.borderColor = 'var(--green)';
+      urlInput.style.backgroundColor = 'rgba(0,184,148,0.05)';
+      setTimeout(() => {
+        urlInput.style.borderColor = '';
+        urlInput.style.backgroundColor = '';
+      }, 1500);
+
+      document.querySelector('.btn-diagnose')?.focus();
+    } else {
+      dropdown.innerHTML = '<div class="autocomplete-empty">검색 결과가 없습니다<br><button type="button" class="url-fallback-btn" onclick="openUrlField()">URL로 직접 입력하기</button></div>';
+    }
+  } catch (e) {
+    dropdown.innerHTML = '<div class="autocomplete-empty">검색 중 오류가 발생했습니다</div>';
+  }
+}
 
 // ── 유틸 ──────────────────────────────────────────────────────────────────────
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1923,7 +2201,7 @@ async function analyzePlaceOnly(){
     ad_local:     document.getElementById('adLocal').checked,
     ad_blog:      document.getElementById('adBlog').checked,
   };
-  if(!name||!url){alert('매장명과 URL을 입력해주세요.');return;}
+  if(!name||!url){alert('매장명을 검색해서 매장을 선택해주세요.');return;}
 
   _lastStoreName = name;
   _lastPlaceUrl = url;
@@ -2168,7 +2446,7 @@ async function analyzePlaceOnly(){
 async function analyzeBlogOnly(){
   const name = document.getElementById('storeName').value.trim();
   const url  = document.getElementById('placeUrl').value.trim();
-  if(!name||!url){alert('매장명과 URL을 입력해주세요.');return;}
+  if(!name||!url){alert('매장명을 검색해서 매장을 선택해주세요.');return;}
 
   // K단계: 마지막 분석 정보 저장 + 히스토리 초기화
   _lastStoreName = name;
@@ -2519,6 +2797,7 @@ function renderBlogOnlyResult(d){
   _blogAnalyzed = true;
   document.getElementById('blogStartCard').style.display = 'none';
   document.getElementById('blogResultCard').style.display = 'block';
+  document.getElementById('blogSubscribeCard').style.display = 'block';
 
   // 직전 블로그 순위 맵 + J단계: 키워드 히스토리
   const prevBlogMap = buildPrevBlogRankMap(prev);
@@ -3253,6 +3532,53 @@ async function submitSubscribe(){
   }
 }
 
+// 블로그 분석용 알림 구독
+async function submitBlogSubscribe(){
+  const phone = document.getElementById('blogSubscribePhone').value.replace(/[^0-9]/g,'');
+  const agreed = document.getElementById('blogSubscribeAgree').checked;
+  const btn = document.getElementById('btnBlogSubscribe');
+
+  if(!agreed){
+    alert('수신 동의에 체크해주세요.');
+    return;
+  }
+  if(phone.length < 10 || phone.length > 11){
+    alert('올바른 휴대폰 번호를 입력해주세요.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '신청 중...';
+
+  try{
+    const res = await fetch('/subscribe', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        store_name: _lastStoreName || '',
+        phone: phone,
+        store_url: _lastPlaceUrl || document.getElementById('placeUrl').value,
+        place_id: null,
+        anon_id: _anonId,
+        agreed: true
+      })
+    });
+    const data = await res.json();
+    if(res.ok){
+      document.getElementById('blogSubscribeForm').style.display = 'none';
+      document.getElementById('blogSubscribeDone').style.display = 'block';
+    } else {
+      alert(data.detail || '신청에 실패했습니다.');
+      btn.disabled = false;
+      btn.textContent = '무료 알림 신청하기';
+    }
+  } catch(e){
+    alert('네트워크 오류가 발생했습니다.');
+    btn.disabled = false;
+    btn.textContent = '무료 알림 신청하기';
+  }
+}
+
 // ── 탭 전환 ──────────────────────────────────────────────────────────────────
 function switchTab(tabId){
   document.querySelectorAll('.tab-btn').forEach(btn=>{
@@ -3271,6 +3597,7 @@ function switchTab(tabId){
       document.getElementById('blogStartCard').style.display = 'none';
       document.getElementById('blogLoading').style.display = 'none';
       document.getElementById('blogResultCard').style.display = 'block';
+  document.getElementById('blogSubscribeCard').style.display = 'block';
 
       const prevBlogMap = buildPrevBlogRankMap(_historyBlogData.prev_analysis);
       const kwHistory = _historyBlogData.keyword_history || {};
@@ -3280,6 +3607,7 @@ function switchTab(tabId){
       document.getElementById('blogStartCard').style.display = 'block';
       document.getElementById('blogLoading').style.display = 'none';
       document.getElementById('blogResultCard').style.display = 'none';
+  document.getElementById('blogSubscribeCard').style.display = 'none';
     }
   }
 }
@@ -3299,6 +3627,7 @@ async function startBlogAnalysis(){
   document.getElementById('blogStartCard').style.display = 'none';
   document.getElementById('blogLoading').style.display = 'block';
   document.getElementById('blogResultCard').style.display = 'none';
+  document.getElementById('blogSubscribeCard').style.display = 'none';
 
   // 백엔드가 대표키워드 그대로 + 폭 확대(최대 15개)로 분석하므로 후보 전체를 넘김
   const keywords = (d.keywords_used || []);
@@ -3330,6 +3659,7 @@ async function startBlogAnalysis(){
 
     document.getElementById('blogLoading').style.display = 'none';
     document.getElementById('blogResultCard').style.display = 'block';
+  document.getElementById('blogSubscribeCard').style.display = 'block';
 
     renderBlogResults(result.blog_results || []);
 
@@ -3363,6 +3693,7 @@ function resetForm(){
   document.getElementById('blogStartCard').style.display = 'block';
   document.getElementById('blogLoading').style.display = 'none';
   document.getElementById('blogResultCard').style.display = 'none';
+  document.getElementById('blogSubscribeCard').style.display = 'none';
   document.getElementById('btnBlogAnalyze').disabled = false;
   document.getElementById('btnBlogAnalyze').textContent = '🔍 블로그 노출 분석하기';
   // 탭 표시 복구 및 초기화
@@ -3396,6 +3727,18 @@ def health():
     return {"status": "ok"}
 
 
+@app.post("/track-visit", tags=["추적"])
+def track_visit(
+    anon_id: str | None = None,
+    source: str | None = None,
+    path: str | None = "/",
+    db: Session = Depends(get_db)
+):
+    """사이트 방문 기록"""
+    crud.record_site_visit(db, anon_id=anon_id, source=source, path=path)
+    return {"ok": True}
+
+
 @app.get("/sitemap.xml", tags=["SEO"])
 async def sitemap():
     content = """<?xml version="1.0" encoding="UTF-8"?>
@@ -3407,6 +3750,98 @@ async def sitemap():
   </url>
 </urlset>"""
     return Response(content=content, media_type="application/xml")
+
+
+@app.get("/search-place", tags=["검색"])
+async def search_place(query: str):
+    """
+    네이버 플레이스 검색 - 매장명으로 검색하여 후보 목록 반환
+    search.naver.com HTML에서 Apollo State 파싱 (httpx로 빠르게)
+    """
+    import re
+    import json as json_module
+    from urllib.parse import quote
+    import httpx
+
+    if not query or len(query.strip()) < 2:
+        return []
+
+    query = query.strip()
+    results = []
+
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+        }
+        url = f"https://search.naver.com/search.naver?where=nexearch&query={quote(query)}"
+
+        async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers=headers)
+            html = resp.text
+
+            # __APOLLO_STATE__ 추출 (greedy하게 마지막 }까지)
+            match = re.search(r'__APOLLO_STATE__\s*=\s*(\{.*\});\s*window\.__APOLLO', html, re.DOTALL)
+            if not match:
+                match = re.search(r'__APOLLO_STATE__\s*=\s*(\{[^<]+\});', html, re.DOTALL)
+            if match:
+                try:
+                    state = json_module.loads(match.group(1))
+                except json_module.JSONDecodeError:
+                    # JSON이 잘렸을 수 있음 - 플레이스 항목만 추출
+                    state = {}
+                    for m in re.finditer(r'"PlaceListBusinessesItem:(\d+)":\s*(\{[^}]+\})', html):
+                        pid = m.group(1)
+                        try:
+                            item_str = m.group(2) + "}"
+                            # 간단한 필드만 추출
+                            name_m = re.search(r'"name"\s*:\s*"([^"]*)"', item_str)
+                            cat_m = re.search(r'"category"\s*:\s*"([^"]*)"', item_str)
+                            addr_m = re.search(r'"fullAddress"\s*:\s*"([^"]*)"', item_str)
+                            thumb_m = re.search(r'"imageUrl"\s*:\s*"([^"]*)"', item_str)
+                            if name_m:
+                                state[f"PlaceListBusinessesItem:{pid}"] = {
+                                    "name": name_m.group(1),
+                                    "category": cat_m.group(1) if cat_m else "",
+                                    "fullAddress": addr_m.group(1) if addr_m else "",
+                                    "imageUrl": thumb_m.group(1) if thumb_m else ""
+                                }
+                        except:
+                            pass
+                seen_ids = set()
+                for key, val in state.items():
+                    if not isinstance(val, dict):
+                        continue
+                    if not key.startswith("PlaceListBusinessesItem:"):
+                        continue
+                    pid = key.split(":")[-1]
+                    if not pid or pid in seen_ids:
+                        continue
+                    seen_ids.add(pid)
+
+                    name = val.get("name", "")
+                    name = re.sub(r'<[^>]+>', '', name)
+
+                    thumb = val.get("imageUrl") or val.get("thumUrl") or ""
+                    if thumb and thumb.startswith("//"):
+                        thumb = "https:" + thumb
+
+                    results.append({
+                        "place_id": str(pid),
+                        "name": name,
+                        "category": val.get("category", ""),
+                        "address": val.get("fullAddress") or val.get("commonAddress") or val.get("roadAddress") or val.get("address", ""),
+                        "thumbnail": thumb,
+                        "url": f"https://m.place.naver.com/place/{pid}"
+                    })
+                    if len(results) >= 8:
+                        break
+
+    except Exception as e:
+        print(f"[검색 오류] {e}")
+
+    return results
 
 
 @app.get("/robots.txt", tags=["SEO"])
@@ -3424,13 +3859,13 @@ LLMs: https://placeranking.com/llms.txt"""
 async def llms_txt():
     content = """# 플레이스랭킹 (placeranking.com)
 
-> 플레이스랭킹은 네이버 플레이스와 블로그의 검색 순위를 URL 입력만으로 무료로 확인하는 진단 도구입니다. 매장을 운영하는 자영업자(사장님)가 자기 매장이 네이버에서 어떤 키워드로 몇 위에 노출되는지, 경쟁 매장과 비교해 어느 위치에 있는지를 회원가입 없이 즉시 진단할 수 있습니다. 한국의 소상공인·자영업자를 위한 무료 네이버 플레이스 순위 분석 서비스입니다.
+> 플레이스랭킹은 매장명만 입력하면 3초만에 네이버 플레이스와 블로그의 검색 순위를 무료로 확인하는 진단 도구입니다. 매장을 운영하는 자영업자(사장님)가 자기 매장이 네이버에서 어떤 키워드로 몇 위에 노출되는지, 경쟁 매장과 비교해 어느 위치에 있는지를 회원가입 없이 즉시 진단할 수 있습니다. 한국의 소상공인·자영업자를 위한 무료 네이버 플레이스 순위 분석 서비스입니다.
 
 ## 핵심 정보 요약
 - 서비스명: 플레이스랭킹 (PlaceRanking)
 - 주소: https://placeranking.com
 - 비용: 완전 무료
-- 회원가입: 불필요 (네이버 플레이스 URL만 입력하면 즉시 분석)
+- 회원가입: 불필요 (매장명만 입력하면 3초만에 분석 시작)
 - 분석 시간: 약 1~2분
 - 대상 지역: 대한민국 전역
 - 분석 대상: 네이버 플레이스, 네이버 블로그 검색 노출
@@ -3470,10 +3905,10 @@ async def llms_txt():
 ## 자주 묻는 질문 (FAQ)
 
 ### 내 가게가 네이버에서 몇 위인지 어떻게 확인하나요?
-플레이스랭킹(placeranking.com)에 접속해 네이버 플레이스 URL을 입력하면, 가입 없이 1~2분 내에 어떤 키워드에서 몇 위에 노출되는지 무료로 확인할 수 있습니다.
+플레이스랭킹(placeranking.com)에 접속해 매장명만 입력하면, 가입 없이 3초만에 분석이 시작되고 1~2분 내에 어떤 키워드에서 몇 위에 노출되는지 무료로 확인할 수 있습니다.
 
 ### 네이버 플레이스 순위를 무료로 확인하는 방법이 있나요?
-플레이스랭킹은 네이버 플레이스 순위를 완전 무료로 진단합니다. 회원가입이나 결제 없이 매장 URL만 입력하면 키워드별 순위, 경쟁사 비교, 종합 점수를 제공합니다.
+플레이스랭킹은 네이버 플레이스 순위를 완전 무료로 진단합니다. 회원가입이나 결제 없이 매장명만 입력하면 키워드별 순위, 경쟁사 비교, 종합 점수를 제공합니다.
 
 ### 경쟁 매장의 네이버 순위와 비교할 수 있나요?
 플레이스랭킹은 같은 키워드에서 경쟁 매장과 내 매장의 순위를 비교해 보여줍니다. 1위 매장과의 격차, 내 위치를 한눈에 확인할 수 있습니다.
@@ -3492,7 +3927,7 @@ async def llms_txt():
 
 ## 사용 방법
 1. placeranking.com 접속
-2. 내 매장의 네이버 플레이스 URL 입력 (매장명도 함께 입력)
+2. 매장명 입력 후 검색 버튼 클릭 (3초만에 분석 시작)
 3. 분석 유형 선택 (플레이스 순위 / 블로그 노출)
 4. 1~2분 내 순위·키워드·경쟁사 분석 결과 확인
 5. (선택) 전화번호 입력 시 매주 순위 변화를 카카오톡으로 무료 안내
@@ -4578,10 +5013,12 @@ def admin_daily_counts(
     admin_session: Opt[str] = Cookie(None),
     db: Session = Depends(get_db),
 ):
-    """일별 진단 수 집계 (Chart.js용)"""
+    """일별 진단 + 방문 수 집계 (Chart.js용)"""
     if not _check_admin(admin_session):
         raise HTTPException(status_code=401, detail="로그인 필요")
-    return crud.get_daily_analysis_counts(db, days)
+    analyses = crud.get_daily_analysis_counts(db, days)
+    visits = crud.get_daily_visits(db, days)
+    return {"analyses": analyses, "visits": visits}
 
 
 @app.get("/admin/api/source-stats", tags=["관리자"])
@@ -4590,10 +5027,10 @@ def admin_source_stats(
     admin_session: Opt[str] = Cookie(None),
     db: Session = Depends(get_db),
 ):
-    """유입경로별 통계"""
+    """유입경로별 통계 (방문 기록 기반)"""
     if not _check_admin(admin_session):
         raise HTTPException(status_code=401, detail="로그인 필요")
-    return crud.get_source_stats(db, days)
+    return crud.get_visit_source_stats(db)
 
 
 @app.put("/admin/api/subscriber/{subscriber_id}/status", tags=["관리자"])
@@ -4886,15 +5323,16 @@ _ADMIN_HTML = """<!DOCTYPE html>
     <section class="page on" id="dash">
       <div class="head"><div><h1>대시보드</h1><p>오늘 기준 한눈에 보기</p></div></div>
       <div class="cards">
+        <div class="card"><div class="lbl">총 방문 횟수</div><div class="num" id="statVisits">-</div></div>
         <div class="card"><div class="lbl">총 진단 횟수</div><div class="num" id="statTotal">-</div></div>
-        <div class="card"><div class="lbl">등록 매장</div><div class="num" id="statStores">-</div></div>
         <div class="card hl"><div class="lbl">알림 신청자 (리드)</div><div class="num" id="statSubs">-</div></div>
-        <div class="card"><div class="lbl">이번주 신규 진단</div><div class="num" id="statWeek">-</div></div>
+        <div class="card"><div class="lbl">이번주 방문</div><div class="num" id="statWeekVisits">-</div></div>
+        <div class="card"><div class="lbl">등록 매장</div><div class="num" id="statStores">-</div></div>
       </div>
       <!-- 일별 추이 + 유입경로 -->
       <div class="chart-grid">
         <div class="panel" style="margin-bottom:0">
-          <h2>일별 진단 추이 (30일)</h2><p class="desc">홍보 효과를 한눈에</p>
+          <h2>일별 추이 (30일)</h2><p class="desc">방문 vs 진단</p>
           <div style="height:200px"><canvas id="dailyChart"></canvas></div>
         </div>
         <div class="panel" style="margin-bottom:0">
@@ -5109,21 +5547,32 @@ let analysisPage=0, subPage=0;
 async function loadDailyChart(){
   const r=await fetch('/admin/api/daily-counts?days=30');
   const d=await r.json();
-  const labels=d.map(x=>x.date.slice(5));
-  const data=d.map(x=>x.count);
+  // 날짜 통합 (진단+방문)
+  const allDates = new Set();
+  (d.analyses||[]).forEach(x=>allDates.add(x.date));
+  (d.visits||[]).forEach(x=>allDates.add(x.date));
+  const labels = Array.from(allDates).sort();
+  const analysisMap = Object.fromEntries((d.analyses||[]).map(x=>[x.date,x.count]));
+  const visitMap = Object.fromEntries((d.visits||[]).map(x=>[x.date,x.count]));
+  const analysisData = labels.map(dt=>analysisMap[dt]||0);
+  const visitData = labels.map(dt=>visitMap[dt]||0);
+  const displayLabels = labels.map(dt=>dt.slice(5));
   const canvas=document.getElementById('dailyChart');
   const ctx=canvas.getContext('2d');
   if(dailyChart) dailyChart.destroy();
   dailyChart=new Chart(ctx,{
     type:'line',
     data:{
-      labels:labels,
-      datasets:[{label:'진단 수',data:data,borderColor:'#00C896',backgroundColor:'rgba(0,200,150,0.1)',fill:true,tension:0.3,pointRadius:2}]
+      labels:displayLabels,
+      datasets:[
+        {label:'방문',data:visitData,borderColor:'#4DB8FF',backgroundColor:'rgba(77,184,255,0.1)',fill:true,tension:0.3,pointRadius:2},
+        {label:'진단',data:analysisData,borderColor:'#00C896',backgroundColor:'rgba(0,200,150,0.1)',fill:true,tension:0.3,pointRadius:2}
+      ]
     },
     options:{
       responsive:true,
       maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
+      plugins:{legend:{display:true,position:'top'}},
       scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:10}}}
     }
   });
@@ -5132,21 +5581,24 @@ async function loadDailyChart(){
 async function loadSourceChart(){
   const r=await fetch('/admin/api/source-stats?days=30');
   const d=await r.json();
-  if(!d.length){
+  // d는 {source: count} 형태의 dict
+  const entries = Object.entries(d);
+  if(!entries.length){
     document.getElementById('sourceChart').parentElement.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--sub)">아직 유입 데이터가 없습니다</div>';
     return;
   }
-  const labels=d.map(x=>{
-    const src=x.source;
-    if(src==='direct') return '직접유입(구)';
+  const labels=entries.map(([src,cnt])=>{
+    if(src==='direct'||src==='') return '직접방문';
     if(src==='blog') return '블로그';
     if(src==='search') return '검색';
-    if(src==='referrer') return '외부링크(구)';
-    if(src==='chatgpt.com') return 'ChatGPT(구)';
-    return src||'미분류';
+    if(src==='chatgpt'||src==='chatgpt.com') return 'ChatGPT';
+    if(src==='gemini') return 'Gemini';
+    if(src==='perplexity') return 'Perplexity';
+    if(src==='claude') return 'Claude';
+    return src||'기타';
   });
-  const data=d.map(x=>x.count);
-  const colors=['#00C896','#4DB8FF','#FFB74D','#A1887F','#90CAF9','#CE93D8'];
+  const data=entries.map(([src,cnt])=>cnt);
+  const colors=['#00C896','#4DB8FF','#FFB74D','#A1887F','#90CAF9','#CE93D8','#EF9A9A','#B0BEC5'];
   const canvas=document.getElementById('sourceChart');
   const ctx=canvas.getContext('2d');
   if(sourceChart) sourceChart.destroy();
@@ -5207,10 +5659,11 @@ async function loadSendHistory(){
 async function loadStats(){
   const r=await fetch('/admin/api/stats');
   const d=await r.json();
+  document.getElementById('statVisits').innerHTML=(d.total_visits||0).toLocaleString();
   document.getElementById('statTotal').textContent=d.total_analyses.toLocaleString();
-  document.getElementById('statStores').textContent=d.registered_stores.toLocaleString();
   document.getElementById('statSubs').innerHTML=d.subscriber_count+'<small>+'+d.new_subscribers_week+' 이번주</small>';
-  document.getElementById('statWeek').textContent=d.new_analyses_week.toLocaleString();
+  document.getElementById('statWeekVisits').innerHTML=(d.visits_this_week||0).toLocaleString()+'<small>+'+d.new_analyses_week+' 진단</small>';
+  document.getElementById('statStores').textContent=d.registered_stores.toLocaleString();
 }
 
 function fmtAdminTime(iso){

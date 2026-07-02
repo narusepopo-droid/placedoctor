@@ -195,3 +195,14 @@ class AlimtalkLog(Base):
     success       = Column(Boolean, default=False)
     result_code   = Column(String(20), nullable=True)
     message       = Column(Text, nullable=True)
+
+
+class SiteVisit(Base):
+    """사이트 방문 기록 (페이지 로드 시 1건 기록)"""
+    __tablename__ = "site_visits"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    visited_at = Column(DateTime(timezone=True), default=_now, index=True)
+    anon_id    = Column(String(36), index=True, nullable=True)
+    source     = Column(String(100), nullable=True)  # utm_source
+    path       = Column(String(200), nullable=True)  # 방문 경로 (/, /admin 등)
