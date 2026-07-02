@@ -1967,7 +1967,10 @@ async function analyzePlaceOnly(){
     else if (ref.includes('twitter.com') || ref.includes('x.com')) utmSource = 'X(트위터)';
     else utmSource = '기타';
   } else if (utmSource === 'blog') {
-    utmSource = '블로그';
+    const utmMedium = urlParams.get('utm_medium');
+    if (utmMedium === 'case') utmSource = '블로그(사례)';
+    else if (utmMedium === 'qna') utmSource = '블로그(Q&A)';
+    else utmSource = '블로그';
   }
   const params = new URLSearchParams({
     store_name: name,
@@ -2219,7 +2222,10 @@ async function analyzeBlogOnly(){
       else if (ref.includes('twitter.com') || ref.includes('x.com')) utmSource = 'X(트위터)';
       else utmSource = '기타';
     } else if (utmSource === 'blog') {
-      utmSource = '블로그';
+      const utmMedium = urlParams.get('utm_medium');
+      if (utmMedium === 'case') utmSource = '블로그(사례)';
+      else if (utmMedium === 'qna') utmSource = '블로그(Q&A)';
+      else utmSource = '블로그';
     }
     const params = new URLSearchParams({ store_name: name, place_url: url, anon_id: _anonId || '', source: utmSource });
     eventSource = new EventSource('/analyze-blog-stream?' + params.toString());
