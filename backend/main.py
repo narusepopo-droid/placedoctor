@@ -4818,6 +4818,28 @@ def admin_stats(
     return crud.get_admin_stats(db)
 
 
+@app.get("/admin/api/funnel", tags=["관리자"])
+def admin_funnel(
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """전환율 퍼널 통계"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    return crud.get_funnel_stats(db)
+
+
+@app.get("/admin/api/week-compare", tags=["관리자"])
+def admin_week_compare(
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """이번주 vs 지난주 비교"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    return crud.get_week_comparison(db)
+
+
 @app.get("/admin/api/recent-analyses", tags=["관리자"])
 def admin_recent_analyses(
     limit: int = 10,
@@ -5247,6 +5269,23 @@ _ADMIN_HTML = """<!DOCTYPE html>
   .stat-bar .bar{flex:1;height:20px;background:var(--line);border-radius:4px;overflow:hidden}
   .stat-bar .fill{height:100%;background:var(--green);border-radius:4px}
   .stat-bar .count{flex:0 0 50px;text-align:right;font-size:12px;color:var(--sub)}
+  /* 퍼널 */
+  .funnel{display:flex;flex-direction:column;gap:12px;padding:10px 0}
+  .funnel-bar{position:relative;height:36px;background:var(--line);border-radius:8px;overflow:hidden}
+  .funnel-fill{height:100%;background:linear-gradient(90deg,var(--green),#40D87A);border-radius:8px;transition:width .5s}
+  .funnel-label{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:700;color:var(--ink)}
+  .funnel-label b{font-size:15px;margin-left:6px}
+  .funnel-label small{color:var(--sub);margin-left:4px}
+  /* 기간비교 */
+  .compare-grid{display:flex;flex-direction:column;gap:14px;padding:12px 0}
+  .compare-row{display:flex;align-items:center;gap:10px}
+  .compare-label{flex:0 0 50px;font-size:13px;font-weight:700;color:var(--sub)}
+  .compare-this{flex:1;font-size:20px;font-weight:800;text-align:right}
+  .compare-arrow{flex:0 0 60px;text-align:center;font-size:14px;font-weight:700}
+  .compare-arrow.up{color:var(--green)}
+  .compare-arrow.down{color:var(--red)}
+  .compare-arrow.same{color:var(--sub)}
+  .compare-last{flex:1;font-size:15px;color:var(--sub);text-align:left}
   .rank{font-weight:800}
   .up{color:var(--green)} .down{color:var(--red)} .same{color:var(--sub)}
   .del-btn{border:1px solid var(--line);background:#fff;color:var(--red);padding:5px 11px;
@@ -5327,6 +5366,25 @@ _ADMIN_HTML = """<!DOCTYPE html>
         <div class="card"><div class="lbl">총 진단 횟수</div><div class="num" id="statTotal">-</div></div>
         <div class="card hl"><div class="lbl">알림 신청자 (리드)</div><div class="num" id="statSubs">-</div></div>
         <div class="card"><div class="lbl">이번주 방문</div><div class="num" id="statWeekVisits">-</div></div>
+      </div>
+      <!-- 전환율 퍼널 + 기간 비교 -->
+      <div class="chart-grid" style="margin-bottom:20px">
+        <div class="panel" style="margin-bottom:0">
+          <h2>전환율 퍼널</h2><p class="desc">방문 → 진단 → 리드</p>
+          <div class="funnel" id="funnelChart">
+            <div class="funnel-bar"><div class="funnel-fill" id="funnelVisit" style="width:100%"></div><span class="funnel-label">방문 <b id="funnelVisitNum">-</b></span></div>
+            <div class="funnel-bar"><div class="funnel-fill" id="funnelAnalysis" style="width:50%"></div><span class="funnel-label">진단 <b id="funnelAnalysisNum">-</b> <small id="funnelAnalysisRate">-</small></span></div>
+            <div class="funnel-bar"><div class="funnel-fill" id="funnelLead" style="width:10%"></div><span class="funnel-label">리드 <b id="funnelLeadNum">-</b> <small id="funnelLeadRate">-</small></span></div>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:0">
+          <h2>기간 비교</h2><p class="desc">이번주 vs 지난주</p>
+          <div class="compare-grid" id="compareGrid">
+            <div class="compare-row"><span class="compare-label">방문</span><span class="compare-this" id="cmpVisitThis">-</span><span class="compare-arrow" id="cmpVisitArrow">-</span><span class="compare-last" id="cmpVisitLast">-</span></div>
+            <div class="compare-row"><span class="compare-label">진단</span><span class="compare-this" id="cmpAnalysisThis">-</span><span class="compare-arrow" id="cmpAnalysisArrow">-</span><span class="compare-last" id="cmpAnalysisLast">-</span></div>
+            <div class="compare-row"><span class="compare-label">리드</span><span class="compare-this" id="cmpLeadThis">-</span><span class="compare-arrow" id="cmpLeadArrow">-</span><span class="compare-last" id="cmpLeadLast">-</span></div>
+          </div>
+        </div>
       </div>
       <!-- 일별 추이 + 유입경로 -->
       <div class="chart-grid">
@@ -5662,6 +5720,56 @@ async function loadStats(){
   document.getElementById('statTotal').textContent=d.total_analyses.toLocaleString();
   document.getElementById('statSubs').innerHTML=d.subscriber_count+'<small>+'+d.new_subscribers_week+' 이번주</small>';
   document.getElementById('statWeekVisits').innerHTML=(d.visits_this_week||0).toLocaleString()+'<small>+'+d.new_analyses_week+' 진단</small>';
+  loadFunnel();
+  loadWeekCompare();
+}
+
+async function loadFunnel(){
+  try{
+    const r=await fetch('/admin/api/funnel');
+    const d=await r.json();
+    const visits=d.visits||0, analyses=d.analyses||0, leads=d.leads||0;
+    const maxVal=Math.max(visits,1);
+    document.getElementById('funnelVisit').style.width='100%';
+    document.getElementById('funnelAnalysis').style.width=(analyses/maxVal*100)+'%';
+    document.getElementById('funnelLead').style.width=(leads/maxVal*100)+'%';
+    document.getElementById('funnelVisitNum').textContent=visits.toLocaleString();
+    document.getElementById('funnelAnalysisNum').textContent=analyses.toLocaleString();
+    document.getElementById('funnelLeadNum').textContent=leads.toLocaleString();
+    document.getElementById('funnelAnalysisRate').textContent='('+d.visit_to_analysis_rate+'%)';
+    document.getElementById('funnelLeadRate').textContent='('+d.analysis_to_lead_rate+'%)';
+  }catch(e){console.error('funnel',e)}
+}
+
+async function loadWeekCompare(){
+  try{
+    const r=await fetch('/admin/api/week-compare');
+    const d=await r.json();
+    const tw=d.this_week, lw=d.last_week, ch=d.change;
+    document.getElementById('cmpVisitThis').textContent=tw.visits;
+    document.getElementById('cmpVisitLast').textContent=lw.visits;
+    renderArrow('cmpVisitArrow',ch.visits);
+    document.getElementById('cmpAnalysisThis').textContent=tw.analyses;
+    document.getElementById('cmpAnalysisLast').textContent=lw.analyses;
+    renderArrow('cmpAnalysisArrow',ch.analyses);
+    document.getElementById('cmpLeadThis').textContent=tw.leads;
+    document.getElementById('cmpLeadLast').textContent=lw.leads;
+    renderArrow('cmpLeadArrow',ch.leads);
+  }catch(e){console.error('compare',e)}
+}
+
+function renderArrow(id, ch){
+  const el=document.getElementById(id);
+  if(ch.value>0){
+    el.className='compare-arrow up';
+    el.innerHTML='↑ '+(ch.percent!==null?ch.percent+'%':'N/A');
+  }else if(ch.value<0){
+    el.className='compare-arrow down';
+    el.innerHTML='↓ '+Math.abs(ch.percent||0)+'%';
+  }else{
+    el.className='compare-arrow same';
+    el.innerHTML='- 0%';
+  }
 }
 
 function fmtAdminTime(iso){

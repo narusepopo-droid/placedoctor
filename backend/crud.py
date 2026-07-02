@@ -1507,3 +1507,78 @@ def get_region_stats(db: Session, limit: int = 10) -> list[dict]:
     total = sum(c for _, c in sorted_regions)
 
     return [{"region": reg, "count": cnt, "percent": round(cnt / total * 100) if total else 0} for reg, cnt in sorted_regions]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 전환율 퍼널 + 기간 비교
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_funnel_stats(db: Session) -> dict:
+    """전환율 퍼널 통계 (전체 기간)"""
+    total_visits = db.query(models.SiteVisit).count()
+    total_analyses = db.query(models.AnalysisHistory).count()
+    total_leads = db.query(models.Subscriber).count()
+
+    visit_to_analysis = round(total_analyses / total_visits * 100, 1) if total_visits else 0
+    analysis_to_lead = round(total_leads / total_analyses * 100, 1) if total_analyses else 0
+
+    return {
+        "visits": total_visits,
+        "analyses": total_analyses,
+        "leads": total_leads,
+        "visit_to_analysis_rate": visit_to_analysis,
+        "analysis_to_lead_rate": analysis_to_lead,
+    }
+
+
+def get_week_comparison(db: Session) -> dict:
+    """이번주 vs 지난주 비교 (월~일 기준)"""
+    now = datetime.now(timezone.utc)
+    # 이번주 월요일 00:00
+    days_since_monday = now.weekday()
+    this_week_start = (now - timedelta(days=days_since_monday)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    last_week_start = this_week_start - timedelta(days=7)
+    last_week_end = this_week_start
+
+    # 이번주
+    this_visits = db.query(models.SiteVisit).filter(
+        models.SiteVisit.visited_at >= this_week_start
+    ).count()
+    this_analyses = db.query(models.AnalysisHistory).filter(
+        models.AnalysisHistory.analyzed_at >= this_week_start
+    ).count()
+    this_leads = db.query(models.Subscriber).filter(
+        models.Subscriber.created_at >= this_week_start
+    ).count()
+
+    # 지난주
+    last_visits = db.query(models.SiteVisit).filter(
+        models.SiteVisit.visited_at >= last_week_start,
+        models.SiteVisit.visited_at < last_week_end
+    ).count()
+    last_analyses = db.query(models.AnalysisHistory).filter(
+        models.AnalysisHistory.analyzed_at >= last_week_start,
+        models.AnalysisHistory.analyzed_at < last_week_end
+    ).count()
+    last_leads = db.query(models.Subscriber).filter(
+        models.Subscriber.created_at >= last_week_start,
+        models.Subscriber.created_at < last_week_end
+    ).count()
+
+    def calc_change(this_val, last_val):
+        if last_val == 0:
+            return {"value": this_val - last_val, "percent": None}
+        pct = round((this_val - last_val) / last_val * 100)
+        return {"value": this_val - last_val, "percent": pct}
+
+    return {
+        "this_week": {"visits": this_visits, "analyses": this_analyses, "leads": this_leads},
+        "last_week": {"visits": last_visits, "analyses": last_analyses, "leads": last_leads},
+        "change": {
+            "visits": calc_change(this_visits, last_visits),
+            "analyses": calc_change(this_analyses, last_analyses),
+            "leads": calc_change(this_leads, last_leads),
+        }
+    }
