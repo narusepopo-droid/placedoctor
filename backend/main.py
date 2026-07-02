@@ -210,7 +210,10 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .url-fallback-btn:hover{background:#00a347;}
 /* 자동완성 드롭다운 */
 .autocomplete-wrap{position:relative;}
-.autocomplete-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-sm);box-shadow:0 8px 32px rgba(0,0,0,.12);z-index:100;max-height:320px;overflow-y:auto;display:none;margin-top:4px;}
+.autocomplete-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-sm);box-shadow:0 8px 32px rgba(0,0,0,.12);z-index:100;max-height:440px;overflow-y:auto;display:none;margin-top:4px;}
+.autocomplete-url-footer{padding:14px 16px;text-align:center;font-size:.85rem;color:var(--gray-500);cursor:pointer;border-top:1px solid var(--gray-100);position:sticky;bottom:0;background:#fff;}
+.autocomplete-url-footer b{color:var(--green);text-decoration:underline;}
+.autocomplete-url-footer:hover{background:var(--gray-50);}
 .autocomplete-dropdown.show{display:block;}
 .autocomplete-item{display:flex;align-items:center;gap:14px;padding:12px 16px;cursor:pointer;transition:background .15s ease;border-bottom:1px solid var(--gray-100);}
 .autocomplete-item:last-child{border-bottom:none;}
@@ -886,9 +889,6 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       <div class="field url-field" id="urlFieldWrap" style="display:none;">
         <label>네이버 플레이스 URL</label>
         <input type="text" id="placeUrl" placeholder="https://m.place.naver.com/...">
-      </div>
-      <div class="url-toggle-wrap">
-        <button type="button" class="url-toggle-btn" id="urlToggleBtn">URL로 직접 입력하기</button>
       </div>
       <div class="field">
         <label>분석 유형</label>
@@ -1970,7 +1970,7 @@ async function searchPlaces(query) {
         </div>
       </div>
     `;
-    }).join('');
+    }).join('') + `<div class="autocomplete-url-footer" onclick="openUrlField()">찾는 매장이 없나요? <b>플레이스 URL로 검색하기</b></div>`;
 
     dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
       item.addEventListener('click', () => {
@@ -3770,6 +3770,58 @@ async def search_place(query: str):
 
     query = query.strip()
 
+    def _norm(s: str) -> str:
+        return re.sub(r'\s+', '', s or '').lower()
+
+    def _name_match(name: str, q: str) -> bool:
+        n, qq = _norm(name), _norm(q)
+        if not n or not qq:
+            return False
+        # 앞글자 매칭: 매장명이 검색어로 시작(체인 지점) 또는 검색어가 매장명으로 시작
+        # (중간글자 substring 오탐 제거 — "이안"이 매장명 중간에 든 무관 업체 걸러짐)
+        return n.startswith(qq) or qq.startswith(n)
+
+    async def do_search_pcmap(q: str) -> list:
+        """pcmap.place.naver.com 목록 페이지 — 지점 최대 50개(동일 매장명 다수) 반환."""
+        results = []
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+        }
+        url = f"https://pcmap.place.naver.com/place/list?query={quote(q)}"
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers=headers)
+            html = resp.text
+        m = re.search(r'window\.__APOLLO_STATE__\s*=\s*(\{.*?\});\s*</script>', html, re.DOTALL)
+        if not m:
+            m = re.search(r'__APOLLO_STATE__\s*=\s*(\{.*?\});', html, re.DOTALL)
+        if not m:
+            return results
+        try:
+            state = json_module.loads(m.group(1))
+        except json_module.JSONDecodeError:
+            return results
+        for key, val in state.items():
+            if not key.startswith("PlaceListBusinessesItem:") or not isinstance(val, dict):
+                continue
+            pid = val.get("id") or key.split(":")[-1]
+            name = re.sub(r'<[^>]+>', '', val.get("name") or "").strip()
+            if not pid or not name:
+                continue
+            thumb = val.get("imageUrl") or val.get("thumUrl") or ""
+            if thumb and thumb.startswith("//"):
+                thumb = "https:" + thumb
+            results.append({
+                "place_id": str(pid),
+                "name": name,
+                "category": (val.get("category") or "").split(",")[0].strip(),
+                "address": val.get("fullAddress") or val.get("roadAddress") or val.get("commonAddress") or val.get("address") or "",
+                "thumbnail": thumb,
+                "url": f"https://m.place.naver.com/place/{pid}",
+            })
+        return results
+
     async def do_search(q: str) -> list:
         results = []
         headers = {
@@ -3834,7 +3886,7 @@ async def search_place(query: str):
                         "thumbnail": thumb,
                         "url": f"https://m.place.naver.com/place/{pid}"
                     })
-                    if len(results) >= 8:
+                    if len(results) >= 20:
                         break
 
             # 단일 플레이스 카드 (PlaceListBusinessesItem 없는 경우) - place/숫자 링크에서 추출
@@ -3865,20 +3917,33 @@ async def search_place(query: str):
                     })
         return results
 
+    matched_query = query
     try:
-        results = await do_search(query)
+        # 1순위: pcmap 목록(지점 다수). 실패 시 search.naver 폴백
+        results = await do_search_pcmap(query)
+        if not results:
+            results = await do_search(query)
 
         # 결과 없으면 "점", "지점" 제거 후 재시도
         if not results and re.search(r'(점|지점)$', query):
             alt_query = re.sub(r'(점|지점)$', '', query).strip()
             if len(alt_query) >= 2:
-                results = await do_search(alt_query)
+                matched_query = alt_query
+                results = await do_search_pcmap(alt_query)
+                if not results:
+                    results = await do_search(alt_query)
 
     except Exception as e:
         print(f"[검색 오류] {e}")
         results = []
 
-    return results
+    # 매장명 불일치 업체 제거 (일치 결과가 하나도 없으면 안전하게 원본 유지)
+    filtered = [r for r in results if _name_match(r.get("name", ""), matched_query)]
+    if filtered:
+        results = filtered
+
+    # 동일 매장명 지점을 최대 20개까지 노출
+    return results[:20]
 
 
 @app.get("/robots.txt", tags=["SEO"])
