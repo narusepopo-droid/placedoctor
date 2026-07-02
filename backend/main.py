@@ -3769,21 +3769,20 @@ async def search_place(query: str):
         return []
 
     query = query.strip()
-    results = []
 
-    try:
+    async def do_search(q: str) -> list:
+        results = []
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
         }
-        url = f"https://search.naver.com/search.naver?where=nexearch&query={quote(query)}"
+        url = f"https://search.naver.com/search.naver?where=nexearch&query={quote(q)}"
 
         async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
             resp = await client.get(url, headers=headers)
             html = resp.text
 
-            # __APOLLO_STATE__ 추출 (greedy하게 마지막 }까지)
             match = re.search(r'__APOLLO_STATE__\s*=\s*(\{.*\});\s*window\.__APOLLO', html, re.DOTALL)
             if not match:
                 match = re.search(r'__APOLLO_STATE__\s*=\s*(\{[^<]+\});', html, re.DOTALL)
@@ -3791,13 +3790,11 @@ async def search_place(query: str):
                 try:
                     state = json_module.loads(match.group(1))
                 except json_module.JSONDecodeError:
-                    # JSON이 잘렸을 수 있음 - 플레이스 항목만 추출
                     state = {}
                     for m in re.finditer(r'"PlaceListBusinessesItem:(\d+)":\s*(\{[^}]+\})', html):
                         pid = m.group(1)
                         try:
                             item_str = m.group(2) + "}"
-                            # 간단한 필드만 추출
                             name_m = re.search(r'"name"\s*:\s*"([^"]*)"', item_str)
                             cat_m = re.search(r'"category"\s*:\s*"([^"]*)"', item_str)
                             addr_m = re.search(r'"fullAddress"\s*:\s*"([^"]*)"', item_str)
@@ -3839,9 +3836,20 @@ async def search_place(query: str):
                     })
                     if len(results) >= 8:
                         break
+        return results
+
+    try:
+        results = await do_search(query)
+
+        # 결과 없으면 "점", "지점" 제거 후 재시도
+        if not results and re.search(r'(점|지점)$', query):
+            alt_query = re.sub(r'(점|지점)$', '', query).strip()
+            if len(alt_query) >= 2:
+                results = await do_search(alt_query)
 
     except Exception as e:
         print(f"[검색 오류] {e}")
+        results = []
 
     return results
 
