@@ -3836,6 +3836,33 @@ async def search_place(query: str):
                     })
                     if len(results) >= 8:
                         break
+
+            # 단일 플레이스 카드 (PlaceListBusinessesItem 없는 경우) - place/숫자 링크에서 추출
+            if not results:
+                pids = re.findall(r'place/(\d{8,12})', html)
+                if pids:
+                    pid = pids[0]
+                    # 매장명: title 태그 또는 og:title에서 추출
+                    name_m = re.search(r'<title>([^<]+)</title>', html)
+                    name = name_m.group(1).split(' : ')[0].split(' - ')[0].strip() if name_m else q
+                    # 카테고리, 주소는 Apollo에서 시도
+                    cat, addr, thumb = "", "", ""
+                    for key, val in state.items() if match else []:
+                        if isinstance(val, dict) and val.get("name"):
+                            cat = val.get("category", "")
+                            addr = val.get("fullAddress") or val.get("roadAddress") or ""
+                            thumb = val.get("imageUrl") or ""
+                            if thumb and thumb.startswith("//"):
+                                thumb = "https:" + thumb
+                            break
+                    results.append({
+                        "place_id": pid,
+                        "name": name,
+                        "category": cat,
+                        "address": addr,
+                        "thumbnail": thumb,
+                        "url": f"https://m.place.naver.com/place/{pid}"
+                    })
         return results
 
     try:
