@@ -5327,7 +5327,6 @@ _ADMIN_HTML = """<!DOCTYPE html>
         <div class="card"><div class="lbl">총 진단 횟수</div><div class="num" id="statTotal">-</div></div>
         <div class="card hl"><div class="lbl">알림 신청자 (리드)</div><div class="num" id="statSubs">-</div></div>
         <div class="card"><div class="lbl">이번주 방문</div><div class="num" id="statWeekVisits">-</div></div>
-        <div class="card"><div class="lbl">등록 매장</div><div class="num" id="statStores">-</div></div>
       </div>
       <!-- 일별 추이 + 유입경로 -->
       <div class="chart-grid">
@@ -5663,7 +5662,6 @@ async function loadStats(){
   document.getElementById('statTotal').textContent=d.total_analyses.toLocaleString();
   document.getElementById('statSubs').innerHTML=d.subscriber_count+'<small>+'+d.new_subscribers_week+' 이번주</small>';
   document.getElementById('statWeekVisits').innerHTML=(d.visits_this_week||0).toLocaleString()+'<small>+'+d.new_analyses_week+' 진단</small>';
-  document.getElementById('statStores').textContent=d.registered_stores.toLocaleString();
 }
 
 function fmtAdminTime(iso){
