@@ -15,6 +15,9 @@ def _is_valid_location(loc):
     """추출된 지역 토큰이 실제 지명인지 검증"""
     if any(loc.startswith(fp) for fp in _FAKE_LOC_PREFIXES):
         return False
+    # 역 이름은 숫자 허용 (종로3가역, 을지로3가역 등)
+    if loc.endswith('역'):
+        return True
     if any(c.isdigit() for c in loc):
         return False
     return True
