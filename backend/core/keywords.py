@@ -200,7 +200,7 @@ def _find_tokens_in_kw(kw, locations):
 
 
 def generate_keywords(store_name, category, address, menu_items, official_keywords,
-                      nearby_station="", keyword_list=None, log_func=None):
+                      nearby_station="", keyword_list=None, log_func=None, nearby_stations=None):
     """매장 정보로 네이버 플레이스 검색 키워드 목록 자동 생성 (최대 100개)."""
     locations = []
     clean_name = store_name.strip()
@@ -218,14 +218,30 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                 clean_name = clean_name.replace(loc_match.group(0), "").strip()
             break
 
+    # 검색량 많은 구 → 지역명 화이트리스트 (강남 맛집, 종로 카페 등 검색 패턴)
+    # 해당 구에 위치하면 무조건 위치 키워드에 추가
+    _GU_TO_LOCATIONS = {
+        "강남구": ["강남"],
+        "서초구": ["서초"],
+        "송파구": ["송파"],
+        "마포구": ["마포"],
+        "용산구": ["용산"],
+        "종로구": ["종로"],
+        "영등포구": ["영등포"],
+        "동대문구": ["동대문"],
+        "성동구": ["성수"],           # 성수동이 더 유명
+        "중구": ["명동", "을지로"],   # 중구 자체보단 동 단위
+        "노원구": ["노원"],
+    }
+
     SKIP_CITIES = {"서울", "경기"}
     addr_tokens = address.replace(",", " ").split()
     for token in addr_tokens:
         if token.endswith("구") and len(token) > 1:
-            gu = token[:-1]
-            locations.append(token)
-            if len(gu) >= 2:
-                locations.extend([gu, f"{gu}역"])
+            locations.append(token)  # 강남구 추가
+            # 화이트리스트 구만 지역명 추가 (강남구 → 강남, 중구 → 명동/을지로)
+            if token in _GU_TO_LOCATIONS:
+                locations.extend(_GU_TO_LOCATIONS[token])
         elif token.endswith("군") and len(token) > 1:
             locations.append(token[:-1])
         elif token.endswith("시") and len(token) > 1:
@@ -236,7 +252,11 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
             locations.append(token[:-1])
         elif token.endswith("동") and len(token) > 1 and token not in ["공동", "이동", "감동", "행동"]:
             dong_name = token.replace("동", "")
-            locations.append(token)
+            locations.append(token)  # 여의도동 추가
+            # 동에서 순수 지역명 추출 (여의도동 → 여의도)
+            if len(dong_name) >= 2 and not dong_name[-1].isdigit():
+                locations.append(dong_name)
+            # 숫자 동은 base만 (삼성1동 → 삼성동)
             base_dong = re.sub(r'\d+$', '', dong_name)
             if base_dong != dong_name and len(base_dong) >= 2:
                 locations.append(f"{base_dong}동")
@@ -255,12 +275,16 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
         prov_short, prov_long = addr_tokens[0], _PROV_MAP[addr_tokens[0]]
         if prov_short not in locations: locations.append(prov_short)
         if prov_long not in locations: locations.append(prov_long)
-    if nearby_station and nearby_station not in locations and len(nearby_station) >= 3:
-        if len(nearby_station) <= 6:
-            locations.append(nearby_station)
+    # 역 여러 개 처리 (nearby_stations 우선, nearby_station은 하위호환)
+    _all_stations = nearby_stations if nearby_stations else ([nearby_station] if nearby_station else [])
+    for station in _all_stations:
+        if not station or station in locations or len(station) < 3:
+            continue
+        if len(station) <= 6:
+            locations.append(station)
         else:
-            # v8.42: 노선명 먼저 제거 (신분당선신논현역 → 신논현역)
-            _station_clean = nearby_station
+            # 노선명 먼저 제거 (신분당선신논현역 → 신논현역)
+            _station_clean = station
             for _line in ["신분당선", "수인분당선", "경의중앙선", "경춘선", "경강선",
                           "서해선", "신림선", "우이신설선", "김포골드라인", "용인경전철", "의정부경전철"]:
                 _station_clean = _station_clean.replace(_line, "")
@@ -565,7 +589,8 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
 
     deduped.sort(key=sort_weight, reverse=True)
 
-    # 띄어쓰기 없는 키워드 제거 (예: "노원구등갈비" → 제외, "노원구 등갈비" → 유지)
-    deduped = [k for k in deduped if ' ' in k]
+    # 띄어쓰기 없는 키워드 제거 (단, keywordList 원본은 유지)
+    _kw_set = set(kw_list) if kw_list else set()
+    deduped = [k for k in deduped if ' ' in k or k in _kw_set]
 
     return deduped[:100]

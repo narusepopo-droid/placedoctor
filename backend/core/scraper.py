@@ -145,7 +145,7 @@ async def get_store_details(page, url):
     """
     empty = dict(
         place_id=None, address="", category="",
-        menu_items=[], official_keywords=[], nearby_station="", keyword_list=[],
+        menu_items=[], official_keywords=[], nearby_stations=[], keyword_list=[],
         visitor_reviews=None, blog_reviews=None, star_score=None,
         photo_count=None, latest_review_date=None,
         review_activity=None, recent_30d_reviews=None,
@@ -235,38 +235,37 @@ async def get_store_details(page, url):
             }
             const cat = document.querySelector(".DJJvD, .lnJFt")?.innerText?.trim() || "";
 
-            let dongFound = "";
-            if (addrEl) {
-                const m = (addrEl.innerText || "").match(/([가-힣]{2,6}동)(?=[\\s\\d\\-·,]|$)/);
-                if (m) dongFound = m[1];
-            }
-            if (!dongFound && addr) {
-                const m = addr.match(/([가-힣]{2,6}동)/);
-                if (m) dongFound = m[1];
-            }
-            if (!dongFound) {
-                const bodyText = document.body ? (document.body.innerText || "") : "";
-                const m = bodyText.match(/[시군구]\\s+([가-힣]{2,6}동)/);
-                if (m && m[1] && m[1].length >= 3) dongFound = m[1];
-            }
-            if (!dongFound) {
-                for (const s of document.querySelectorAll("script:not([src])")) {
-                    const t = s.textContent || "";
-                    const m = t.match(/"(?:legalDong|dong|eupMyeonDong|address)"\\s*:\\s*"([가-힣]{2,6}동)/);
-                    if (m) { dongFound = m[1]; break; }
+            // 도로명 + 지번 둘 다 수집
+            let roadAddr = "";
+            let jibunAddr = "";
+            for (const s of document.querySelectorAll("script:not([src])")) {
+                const t = s.textContent || "";
+                if (!roadAddr) {
+                    const m = t.match(/"roadAddress"\\s*:\\s*"([^"]{5,80})"/);
+                    if (m && REGIONS.some(r => m[1].includes(r))) roadAddr = m[1];
                 }
+                if (!jibunAddr) {
+                    const m = t.match(/"jibunAddress"\\s*:\\s*"([^"]{5,80})"/);
+                    if (m && REGIONS.some(r => m[1].includes(r))) jibunAddr = m[1];
+                }
+                if (roadAddr && jibunAddr) break;
             }
 
-            let nearbyStation = "";
+            // 역 여러 개 수집 (역삼역, 선릉역 등)
+            let nearbyStations = [];
             const bodyText2 = document.body ? (document.body.innerText || "") : "";
-            const stM = bodyText2.match(/([가-힣]{2,8}역)[\\s]*(?:\\d+번[\\s]*출구|에서[\\s]*(?:도보|차로|차량|\\d))/);
-            if (stM) nearbyStation = stM[1];
-            if (!nearbyStation) {
-                const stM2 = bodyText2.match(/([가-힣]{2,8}역)\\s*(?:도보|방향|하차|인근|근처)/);
-                if (stM2) nearbyStation = stM2[1];
+            // 패턴1: N번 출구, 도보/차로 등
+            const stMatches1 = bodyText2.matchAll(/([가-힣]{2,8}역)[\\s]*(?:\\d+번[\\s]*출구|에서[\\s]*(?:도보|차로|차량|\\d))/g);
+            for (const m of stMatches1) {
+                if (m[1] && !nearbyStations.includes(m[1])) nearbyStations.push(m[1]);
+            }
+            // 패턴2: 역 도보/방향/하차 등
+            const stMatches2 = bodyText2.matchAll(/([가-힣]{2,8}역)\\s*(?:도보|방향|하차|인근|근처)/g);
+            for (const m of stMatches2) {
+                if (m[1] && !nearbyStations.includes(m[1])) nearbyStations.push(m[1]);
             }
 
-            return { address: addr, category: cat, nearbyDong: dongFound, nearbyStation };
+            return { address: addr, category: cat, roadAddress: roadAddr, jibunAddress: jibunAddr, nearbyStations };
         }''')
 
         menu_items = await page.evaluate('''() => {
@@ -287,26 +286,30 @@ async def get_store_details(page, url):
         address_full = details["address"]
         if not _valid_addr(address_full):
             address_full = ""
-        nearby_dong = details.get("nearbyDong", "")
-        nearby_station = details.get("nearbyStation", "")
+        road_addr = details.get("roadAddress", "")
+        jibun_addr = details.get("jibunAddress", "")
+        nearby_stations = details.get("nearbyStations", [])
 
-        if not nearby_dong:
-            jibun = await page.evaluate('''() => {
+        # 도로명/지번 둘 다 없으면 추가 시도
+        if not road_addr and not jibun_addr:
+            addrs = await page.evaluate('''() => {
+                let road = "", jibun = "";
                 for (const s of document.querySelectorAll("script:not([src])")) {
                     const t = s.textContent || "";
-                    const m1 = t.match(/"jibunAddress"\\s*:\\s*"([^"]+)"/);
-                    if (m1) return m1[1];
-                    const m2 = t.match(/"legalDong"\\s*:\\s*"([가-힣]{2,6}동)"/);
-                    if (m2) return m2[1];
-                    const m3 = t.match(/[구군]\\s+([가-힣]{2,6}동)/);
-                    if (m3) return m3[1];
+                    if (!road) {
+                        const m = t.match(/"roadAddress"\\s*:\\s*"([^"]+)"/);
+                        if (m) road = m[1];
+                    }
+                    if (!jibun) {
+                        const m = t.match(/"jibunAddress"\\s*:\\s*"([^"]+)"/);
+                        if (m) jibun = m[1];
+                    }
+                    if (road && jibun) break;
                 }
-                return "";
+                return { road, jibun };
             }''')
-            if jibun:
-                m = re.search(r'([가-힣]{2,6}동)', jibun)
-                if m:
-                    nearby_dong = m.group(1)
+            road_addr = addrs.get("road", "")
+            jibun_addr = addrs.get("jibun", "")
 
         if not address_full and p_id:
             try:
@@ -337,12 +340,17 @@ async def get_store_details(page, url):
             except Exception:
                 pass
 
-        logger.info(f"주소: {address_full} | 동: {nearby_dong or '(없음)'} | 역: {nearby_station or '(없음)'}")
+        # 도로명 + 지번 합쳐서 address_full 구성 (keywords.py에서 구/동 자동 추출)
+        addr_parts = [a for a in [road_addr, jibun_addr] if a and _valid_addr(a)]
+        if addr_parts:
+            address_full = " ".join(addr_parts)
+        elif not address_full:
+            address_full = ""
+
+        stations_str = ', '.join(nearby_stations) if nearby_stations else '(없음)'
+        logger.info(f"도로명: {road_addr or '(없음)'} | 지번: {jibun_addr or '(없음)'} | 역: {stations_str}")
         if keyword_list:
             logger.info(f"대표 키워드: {', '.join(keyword_list)}")
-
-        if nearby_dong and nearby_dong not in address_full:
-            address_full = address_full + " " + nearby_dong
 
         # ── 리뷰·별점·사진수 추출 (JSON + DOM 텍스트 이중 탐색) ──────────────────
         review_data = await page.evaluate('''() => {
@@ -567,7 +575,7 @@ async def get_store_details(page, url):
             category=details["category"],
             menu_items=menu_items,
             official_keywords=official_keywords,
-            nearby_station=nearby_station,
+            nearby_stations=nearby_stations,
             keyword_list=keyword_list,
             visitor_reviews=visitor_reviews,
             blog_reviews=blog_reviews,
@@ -1428,7 +1436,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
         }
     """
     N_WORKERS  = 5   # 플마 동일 (N_PLACE=5). 6 테스트=2 vCPU 포화로 동일 시간→5 유지
-    MAX_KW     = 30  # 상위 우선순위 키워드 (역·동 두 지역 키워드 모두 포함)
+    MAX_KW     = 40  # 상위 우선순위 키워드 (역·동 두 지역 키워드 모두 포함)
 
     _t0 = time.perf_counter()  # ⏱ Q단계 타이밍: 전체 시작
     playwright, browser, context = await create_browser()
@@ -1450,7 +1458,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
         category          = details.get("category", "")
         menu_items        = details.get("menu_items", [])
         official_keywords = details.get("official_keywords", [])
-        nearby_station    = details.get("nearby_station", "")
+        nearby_stations   = details.get("nearby_stations", [])
         keyword_list      = details.get("keyword_list", [])
 
         # ── 키워드 생성 입력값 로그 (디버깅용) ──────────────────────────────
@@ -1461,7 +1469,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
         logger.info(f"  address: {address}")
         logger.info(f"  official_keywords: {official_keywords}")
         logger.info(f"  menu_items: {menu_items}")
-        logger.info(f"  nearby_station: {nearby_station}")
+        logger.info(f"  nearby_stations: {nearby_stations}")
         logger.info(f"  keyword_list: {keyword_list}")
         logger.info("=" * 60)
 
@@ -1475,7 +1483,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
                 address=address,
                 menu_items=menu_items,
                 official_keywords=official_keywords,
-                nearby_station=nearby_station,
+                nearby_stations=nearby_stations,
                 keyword_list=keyword_list,
             )[:MAX_KW]
 
@@ -1599,7 +1607,7 @@ async def diagnose_store_stream(
         category = details.get("category", "")
         menu_items = details.get("menu_items", [])
         official_keywords = details.get("official_keywords", [])
-        nearby_station = details.get("nearby_station", "")
+        nearby_stations = details.get("nearby_stations", [])
         keyword_list = details.get("keyword_list", [])
 
         if keywords:
@@ -1611,7 +1619,7 @@ async def diagnose_store_stream(
                 address=address,
                 menu_items=menu_items,
                 official_keywords=official_keywords,
-                nearby_station=nearby_station,
+                nearby_stations=nearby_stations,
                 keyword_list=keyword_list,
             )[:MAX_KW]
 
@@ -1881,7 +1889,7 @@ async def analyze_blog_stream(
                     address=address,
                     menu_items=info.get("menu_items", []),
                     official_keywords=info.get("official_keywords", []),
-                    nearby_station=info.get("nearby_station", ""),
+                    nearby_stations=info.get("nearby_stations", []),
                     keyword_list=info.get("keyword_list", []),
                 )
 
