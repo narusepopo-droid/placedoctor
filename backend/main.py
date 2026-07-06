@@ -3614,7 +3614,7 @@ function switchTab(tabId){
   }
 }
 
-// ── 블로그 분석 ──────────────────────────────────────────────────────────────
+// ── 블로그 분석 (SSE 스트리밍) ─────────────────────────────────────────────────
 async function startBlogAnalysis(){
   const d = window._diagData;
   if(!d || !d.place_id){
@@ -3631,47 +3631,73 @@ async function startBlogAnalysis(){
   document.getElementById('blogResultCard').style.display = 'none';
   document.getElementById('blogSubscribeCard').style.display = 'none';
 
-  // 백엔드가 대표키워드 그대로 + 폭 확대(최대 15개)로 분석하므로 후보 전체를 넘김
   const keywords = (d.keywords_used || []);
   const total = Math.min(keywords.length, 15) || 15;
+  let progress = 0;
 
-  try {
-    const res = await fetch('/analyze-blog', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        store_name: d.store_name,
-        place_id: d.place_id,
-        address: d.address || '',
-        category: d.category || '',
-        keywords: keywords
-      })
-    });
+  // SSE 스트리밍으로 타임아웃 방지
+  const params = new URLSearchParams({
+    store_name: d.store_name,
+    place_id: d.place_id,
+    address: d.address || '',
+    category: d.category || '',
+    keywords: keywords.join(','),
+    anon_id: getAnonId(),
+  });
+
+  const eventSource = new EventSource('/analyze-blog-stream?' + params.toString());
+
+  eventSource.addEventListener('started', (e) => {
+    const data = JSON.parse(e.data);
+    document.getElementById('blogProgress').textContent = `0/${data.total || total}`;
+  });
+
+  eventSource.addEventListener('blog_keyword', (e) => {
+    progress++;
+    const data = JSON.parse(e.data);
+    const t = data.total || total;
+    document.getElementById('blogProgress').textContent = `${progress}/${t}`;
+    document.getElementById('blogBar').style.width = `${Math.min(95, (progress/t)*100)}%`;
+  });
+
+  eventSource.addEventListener('complete', (e) => {
+    eventSource.close();
+    const result = JSON.parse(e.data);
+    _blogAnalyzed = true;
 
     document.getElementById('blogBar').style.width = '100%';
     document.getElementById('blogProgress').textContent = `${total}/${total}`;
-
-    if(!res.ok){
-      const errText = await res.text();
-      throw new Error(errText.slice(0, 200));
-    }
-
-    const result = await res.json();
-    _blogAnalyzed = true;
-
     document.getElementById('blogLoading').style.display = 'none';
     document.getElementById('blogResultCard').style.display = 'block';
-  document.getElementById('blogSubscribeCard').style.display = 'block';
+    document.getElementById('blogSubscribeCard').style.display = 'block';
 
-    renderBlogResults(result.blog_results || []);
+    const prevBlogMap = buildPrevBlogRankMap(result.prev_analysis);
+    const kwHistory = result.keyword_history || {};
+    renderBlogResultsWithComparison(result.blog_results || [], prevBlogMap, kwHistory);
 
-  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '🔍 블로그 노출 분석하기';
+  });
+
+  eventSource.addEventListener('error', (e) => {
+    eventSource.close();
+    let msg = '분석 중 오류가 발생했어요.';
+    try { const data = JSON.parse(e.data); msg = data.message || msg; } catch(ex) {}
     document.getElementById('blogLoading').style.display = 'none';
     document.getElementById('blogStartCard').style.display = 'block';
     btn.disabled = false;
     btn.textContent = '🔍 블로그 노출 분석하기';
-    alert('블로그 분석 실패: ' + e.message);
-  }
+    alert('블로그 분석 실패: ' + msg);
+  });
+
+  eventSource.onerror = () => {
+    if(eventSource.readyState === EventSource.CLOSED) return;
+    eventSource.close();
+    document.getElementById('blogLoading').style.display = 'none';
+    document.getElementById('blogStartCard').style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '🔍 블로그 노출 분석하기';
+  };
 }
 
 // ── 폼 리셋 ──────────────────────────────────────────────────────────────────
