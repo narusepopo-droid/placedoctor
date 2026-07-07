@@ -957,20 +957,31 @@ def get_analyses_filtered(
             "analyzed_at": r.analyzed_at.isoformat() if r.analyzed_at else None,
         })
 
-    # 업체별 누적 분석(방문) 횟수 — 이 페이지에 등장한 place_id들만 한 번에 집계
+    # 업체별 누적 분석 횟수 + 분석유형(place/blog) — 이 페이지 place_id들만 한 번에 집계
     from sqlalchemy import func
     place_ids = list({it["place_id"] for it in items if it["place_id"]})
     count_map = {}
+    type_map: dict[str, set] = {}
     if place_ids:
         rows = (
-            db.query(models.AnalysisHistory.place_id, func.count().label("c"))
+            db.query(
+                models.AnalysisHistory.place_id,
+                models.AnalysisHistory.analysis_type,
+                func.count().label("c"),
+            )
             .filter(models.AnalysisHistory.place_id.in_(place_ids))
-            .group_by(models.AnalysisHistory.place_id)
+            .group_by(models.AnalysisHistory.place_id, models.AnalysisHistory.analysis_type)
             .all()
         )
-        count_map = {pid: c for pid, c in rows}
+        for pid, atype, c in rows:
+            count_map[pid] = count_map.get(pid, 0) + c
+            type_map.setdefault(pid, set()).add(atype)
     for it in items:
-        it["store_count"] = count_map.get(it["place_id"], 1)
+        pid = it["place_id"]
+        it["store_count"] = count_map.get(pid, 1)
+        types = type_map.get(pid) or {it["analysis_type"]}
+        it["has_place"] = "place" in types
+        it["has_blog"] = "blog" in types
 
     return {"total": total, "items": items}
 

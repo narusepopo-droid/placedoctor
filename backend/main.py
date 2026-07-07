@@ -5378,6 +5378,9 @@ _ADMIN_HTML = """<!DOCTYPE html>
   .go-btn{display:inline-block;padding:4px 10px;background:var(--green-soft);color:var(--green-d);border-radius:6px;font-size:11px;font-weight:700;text-decoration:none}
   .go-btn:hover{background:var(--green);color:#fff}
   .cnt-badge{display:inline-block;margin-left:6px;padding:1px 7px;background:#eef3f8;color:#5a6b7b;border-radius:20px;font-size:11px;font-weight:700;vertical-align:middle}
+  .type-badge{display:inline-block;margin:1px 3px 1px 0;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap}
+  .tb-place{background:var(--green-soft);color:var(--green-d)}
+  .tb-blog{background:#eef2ff;color:#4457c7}
   .kw-select{padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;max-width:130px;background:#fff;cursor:pointer}
   .kw-select:focus{outline:none;border-color:var(--green)}
   /* 차트 그리드 */
@@ -5536,7 +5539,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
           <button onclick="loadAnalysesFiltered()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">검색</button>
         </div>
         <table>
-          <thead><tr><th>매장명</th><th>플레이스</th><th>지역/업종</th><th>지수</th><th>유입</th><th>시각</th></tr></thead>
+          <thead><tr><th>매장명</th><th>분석유형</th><th>플레이스</th><th>지역/업종</th><th>지수</th><th>유입</th><th>시각</th></tr></thead>
           <tbody id="recentTable"></tbody>
         </table>
         <!-- 페이지네이션 -->
@@ -5806,9 +5809,13 @@ async function loadAnalysesFiltered(page=0){
     const regionCat=`${x.region||'-'} / ${x.category||'-'}`;
     const srcLabel=srcLabels[x.source]||x.source||'-';
     const cntBadge=(x.store_count&&x.store_count>1)?` <span class="cnt-badge">${x.store_count}회</span>`:'';
-    html+=`<tr><td>${x.store_name}${cntBadge}</td><td>${placeBtn}</td><td>${regionCat}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${srcLabel}</td><td>${t}</td></tr>`;
+    let typeBadges='';
+    if(x.has_place) typeBadges+='<span class="type-badge tb-place">플레이스</span>';
+    if(x.has_blog) typeBadges+='<span class="type-badge tb-blog">블로그</span>';
+    if(!typeBadges) typeBadges='<span style="color:var(--sub)">-</span>';
+    html+=`<tr><td>${x.store_name}${cntBadge}</td><td>${typeBadges}</td><td>${placeBtn}</td><td>${regionCat}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${srcLabel}</td><td>${t}</td></tr>`;
   });
-  document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="6" style="color:var(--sub);text-align:center">검색 결과가 없습니다</td></tr>';
+  document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="7" style="color:var(--sub);text-align:center">검색 결과가 없습니다</td></tr>';
   const pages=Math.ceil(d.total/limit);
   let paging='';
   for(let i=0;i<pages&&i<10;i++){
