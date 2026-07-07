@@ -3775,7 +3775,6 @@ def _source_from_ua(ua: str, referer: str = "") -> str | None:
     if "linkedinapp" in u or "linkedin" in u:         return "링크드인"
     if "discord" in u:                                return "디스코드"
     if "reddit" in u:                                 return "레딧"
-    if "whale" in u:                                  return "웨일브라우저"
     # 서버 referer 폴백 (JS referrer가 비어도 헤더엔 있을 수 있음)
     r = (referer or "").lower()
     if r:
@@ -5831,31 +5830,34 @@ async function loadDailyChart(){
 async function loadSourceChart(){
   const r=await fetch('/admin/api/source-stats?days=30');
   const d=await r.json();
-  // d는 {source: count} 형태의 dict
-  const entries = Object.entries(d);
+  // d는 {source: count} 형태의 dict → 높은순 정렬
+  let entries = Object.entries(d).sort((a,b)=>b[1]-a[1]);
   if(!entries.length){
     document.getElementById('sourceChart').parentElement.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--sub)">아직 유입 데이터가 없습니다</div>';
     return;
   }
-  const labels=entries.map(([src,cnt])=>{
-    if(src==='direct'||src==='') return '직접방문';
+  const nameOf=(src)=>{
+    if(src==='direct'||src==='') return '직접유입';
     if(src==='blog') return '블로그';
-    if(src==='search') return '검색';
+    if(src==='search') return '네이버검색';
     if(src==='chatgpt'||src==='chatgpt.com') return 'ChatGPT';
     if(src==='gemini') return 'Gemini';
     if(src==='perplexity') return 'Perplexity';
     if(src==='claude') return 'Claude';
     return src||'기타';
-  });
+  };
+  const total=entries.reduce((s,[,c])=>s+c,0)||1;
+  // 범례에 퍼센트+건수 표기 (높은순)
+  const labels=entries.map(([src,cnt])=>`${nameOf(src)} ${Math.round(cnt/total*100)}% (${cnt})`);
   const data=entries.map(([src,cnt])=>cnt);
-  const colors=['#00C896','#4DB8FF','#FFB74D','#A1887F','#90CAF9','#CE93D8','#EF9A9A','#B0BEC5'];
+  const colors=['#00C896','#4DB8FF','#FFB74D','#A1887F','#90CAF9','#CE93D8','#EF9A9A','#B0BEC5','#80CBC4','#FFCC80','#BCAAA4','#9FA8DA'];
   const canvas=document.getElementById('sourceChart');
   const ctx=canvas.getContext('2d');
   if(sourceChart) sourceChart.destroy();
   sourceChart=new Chart(ctx,{
     type:'doughnut',
     data:{labels:labels,datasets:[{data:data,backgroundColor:colors}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:12,padding:8}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:12,padding:8,font:{size:11}}}}}
   });
 }
 
