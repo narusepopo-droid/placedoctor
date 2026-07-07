@@ -233,7 +233,21 @@ async def get_store_details(page, url):
                     }
                 }
             }
-            const cat = document.querySelector(".DJJvD, .lnJFt")?.innerText?.trim() || "";
+            // 업종(category): 네이버 플레이스엔 항상 존재 → DOM 여러 후보 → JSON 폴백으로 확실히 수집
+            let cat = "";
+            const catSels = [".lnJFt", ".DJJvD", ".zD5Nm .lnJFt", "[class*='category'] a", "[class*='category']"];
+            for (const sel of catSels) {
+                const el = document.querySelector(sel);
+                const t = el ? (el.innerText || "").trim() : "";
+                if (t && t.length <= 20 && !t.includes("\\n")) { cat = t; break; }
+            }
+            if (!cat) {
+                for (const s of document.querySelectorAll("script:not([src])")) {
+                    const t = s.textContent || "";
+                    const m = t.match(/"category"\\s*:\\s*"([^"]{1,20})"/);
+                    if (m && /[가-힣]/.test(m[1])) { cat = m[1].trim(); break; }
+                }
+            }
 
             // 도로명 + 지번 둘 다 수집
             let roadAddr = "";

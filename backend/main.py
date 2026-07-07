@@ -5168,7 +5168,8 @@ def admin_daily_counts(
         raise HTTPException(status_code=401, detail="로그인 필요")
     analyses = crud.get_daily_analysis_counts(db, days)
     visits = crud.get_daily_visits(db, days)
-    return {"analyses": analyses, "visits": visits}
+    revisits = crud.get_daily_revisits(db, days)
+    return {"analyses": analyses, "visits": visits, "revisits": revisits}
 
 
 @app.get("/admin/api/source-stats", tags=["관리자"])
@@ -5358,7 +5359,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
   .page.on{display:block}
 
   /* cards */
-  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:26px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:26px}
   .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px}
   .card .lbl{color:var(--sub);font-size:12.5px;font-weight:600}
   .card .num{font-size:28px;font-weight:800;margin-top:8px;letter-spacing:-1px}
@@ -5387,6 +5388,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
   .memo-input{padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;width:100px}
   .go-btn{display:inline-block;padding:4px 10px;background:var(--green-soft);color:var(--green-d);border-radius:6px;font-size:11px;font-weight:700;text-decoration:none}
   .go-btn:hover{background:var(--green);color:#fff}
+  .cnt-badge{display:inline-block;margin-left:6px;padding:1px 7px;background:#eef3f8;color:#5a6b7b;border-radius:20px;font-size:11px;font-weight:700;vertical-align:middle}
   .kw-select{padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;max-width:130px;background:#fff;cursor:pointer}
   .kw-select:focus{outline:none;border-color:var(--green)}
   /* 차트 그리드 */
@@ -5494,6 +5496,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
         <div class="card"><div class="lbl">총 진단 횟수</div><div class="num" id="statTotal">-</div></div>
         <div class="card hl"><div class="lbl">알림 신청자 (리드)</div><div class="num" id="statSubs">-</div></div>
         <div class="card"><div class="lbl">이번주 방문</div><div class="num" id="statWeekVisits">-</div></div>
+        <div class="card"><div class="lbl">재방문율</div><div class="num" id="statRevisitRate">-</div></div>
       </div>
       <!-- 전환율 퍼널 + 기간 비교 -->
       <div class="chart-grid" style="margin-bottom:20px">
@@ -5736,11 +5739,14 @@ async function loadDailyChart(){
   const allDates = new Set();
   (d.analyses||[]).forEach(x=>allDates.add(x.date));
   (d.visits||[]).forEach(x=>allDates.add(x.date));
+  (d.revisits||[]).forEach(x=>allDates.add(x.date));
   const labels = Array.from(allDates).sort();
   const analysisMap = Object.fromEntries((d.analyses||[]).map(x=>[x.date,x.count]));
   const visitMap = Object.fromEntries((d.visits||[]).map(x=>[x.date,x.count]));
+  const revisitMap = Object.fromEntries((d.revisits||[]).map(x=>[x.date,x.count]));
   const analysisData = labels.map(dt=>analysisMap[dt]||0);
   const visitData = labels.map(dt=>visitMap[dt]||0);
+  const revisitData = labels.map(dt=>revisitMap[dt]||0);
   const displayLabels = labels.map(dt=>dt.slice(5));
   const canvas=document.getElementById('dailyChart');
   const ctx=canvas.getContext('2d');
@@ -5751,7 +5757,8 @@ async function loadDailyChart(){
       labels:displayLabels,
       datasets:[
         {label:'방문',data:visitData,borderColor:'#4DB8FF',backgroundColor:'rgba(77,184,255,0.1)',fill:true,tension:0.3,pointRadius:2},
-        {label:'진단',data:analysisData,borderColor:'#00C896',backgroundColor:'rgba(0,200,150,0.1)',fill:true,tension:0.3,pointRadius:2}
+        {label:'진단',data:analysisData,borderColor:'#00C896',backgroundColor:'rgba(0,200,150,0.1)',fill:true,tension:0.3,pointRadius:2},
+        {label:'재방문',data:revisitData,borderColor:'#FFB74D',backgroundColor:'rgba(255,183,77,0.12)',fill:true,tension:0.3,pointRadius:2}
       ]
     },
     options:{
@@ -5809,7 +5816,8 @@ async function loadAnalysesFiltered(page=0){
     const placeBtn=x.place_url?`<a href="${x.place_url}" target="_blank" class="go-btn">바로가기</a>`:'<span style="color:var(--sub)">-</span>';
     const regionCat=`${x.region||'-'} / ${x.category||'-'}`;
     const srcLabel=srcLabels[x.source]||x.source||'-';
-    html+=`<tr><td>${x.store_name}</td><td>${placeBtn}</td><td>${regionCat}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${srcLabel}</td><td>${t}</td></tr>`;
+    const cntBadge=(x.store_count&&x.store_count>1)?` <span class="cnt-badge">${x.store_count}회</span>`:'';
+    html+=`<tr><td>${x.store_name}${cntBadge}</td><td>${placeBtn}</td><td>${regionCat}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${srcLabel}</td><td>${t}</td></tr>`;
   });
   document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="6" style="color:var(--sub);text-align:center">검색 결과가 없습니다</td></tr>';
   const pages=Math.ceil(d.total/limit);
@@ -5848,6 +5856,7 @@ async function loadStats(){
   document.getElementById('statTotal').textContent=d.total_analyses.toLocaleString();
   document.getElementById('statSubs').innerHTML=d.subscriber_count+'<small>+'+d.new_subscribers_week+' 이번주</small>';
   document.getElementById('statWeekVisits').innerHTML=(d.visits_this_week||0).toLocaleString()+'<small>+'+d.new_analyses_week+' 진단</small>';
+  document.getElementById('statRevisitRate').innerHTML=(d.revisit_rate||0)+'%<small>재방문자 '+(d.returning_visitors||0)+'명</small>';
   loadFunnel();
   loadWeekCompare();
 }

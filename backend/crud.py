@@ -724,6 +724,9 @@ def get_admin_stats(db: Session) -> dict:
         models.SiteVisit.visited_at >= week_ago
     ).count()
 
+    # 재방문 통계
+    revisit = get_revisit_stats(db)
+
     return {
         "total_analyses": total_analyses,
         "registered_stores": registered_stores,
@@ -732,6 +735,10 @@ def get_admin_stats(db: Session) -> dict:
         "new_analyses_week": new_analyses_week,
         "total_visits": total_visits,
         "visits_this_week": visits_this_week,
+        "unique_visitors": revisit["unique_visitors"],
+        "returning_visitors": revisit["returning_visitors"],
+        "revisit_rate": revisit["revisit_rate"],
+        "returning_visits": revisit["returning_visits"],
     }
 
 
@@ -917,6 +924,7 @@ def get_analyses_filtered(
         items.append({
             "id": r.id,
             "store_name": r.store_name,
+            "place_id": r.place_id,
             "analysis_type": r.analysis_type,
             "region": region,
             "category": category,
@@ -925,6 +933,21 @@ def get_analyses_filtered(
             "source": r.source,
             "analyzed_at": r.analyzed_at.isoformat() if r.analyzed_at else None,
         })
+
+    # 업체별 누적 분석(방문) 횟수 — 이 페이지에 등장한 place_id들만 한 번에 집계
+    from sqlalchemy import func
+    place_ids = list({it["place_id"] for it in items if it["place_id"]})
+    count_map = {}
+    if place_ids:
+        rows = (
+            db.query(models.AnalysisHistory.place_id, func.count().label("c"))
+            .filter(models.AnalysisHistory.place_id.in_(place_ids))
+            .group_by(models.AnalysisHistory.place_id)
+            .all()
+        )
+        count_map = {pid: c for pid, c in rows}
+    for it in items:
+        it["store_count"] = count_map.get(it["place_id"], 1)
 
     return {"total": total, "items": items}
 
@@ -1108,6 +1131,65 @@ def get_daily_visits(db: Session, days: int = 30) -> list[dict]:
         .all()
     )
     return [{"date": str(r.date), "count": r.count} for r in results]
+
+
+def get_revisit_stats(db: Session) -> dict:
+    """재방문 통계 — anon_id 기준.
+    - unique_visitors : 순 방문자(고유 anon_id) 수
+    - returning_visitors : 서로 다른 날 2회 이상 방문한 재방문자 수
+    - revisit_rate : 재방문자 / 순 방문자 (%)
+    - returning_visits : 재방문(첫 방문일 이후) 총 건수
+    """
+    from sqlalchemy import func, cast, Date
+    # anon_id별 (방문한 서로 다른 날 수, 총 방문 수)
+    rows = (
+        db.query(
+            models.SiteVisit.anon_id,
+            func.count(func.distinct(cast(models.SiteVisit.visited_at, Date))).label("days"),
+            func.count(models.SiteVisit.id).label("visits"),
+        )
+        .filter(models.SiteVisit.anon_id.isnot(None))
+        .group_by(models.SiteVisit.anon_id)
+        .all()
+    )
+    unique = len(rows)
+    returning = sum(1 for r in rows if r.days >= 2)
+    returning_visits = sum((r.visits - 1) for r in rows if r.visits >= 2)
+    rate = round(returning / unique * 100, 1) if unique else 0
+    return {
+        "unique_visitors": unique,
+        "returning_visitors": returning,
+        "revisit_rate": rate,
+        "returning_visits": returning_visits,
+    }
+
+
+def get_daily_revisits(db: Session, days: int = 30) -> list[dict]:
+    """일별 재방문 건수 — 각 방문의 anon_id가 그 날 '이전 날'에 이미 방문한 적 있으면 재방문으로 집계."""
+    from sqlalchemy import func
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    # anon_id별 최초 방문 시각
+    first_seen = dict(
+        db.query(models.SiteVisit.anon_id, func.min(models.SiteVisit.visited_at))
+        .filter(models.SiteVisit.anon_id.isnot(None))
+        .group_by(models.SiteVisit.anon_id)
+        .all()
+    )
+    visits = (
+        db.query(models.SiteVisit.anon_id, models.SiteVisit.visited_at)
+        .filter(
+            models.SiteVisit.visited_at >= cutoff,
+            models.SiteVisit.anon_id.isnot(None),
+        )
+        .all()
+    )
+    daily: dict[str, int] = {}
+    for anon, vat in visits:
+        fs = first_seen.get(anon)
+        if fs and vat.date() > fs.date():  # 첫 방문일보다 뒤 → 재방문
+            key = vat.date().isoformat()
+            daily[key] = daily.get(key, 0) + 1
+    return [{"date": k, "count": daily[k]} for k in sorted(daily)]
 
 
 def get_subscribers_filtered(
@@ -1439,13 +1521,25 @@ def _infer_category(store_name: str) -> str:
         return "병원"
     elif any(x in sn for x in ["헬스", "피트니스", "짐", "PT", "필라테스", "요가", "휘트니스", "배럴", "크로스핏", "트레이닝"]):
         return "피트니스"
-    elif any(x in sn for x in ["학원", "교육", "영재", "수학", "영어", "사고력"]):
+    elif any(x in sn for x in ["학원", "교육", "영재", "수학", "영어", "사고력", "논술", "독서", "미술", "태권도", "합기도", "검도", "주짓수"]):
         return "학원"
-    elif any(x in sn for x in ["호텔", "펫", "애견", "고양이", "캣"]):
+    elif any(x in sn for x in ["호텔", "펫", "애견", "고양이", "캣", "동물"]):
         return "펫서비스"
-    elif any(x in sn for x in ["미용", "헤어", "네일", "뷰티"]):
+    elif any(x in sn for x in ["미용", "헤어", "네일", "뷰티", "왁싱", "속눈썹", "반영구", "타투"]):
         return "뷰티"
-    return ""
+    elif any(x in sn for x in ["골프", "스크린", "당구", "볼링", "탁구", "테니스", "배드민턴", "클라이밍", "스쿼시"]):
+        return "스포츠시설"
+    elif any(x in sn for x in ["공방", "클래스", "원데이", "도예", "가죽", "캔들", "플라워", "꽃", "베이킹", "쿠킹"]):
+        return "공방·클래스"
+    elif any(x in sn for x in ["청소", "이사", "세차", "인테리어", "시공", "수리", "설비", "도배", "철거", "방역"]):
+        return "생활서비스"
+    elif any(x in sn for x in ["스튜디오", "사진", "포토", "촬영", "영상"]):
+        return "사진·스튜디오"
+    elif any(x in sn for x in ["부동산", "공인중개", "중개"]):
+        return "부동산"
+    elif any(x in sn for x in ["향수", "공예", "소품", "편집샵", "쇼룸"]):
+        return "소매·쇼룸"
+    return "기타"
 
 
 def get_category_stats(db: Session, limit: int = 10) -> list[dict]:
