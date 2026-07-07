@@ -526,7 +526,10 @@ def subscribe_alarm(
     place_id: str | None = None,
     anon_id: str | None = None,
 ) -> models.Subscriber:
-    """알림 구독 신청 (동일 anon_id+place_id면 업데이트)"""
+    """알림 구독 신청 (중복이면 새 행 추가 없이 기존 행 업데이트).
+    중복 판정 우선순위: ① anon_id+place_id → ② phone+place_id(다른 기기여도 동일 리드)
+    → ③ place_id 없으면 phone+store_name. 한 사람이 다른 매장을 신청하면 store_name/place_id가
+    달라 별도 리드로 유지된다."""
     existing = None
     if anon_id and place_id:
         existing = (
@@ -534,6 +537,26 @@ def subscribe_alarm(
             .filter(
                 models.Subscriber.anon_id == anon_id,
                 models.Subscriber.place_id == place_id,
+            )
+            .first()
+        )
+    # 다른 기기/세션에서 같은 번호+같은 매장으로 재신청 → 중복 생성 방지
+    if not existing and phone and place_id:
+        existing = (
+            db.query(models.Subscriber)
+            .filter(
+                models.Subscriber.phone == phone,
+                models.Subscriber.place_id == place_id,
+            )
+            .first()
+        )
+    # place_id가 없는 경우 번호+매장명으로 중복 판정
+    if not existing and phone and store_name and not place_id:
+        existing = (
+            db.query(models.Subscriber)
+            .filter(
+                models.Subscriber.phone == phone,
+                models.Subscriber.store_name == store_name,
             )
             .first()
         )
@@ -1102,16 +1125,21 @@ def get_today_visits(db: Session) -> int:
 
 
 def get_visit_source_stats(db: Session) -> dict:
-    """방문 유입경로별 통계"""
+    """방문 유입경로별 통계 (레거시 영문/빈값 → 한글 라벨로 정규화해 병합)"""
     from sqlalchemy import func
     results = (
         db.query(models.SiteVisit.source, func.count(models.SiteVisit.id))
         .group_by(models.SiteVisit.source)
         .all()
     )
+    LEGACY = {
+        None: "직접유입", "": "직접유입", "direct": "직접유입",
+        "blog": "블로그", "search": "네이버검색", "referrer": "기타",
+        "chatgpt.com": "ChatGPT", "unknown": "기타",
+    }
     stats = {}
     for source, count in results:
-        key = source if source else "direct"
+        key = LEGACY.get(source, source) or "직접유입"
         stats[key] = stats.get(key, 0) + count
     return stats
 
