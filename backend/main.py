@@ -3767,6 +3767,14 @@ def _source_from_ua(ua: str, referer: str = "") -> str | None:
     if "everytimeapp" in u:                           return "에브리타임"
     if "threads" in u:                                return "스레드"
     if "trill" in u or "musical_ly" in u or "tiktok" in u: return "틱톡"
+    if "twitter" in u:                                return "X(트위터)"
+    if "telegram" in u:                               return "텔레그램"
+    if "micromessenger" in u:                         return "위챗"
+    if "snapchat" in u:                               return "스냅챗"
+    if "pinterest" in u:                              return "핀터레스트"
+    if "linkedinapp" in u or "linkedin" in u:         return "링크드인"
+    if "discord" in u:                                return "디스코드"
+    if "reddit" in u:                                 return "레딧"
     if "whale" in u:                                  return "웨일브라우저"
     # 서버 referer 폴백 (JS referrer가 비어도 헤더엔 있을 수 있음)
     r = (referer or "").lower()
@@ -3777,8 +3785,17 @@ def _source_from_ua(ua: str, referer: str = "") -> str | None:
         if "google." in r:               return "구글검색"
         if "daum.net" in r or "zum.com" in r: return "포털검색"
         if "instagram" in r:             return "인스타그램"
-        if "facebook" in r:              return "페이스북"
+        if "facebook" in r or "l.facebook" in r or "fb.com" in r: return "페이스북"
         if "youtube" in r or "youtu.be" in r: return "유튜브"
+        if "twitter" in r or "x.com" in r or "t.co" in r: return "X(트위터)"
+        if "instagram" in r:             return "인스타그램"
+        if "t.me" in r or "telegram" in r: return "텔레그램"
+        if "pinterest" in r:             return "핀터레스트"
+        if "linkedin" in r:              return "링크드인"
+        if "band.us" in r:               return "밴드"
+        if "bing.com" in r:              return "Bing검색"
+        if "chatgpt" in r or "openai" in r: return "ChatGPT"
+        if "perplexity" in r:            return "Perplexity"
     return None
 
 
