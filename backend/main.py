@@ -1792,13 +1792,20 @@ function detectVisitSource() {
     const urlParams = new URLSearchParams(window.location.search);
     let src = urlParams.get('utm_source');
     if (src) {
-      if (src === 'blog') {
+      const low = src.toLowerCase();
+      if (low === 'blog') {
         const m = urlParams.get('utm_medium');
         if (m === 'case') return '블로그(사례)';
         if (m === 'qna') return '블로그(Q&A)';
         return '블로그';
       }
-      return src;
+      // 흔한 utm_source 영문값 → 한글 라벨 정규화 (문자/이메일 등은 태그로만 구분 가능)
+      const UTM = {sms:'문자', text:'문자', email:'이메일', mail:'이메일', kakao:'카카오톡',
+        kakaotalk:'카카오톡', talk:'카카오톡', instagram:'인스타그램', insta:'인스타그램',
+        facebook:'페이스북', fb:'페이스북', naver:'네이버', blog:'블로그', youtube:'유튜브',
+        yt:'유튜브', band:'밴드', threads:'스레드', tiktok:'틱톡', qr:'QR코드',
+        flyer:'전단지', offline:'오프라인', dm:'DM', ad:'광고', google:'구글', daum:'다음'};
+      return UTM[low] || src;
     }
     const ref = (document.referrer || '').toLowerCase();
     if (!ref) return '직접유입';
@@ -3744,15 +3751,57 @@ def health():
     return {"status": "ok"}
 
 
+def _source_from_ua(ua: str, referer: str = "") -> str | None:
+    """User-Agent(+서버 referer)로 유입경로 판별. 인앱 브라우저는 referrer가 없어
+    JS가 '직접유입'으로 넘기지만, UA 문자열엔 앱 식별자가 남는다(한국은 인앱 비중이 큼).
+    분류 못 하면 None(=직접유입 유지)."""
+    u = (ua or "").lower()
+    # 인앱 브라우저 / 메신저 (UA 기반)
+    if "kakaotalk" in u:                              return "카카오톡"
+    if "naver(inapp" in u or "naver(inapp;" in u or " naver/" in u or "navercafe" in u: return "네이버앱"
+    if "instagram" in u:                              return "인스타그램"
+    if "fban" in u or "fbav" in u or "fb_iab" in u or "fbios" in u: return "페이스북"
+    if "line/" in u or "line " in u:                  return "라인"
+    if "band/" in u or "bandapp" in u:                return "밴드"
+    if "daumapps" in u or "daum/" in u:               return "다음앱"
+    if "everytimeapp" in u:                           return "에브리타임"
+    if "threads" in u:                                return "스레드"
+    if "trill" in u or "musical_ly" in u or "tiktok" in u: return "틱톡"
+    if "whale" in u:                                  return "웨일브라우저"
+    # 서버 referer 폴백 (JS referrer가 비어도 헤더엔 있을 수 있음)
+    r = (referer or "").lower()
+    if r:
+        if "blog.naver" in r or "m.blog.naver" in r or "tistory" in r: return "블로그"
+        if "cafe.naver" in r:            return "네이버카페"
+        if "search.naver" in r or "naver.com" in r: return "네이버검색"
+        if "google." in r:               return "구글검색"
+        if "daum.net" in r or "zum.com" in r: return "포털검색"
+        if "instagram" in r:             return "인스타그램"
+        if "facebook" in r:              return "페이스북"
+        if "youtube" in r or "youtu.be" in r: return "유튜브"
+    return None
+
+
 @app.post("/track-visit", tags=["추적"])
 def track_visit(
+    request: Request,
     anon_id: str | None = None,
     source: str | None = None,
     path: str | None = "/",
     db: Session = Depends(get_db)
 ):
-    """사이트 방문 기록"""
-    crud.record_site_visit(db, anon_id=anon_id, source=source, path=path)
+    """사이트 방문 기록. JS가 '직접유입'/빈값으로 넘긴 경우에만 UA로 재분류(이미 분류된 건 유지)."""
+    src = source or ""
+    if src in ("", "직접유입", "기타"):
+        detected = _source_from_ua(
+            request.headers.get("user-agent", ""),
+            request.headers.get("referer", ""),
+        )
+        if detected:
+            src = detected
+        elif not src:
+            src = "직접유입"
+    crud.record_site_visit(db, anon_id=anon_id, source=src, path=path)
     return {"ok": True}
 
 
@@ -5379,7 +5428,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
   .go-btn:hover{background:var(--green);color:#fff}
   .cnt-badge{display:inline-block;margin-left:6px;padding:1px 7px;background:#eef3f8;color:#5a6b7b;border-radius:20px;font-size:11px;font-weight:700;vertical-align:middle}
   .type-badge{display:inline-block;margin:1px 3px 1px 0;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap}
-  .tb-place{background:var(--green-soft);color:var(--green-d)}
+  .tb-place{background:#f3e8ff;color:#7c3aed}
   .tb-blog{background:#eef2ff;color:#4457c7}
   .kw-select{padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;max-width:130px;background:#fff;cursor:pointer}
   .kw-select:focus{outline:none;border-color:var(--green)}
