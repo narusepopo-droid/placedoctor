@@ -140,6 +140,7 @@ class AnalysisHistory(Base):
     result_json    = Column(Text, nullable=True)   # 키워드별 순위 등 전체 결과 JSON
     anon_id        = Column(String(36), index=True, nullable=True)  # K단계: 익명 식별자 (UUID)
     source         = Column(String(20), nullable=True)  # 유입경로: direct | blog | search | etc
+    search_query   = Column(String(200), nullable=True)  # 유입 키워드: 사용자가 입력한 검색어
 
 
 class RegisteredStore(Base):

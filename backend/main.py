@@ -1178,6 +1178,7 @@ let _lastStoreName = '';
 let _lastPlaceUrl = '';
 let _forceRefresh = false;
 let _lastResultData = null;  // L단계: 강제 재크롤 체크박스 제거
+let _searchQuery = '';  // 유입 키워드: 사용자가 검색창에 입력한 원본 검색어
 
 // N단계: 분석 중단용 AbortController
 let _analysisAbortController = null;
@@ -1908,6 +1909,7 @@ function initAutocomplete() {
       else {
         const q = input.value.trim();
         if (q.length >= 2) {
+          _searchQuery = q;  // 유입 키워드 저장
           searchPlaces(q);
         }
       }
@@ -1942,6 +1944,7 @@ function initAutocomplete() {
     searchBtn.addEventListener('click', () => {
       const q = input.value.trim();
       if (q.length >= 2) {
+        _searchQuery = q;  // 유입 키워드 저장
         searchPlaces(q);
       }
     });
@@ -2283,6 +2286,7 @@ async function analyzePlaceOnly(){
     ad_local: adFlags.ad_local,
     ad_blog: adFlags.ad_blog,
     source: utmSource,
+    search_query: _searchQuery || name,  // 유입 키워드 (검색어 없으면 매장명)
   });
 
   // R단계: 게임 점수 상태
@@ -2503,7 +2507,7 @@ async function analyzeBlogOnly(){
   let eventSource = null;
   try {
     const utmSource = detectVisitSource();
-    const params = new URLSearchParams({ store_name: name, place_url: url, anon_id: _anonId || '', source: utmSource });
+    const params = new URLSearchParams({ store_name: name, place_url: url, anon_id: _anonId || '', source: utmSource, search_query: _searchQuery || name });
     eventSource = new EventSource('/analyze-blog-stream?' + params.toString());
 
     eventSource.addEventListener('started', (e) => {
@@ -4138,6 +4142,7 @@ async def diagnose_stream_endpoint(
     anon_id: str = None,
     force_refresh: bool = False,
     source: str = None,
+    search_query: str = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -4189,6 +4194,7 @@ async def diagnose_stream_endpoint(
                         result_json=json_module.dumps(cached, ensure_ascii=False),
                         anon_id=anon_id,
                         source=source,
+                        search_query=search_query,
                     )
                 except Exception as e:
                     import logging
@@ -4272,6 +4278,7 @@ async def diagnose_stream_endpoint(
                                 result_json=json_module.dumps(result, ensure_ascii=False),
                                 anon_id=anon_id,
                                 source=source,
+                                search_query=search_query,
                             )
                         except Exception as e:
                             import logging
@@ -4372,6 +4379,7 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
                         total_score=cached.get("scores", {}).get("total"),
                         result_json=json_module.dumps(cached, ensure_ascii=False),
                         anon_id=req.anon_id,
+                        search_query=req.search_query,
                     )
                 except Exception as e:
                     import logging
@@ -4433,7 +4441,8 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
                 analysis_type="place",
                 total_score=result.get("scores", {}).get("total"),
                 result_json=json_module.dumps(result, ensure_ascii=False),
-                anon_id=req.anon_id,  # K단계: 익명 ID 저장
+                anon_id=req.anon_id,
+                search_query=req.search_query,
             )
         except Exception as e:
             import logging
@@ -4659,7 +4668,8 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
                 analysis_type="blog",
                 total_score=None,
                 result_json=json_module.dumps(result, ensure_ascii=False),
-                anon_id=req.anon_id,  # K단계: 익명 ID 저장
+                anon_id=req.anon_id,
+                search_query=req.search_query,
             )
         except Exception as e:
             import logging
@@ -4678,6 +4688,7 @@ async def analyze_blog_stream_endpoint(
     place_url: str,
     anon_id: str = None,
     source: str = None,
+    search_query: str = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -4766,6 +4777,7 @@ async def analyze_blog_stream_endpoint(
                                 result_json=json_module.dumps(result, ensure_ascii=False),
                                 anon_id=anon_id,
                                 source=source,
+                                search_query=search_query,
                             )
                         except Exception as e:
                             import logging
@@ -5604,7 +5616,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
           <button onclick="loadAnalysesFiltered()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">검색</button>
         </div>
         <table>
-          <thead><tr><th>매장명</th><th>분석유형</th><th>플레이스</th><th>지역/업종</th><th>지수</th><th>유입</th><th>시각</th></tr></thead>
+          <thead><tr><th>매장명</th><th>분석유형</th><th>플레이스</th><th>지역/업종</th><th>지수</th><th>검색어</th><th>유입</th><th>시각</th></tr></thead>
           <tbody id="recentTable"></tbody>
         </table>
         <!-- 페이지네이션 -->
@@ -5881,9 +5893,10 @@ async function loadAnalysesFiltered(page=0){
     if(x.has_place) typeBadges+='<span class="type-badge tb-place">플레이스</span>';
     if(x.has_blog) typeBadges+='<span class="type-badge tb-blog">블로그</span>';
     if(!typeBadges) typeBadges='<span style="color:var(--sub)">-</span>';
-    html+=`<tr><td>${x.store_name}${cntBadge}</td><td>${typeBadges}</td><td>${placeBtn}</td><td>${regionCat}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${srcLabel}</td><td>${t}</td></tr>`;
+    const searchQ=x.search_query||'-';
+    html+=`<tr><td>${x.store_name}${cntBadge}</td><td>${typeBadges}</td><td>${placeBtn}</td><td>${regionCat}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${searchQ}</td><td>${srcLabel}</td><td>${t}</td></tr>`;
   });
-  document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="7" style="color:var(--sub);text-align:center">검색 결과가 없습니다</td></tr>';
+  document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="8" style="color:var(--sub);text-align:center">검색 결과가 없습니다</td></tr>';
   const pages=Math.ceil(d.total/limit);
   let paging='';
   for(let i=0;i<pages&&i<10;i++){

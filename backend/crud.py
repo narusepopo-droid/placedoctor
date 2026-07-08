@@ -154,6 +154,7 @@ def save_analysis_history(
     result_json: str,
     anon_id: str | None = None,
     source: str | None = None,
+    search_query: str | None = None,
 ) -> models.AnalysisHistory:
     """분석 결과를 히스토리에 누적 저장 (덮어쓰기 X)"""
     history = models.AnalysisHistory(
@@ -164,6 +165,7 @@ def save_analysis_history(
         result_json=result_json,
         anon_id=anon_id,
         source=source,
+        search_query=search_query,
     )
     db.add(history)
     db.commit()
@@ -954,6 +956,7 @@ def get_analyses_filtered(
             "place_url": place_url,
             "total_score": r.total_score,
             "source": r.source,
+            "search_query": r.search_query,
             "analyzed_at": r.analyzed_at.isoformat() if r.analyzed_at else None,
         })
 

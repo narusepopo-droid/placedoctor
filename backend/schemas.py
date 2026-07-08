@@ -13,6 +13,8 @@ class DiagnoseRequest(BaseModel):
     ad_blog: bool = False        # 블로그 체험단
     # K단계: 익명 식별자
     anon_id: Optional[str] = None
+    # 유입 키워드: 사용자가 입력한 검색어 (관리자 분석용)
+    search_query: Optional[str] = None
 
 
 class DiagnoseResponse(BaseModel):
@@ -52,6 +54,7 @@ class BlogStandaloneRequest(BaseModel):
     store_name: str
     place_url: str
     anon_id: Optional[str] = None  # K단계: 익명 식별자
+    search_query: Optional[str] = None  # 유입 키워드
 
 
 class BlogAnalyzeResponse(BaseModel):

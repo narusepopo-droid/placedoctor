@@ -200,6 +200,8 @@ URL      : postgresql://postgres:postgres@localhost:5432/placedoctor
 
 ## 주의 사항
 
+- **🚨 DB 데이터 절대 삭제/리셋 금지** — 사용자가 명시적으로 "DB 리셋해"라고 하기 전까지 절대 `DROP TABLE`, `TRUNCATE`, `delete from`, `drop_all()` 등 데이터 삭제 명령 실행 금지. 모델 변경 시에도 기존 테이블 유지하고 `ALTER TABLE`로 컬럼만 추가할 것. **7/2 사고로 6월 전체 분석 기록 유실됨** — 점주 알림톡 발송 불가 피해 발생.
+- **DB 백업**: 매일 03:00 UTC에 `~/db_backups/`로 자동 백업 (cron). 복구 시 `psql placedoctor < backup.sql`.
 - `_reference/naver_tracker.py` — **절대 수정 금지**. (스텔스/차단우회의 "정답" 레퍼런스)
 - `backend/core/` 파일만 수정.
 - `.env`는 Git 업로드 금지 (`.gitignore` 처리됨).
