@@ -175,6 +175,11 @@ _TOKEN_EXPANSIONS = {
 }
 
 
+# 동음이의 접두 오매칭 함정어 (짧은 의도 토큰이 다른 뜻의 긴 단어 속에 박혀 오매칭)
+#   '고등'(고등학교/교육) ⊂ '고등어'(생선) — 생선집에 '덕양구 고등' 같은 헛키워드 방지
+_TRAP_WORDS = {"고등": ("고등어",)}
+
+
 def _find_tokens_in_kw(kw, locations):
     """keywordList 항목에서 지역 제거 후 의도 토큰 추출 (포함 검색)"""
     remaining = kw.strip()
@@ -190,6 +195,19 @@ def _find_tokens_in_kw(kw, locations):
     # 1) 사전 매칭 (기존 로직 유지 - 회귀 방지)
     dict_found = [t for t in _INTENT_TOKENS if len(t) >= 2 and t.lower() in remaining_lower]
     dict_found = [t for t in dict_found if not any(t != o and o.endswith(t) for o in dict_found)]
+
+    # v8.44: 동음이의 함정어 제거 — 토큰이 함정어(고등어) 안에만 있고 독립 등장 안 하면 버림
+    def _trapped(t):
+        traps = _TRAP_WORDS.get(t)
+        if not traps:
+            return False
+        stripped, hit = remaining_lower, False
+        for w in traps:
+            if w in stripped:
+                stripped = stripped.replace(w, '')
+                hit = True
+        return hit and t not in stripped
+    dict_found = [t for t in dict_found if not _trapped(t)]
     found.extend(dict_found)
 
     # 2) 지역 제거 후 남은 전체 문자열도 토큰으로 추가 (대형베이커리카페 같은 복합어 지원)
