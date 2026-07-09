@@ -299,9 +299,12 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
         else:
             # 노선명 먼저 제거 (신분당선신논현역 → 신논현역)
             _station_clean = station
+            # 노선명(정식 + naver 약칭). 약칭은 '실제 역명'이 아닌 것만 (의정부·용인 등
+            # 실제 역이 있는 도시명은 넣지 않음). '김포골드'=김포골드라인 약칭(마산역 등).
             for _line in ["신분당선", "수인분당선", "경의중앙선", "경춘선", "경강선",
-                          "서해선", "신림선", "우이신설선", "김포골드라인", "용인경전철",
-                          "의정부경전철", "인천1호선", "인천2호선", "에버라인", "김포도시철도"]:
+                          "서해선", "신림선", "우이신설선", "김포골드라인", "김포골드",
+                          "용인경전철", "의정부경전철", "인천1호선", "인천2호선",
+                          "에버라인", "김포도시철도", "우이신설"]:
                 _station_clean = _station_clean.replace(_line, "")
             _station_clean = re.sub(r'\d호선|공항철도', '', _station_clean).strip()
 
