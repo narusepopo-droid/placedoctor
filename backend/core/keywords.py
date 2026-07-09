@@ -42,6 +42,7 @@ _INTENT_TOKENS = [
     "쭈꾸미","수육","감자탕","뼈다귀탕","도가니탕","설렁탕","곰탕","부대찌개","김치찌개","된장찌개",
     "삼겹살","돼지갈비","갈비","고기집","맛집","식당","한식당","회식","단체석","혼술","술집","야식",
     "이자카야","호프","포차","막걸리집","안주","안주맛집","소주","맥주","내돈내산",
+    "블루리본","미슐랭","상견례","양념돼지갈비","부모님식사","가족모임","저녁식사","점심식사",
     "족발맛집","보쌈맛집","족발","보쌈","곱창맛집","곱창","막창",
     "카페맛집","브런치카페","감성카페","루프탑카페","야경카페","정원카페","좋은카페","대형카페",
     "베이커리카페","디저트카페","카페테라스","대형베이커리카페","대형테라스카페","뷰카페","포토카페","숲속카페",
@@ -115,7 +116,35 @@ _INTENT_TOKENS = [
     # 수식어 (전업종 공통)
     "커플데이트","커플","가족","감성","주말","추천","잘하는곳","가성비","후기","리뷰","예약",
     "24시","새벽","당일","무료주차","주차가능","가까운","근처","주변",
+    # v8.41 신규 업종 토큰 (플마 동기화 — 플랭에 통째로 빠져 있던 블록)
+    # 난로/벽난로
+    "벽난로","화목난로","펠렛난로","연통청소","난로시공","이동식컨테이너","이동식주택","농막",
+    "화목","펠렛","장작","굴뚝","연통","온돌","화목보일러","펠렛보일러","벽난로시공",
+    # 인테리어
+    "인테리어","리모델링","소파","싱크대","바닥재","타일","도배","페인트","조명","가구",
+    # 자동차
+    "세차","자동세차","손세차","타이어","블랙박스","튜닝","광택","유리막","PPF","카센터",
+    # 부동산
+    "공인중개사","부동산","매매","전세","월세","원룸","투룸","오피스텔","상가","분양",
+    # 법률/세무
+    "변호사","법무사","세무사","회계사","노무사","법률상담","세금신고",
+    # 숙박
+    "펜션","게스트하우스","호텔","리조트","풀빌라","독채펜션","커플펜션","모텔",
+    # 웨딩
+    "웨딩홀","스드메","웨딩스튜디오","웨딩촬영","예식장","웨딩플래너",
+    # 산후조리
+    "산후조리원","조리원","산모","산후","신생아","모유수유","산후케어",
 ]
+
+# 대학교 약칭 화이트리스트 (플마 v8.42 — "경상대 맛집" 등에서 실제 대학만 지명 인정)
+_UNIV_NAMES = frozenset([
+    "경상대", "부산대", "서울대", "연세대", "고려대", "한양대", "성균관대", "중앙대", "경희대", "이화여대",
+    "서강대", "건국대", "동국대", "홍익대", "국민대", "숭실대", "세종대", "단국대", "인하대", "아주대",
+    "경북대", "전남대", "전북대", "충남대", "충북대", "강원대", "제주대", "울산대", "창원대", "경남대",
+    "동아대", "영남대", "계명대", "대구대", "조선대", "원광대", "목포대", "순천대", "안동대", "금오공대",
+    "한밭대", "공주대", "청주대", "한남대", "배재대", "우송대", "호서대", "선문대", "상명대", "명지대",
+    "가천대", "한신대", "수원대", "용인대", "평택대", "협성대", "한경대", "서울시립대", "한국외대", "한국항공대",
+])
 
 # 루트 토큰 → 연관 복합 키워드 자동 확장 (keywordList에 없는 조합 생성)
 _TOKEN_EXPANSIONS = {
@@ -234,6 +263,8 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
             loc_match = re.search(r'([가-힣a-zA-Z0-9]+)' + suffix + r'$', clean_name)
             if loc_match:
                 loc = loc_match.group(1).split()[-1]
+                if len(loc) > 5:   # 플마 v8.43: '제천청풍호반' 같은 긴 지점명은 지명 아님 → 무시
+                    break
                 locations.append(loc)
                 # v8.44: 지점명 loc에서 역/동을 합성할 땐 '실제 지명 base'일 때만.
                 #        '계양구청점' → loc '계양구청'에서 '계양구청역/계양구청동'(가짜)을
@@ -282,6 +313,8 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                 locations.append(si)
         elif token.endswith("읍") and len(token) > 1:
             locations.append(token[:-1])
+        elif token.endswith("면") and len(token) > 1:
+            locations.append(token[:-1])               # 청풍면 → 청풍 (플마 동기화)
         elif token.endswith("동") and len(token) > 1 and token not in ["공동", "이동", "감동", "행동"]:
             dong_name = token.replace("동", "")
             locations.append(token)  # 여의도동 추가
@@ -369,6 +402,9 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
     _station_bases = set(s[:-1] for s in _station_names)
 
     def _valid_derived_loc(cand):
+        # 대학 화이트리스트(경상대 등)는 실제 지명으로 인정
+        if cand in _UNIV_NAMES:
+            return True
         # 자연 랜드마크(산/강/천/호/계곡/공원/호수)는 지역형 업종에서만 추출되며 그대로 인정
         if _is_regional_biz and (cand[-1] in ('산', '강', '천', '호')
                                  or cand[-2:] in ('계곡', '공원', '호수')):
@@ -395,122 +431,36 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
         # 접미 없는 순수 지명: 주소나 역명에 등장해야 인정 (양재 ← 양재역)
         return cand in _addr_nospace or any(cand in s for s in _station_names)
 
-    # ── keywordList에서 추가 지역 토큰 추출 ──
+    # ── keywordList에서 추가 지역 토큰 추출 (플마 v8.40 방식으로 복원) ──────────
+    #  플마는 v8.40에서 '방식 2~5'(키워드 중간을 마구 쪼개 지명 만드는 로직)를 삭제했다.
+    #  플랭은 그 삭제 전 코드를 물려받아 화덕생선구·규동·계양구청동 같은 가짜 지명을
+    #  양산했다. 여기서 플마와 동일하게 '앞부분 suffix + 대학 화이트리스트 + 랜드마크'
+    #  만 쓴다. 파생 지명은 뒤의 _valid_derived_loc(주소·역 대조)로 한 번 더 거른다.
     for kw in kw_list_raw:
-        # v8.43: "대"로 끝나는 건 2글자만 허용 (상대, 홍대 등), 3글자 이상은 오인식 위험
-        m = re.match(r'^[가-힣]{2,3}(?:역|동|구)|^[가-힣]{2}대', kw)
-        added_by_method1 = False
+        # 대학 약칭(경상대·부산대 등) — 실제 대학 화이트리스트에 있을 때만 지명 인정
+        m_univ = re.match(r'^([가-힣]{2,5}대)', kw)
+        if m_univ and m_univ.group(1) in _UNIV_NAMES:
+            if m_univ.group(1) not in locations:
+                locations.append(m_univ.group(1))
+            continue
+
+        # 방식 1: 앞부분이 역/동/구/대학/산/강/천/계곡/공원 suffix로 끝나면 지명 (구일역, 고척동)
+        m = re.match(r'^[가-힣]{2,4}(?:역|동|구|대학|산|강|천|계곡|공원)', kw)
         if m:
             extra = m.group()
+            # 이미 등록된 행정구(xxx구)에 '동'이 붙은 파생형이면 스킵 (북구+동=북구동 방지)
             is_derived_dong = (extra.endswith("동") and
                                any(extra == loc + "동" for loc in locations if loc.endswith("구")))
-            # v8.43: 기존 지역을 포함하면 제외 (동변동대 ← 동변동 포함)
-            contains_existing = any(loc in extra and loc != extra for loc in locations if len(loc) >= 2)
-            if extra not in locations and not is_derived_dong and not contains_existing:
+            if extra not in locations and not is_derived_dong:
                 locations.append(extra)
-                added_by_method1 = True
 
-        # v8.42: 랜드마크 전체 검색 (산/강/천/계곡/공원/호수)
-        # keywordList 어디에 있든 추출 — 금호강, 용오름계곡, 팔공산 등
-        # v8.43: 짧은 것 우선 추출 (동금호강보다 금호강 우선)
-        # v8.44: 자연 랜드마크 추출은 캠핑·펜션·여행 등 '지역형 업종'에서만.
-        #        도심 서비스업(에스테틱·피부과·학원 등)은 '산전산후관리'의 '산',
-        #        '관리'의 '리' 같은 서비스어 글자를 가짜 지명(양재산·전산후관리)으로
-        #        오인식하므로 자연 지명 추출을 아예 하지 않는다. (실제 지역은
-        #        주소·역·지점명 등 authoritative 소스에서만 뽑는다.)
+        # 자연 랜드마크(산/강/천/계곡/공원/호수): 캠핑·펜션·여행 등 '지역형 업종'에서만.
+        #   도심 서비스업은 '양재산'(산전산후)·'돈내산'(내돈내산) 같은 서비스어 오분리
+        #   방지 위해 추출 안 함 (v8.44 — 플마엔 없는 플랭 개선점, 유지).
         if _is_regional_biz:
-            landmarks_found = []
-            for landmark in re.findall(r'[가-힣]{2}(?:산|강|천)|[가-힣]{2}(?:계곡|공원|호수)', kw):
-                landmarks_found.append(landmark)
-            for landmark in re.findall(r'[가-힣]{3}(?:산|강|천)|[가-힣]{3,4}(?:계곡|공원|호수)', kw):
-                if not any(lm in landmark for lm in landmarks_found):
-                    landmarks_found.append(landmark)
-            for landmark in landmarks_found:
+            for landmark in re.findall(r'[가-힣]{2,4}(?:산|강|천|계곡|공원|호수)', kw):
                 if landmark not in locations and landmark not in _INTENT_TOKENS:
                     locations.append(landmark)
-
-        if not added_by_method1:
-            for plen in (3, 2):
-                if len(kw) > plen + 2:
-                    prefix = kw[:plen]
-                    rest = kw[plen:]
-                    is_derived2 = (prefix.endswith("동") and
-                                   any(prefix == loc + "동" for loc in locations if loc.endswith("구")))
-                    # v8.43: 기존 지역을 prefix로 포함하면 확장형이므로 제외 (동변동대 ← 동변동 포함)
-                    is_extension2 = any(loc in prefix and loc != prefix
-                                        for loc in locations if len(loc) >= 2)
-                    _is_intent_prefix = (prefix in _INTENT_TOKENS or
-                                         any(t.startswith(prefix) and len(t) > len(prefix)
-                                             for t in _INTENT_TOKENS) or
-                                         any(prefix.startswith(t) and len(t) >= 2 and t != prefix
-                                             for t in _INTENT_TOKENS))
-                    # v8.44: 도심 서비스업에서 '산/강/천/호'로 끝나는 prefix는 가짜 지명.
-                    #        실제 동네명(역삼·강남·서초·논현…)은 이 글자로 끝나지 않는다.
-                    #        '양재산'(양재+산전산후관리) 같은 서비스어 오분리 차단.
-                    _nature_tail = (not _is_regional_biz and prefix[-1] in ('산', '강', '천', '호'))
-                    if (re.match(r'^[가-힣]+$', prefix) and not is_derived2 and not is_extension2
-                            and not _is_intent_prefix and not _nature_tail
-                            and any(t in rest for t in _INTENT_TOKENS if len(t) >= 3)):
-                        if prefix not in locations:
-                            locations.append(prefix)
-                        # v8.44: 'prefix + 역' 합성 제거 — 실재하지 않는 역(서북역·일산동역)을
-                        #        만들어냈음. 역은 naver가 준 실제 인근역에서만 가져온다.
-                        break
-
-        cands3_all = []
-        for loc_m in re.finditer(r'(?=([가-힣]{2,3}(?:동|역)))', kw):
-            extra3 = loc_m.group(1)
-            is_derived3 = (extra3.endswith("동") and
-                           any(extra3 == loc + "동" for loc in locations if loc.endswith("구")))
-            if not is_derived3:
-                cands3_all.append(extra3)
-        cands3_ok = [c for c in cands3_all if not any(c != o and o in c for o in cands3_all)]
-        for extra3 in cands3_ok:
-            if extra3 not in locations:
-                locations.append(extra3)
-
-        remaining4 = kw
-        while remaining4:
-            loc_matched = False
-            for loc in sorted(locations, key=len, reverse=True):
-                if loc and remaining4.startswith(loc):
-                    remaining4 = remaining4[len(loc):]
-                    loc_matched = True
-                    break
-            if not loc_matched:
-                break
-        for t in sorted(_INTENT_TOKENS, key=len, reverse=True):
-            if len(t) >= 3 and t in remaining4:
-                remaining4 = remaining4.replace(t, '', 1)
-                break
-        # v8.44: 도심 서비스업은 행정 접미(역·동·구)만 지명으로 인정.
-        #        자연·시골 접미(산·강·천·호·읍·면·리)는 '관리'의 '리', '산전산후'의 '산'
-        #        같은 서비스어 글자를 가짜 지명으로 만들므로 지역형 업종에서만 허용.
-        _LOC_SFXS = ({'역', '동', '구', '산', '강', '천', '호', '읍', '면', '리'}
-                     if _is_regional_biz else {'역', '동', '구'})
-        _LOC_SFXS2 = {'공원', '호수', '댐', '계곡'} if _is_regional_biz else set()
-        for chunk in re.findall(r'[가-힣]{2,5}', remaining4):
-            loc_suffix_ok = (chunk[-1] in _LOC_SFXS or chunk[-2:] in _LOC_SFXS2)
-            # v8.43: 기존 지역(특히 랜드마크)을 포함하면 제외 (변동금호강 ← 금호강 포함)
-            is_superset = any(loc in chunk and loc != chunk for loc in locations if len(loc) >= 2)
-            if (chunk not in locations and chunk not in _INTENT_TOKENS
-                    and not any(chunk == loc + "동" for loc in locations if loc.endswith("구"))
-                    and loc_suffix_ok and not is_superset):
-                locations.append(chunk)
-
-        # 방식 5: keywordList 앞 3~4글자가 지명 suffix로 끝나면 추출 (화담공원, 팔공산 등)
-        # v8.43: 5글자 제외 (변동금호강 같은 합성어 오인식 방지), 기존 랜드마크 포함 시 제외
-        for plen in [4, 3]:  # 4글자 우선 (화담공원), 3글자
-            if len(kw) >= plen + 2:
-                prefix = kw[:plen]
-                if re.match(r'^[가-힣]+$', prefix) and prefix not in locations:
-                    has_loc_suffix = (prefix[-1] in _LOC_SFXS or prefix[-2:] in _LOC_SFXS2)
-                    is_intent = prefix in _INTENT_TOKENS
-                    # 기존 랜드마크를 포함하면 추가하지 않음 (변동금호강 → 금호강 이미 있음)
-                    contains_existing = any(loc in prefix and loc != prefix for loc in locations if len(loc) >= 2)
-                    if has_loc_suffix and not is_intent and not contains_existing:
-                        locations.append(prefix)
-                        break
 
     # v8.44: authoritative(주소·역·지점명) 지명은 그대로, keywordList에서 파생된 지명은
     #        주소/인근역 앵커 검증(_valid_derived_loc)을 통과한 것만 남긴다.
