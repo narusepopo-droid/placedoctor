@@ -445,7 +445,9 @@ async def get_store_details(page, url):
                                 if ((_kl.includes('blog') || _kl.includes('cafe')) && _kl.includes('review')
                                         && (_kl.includes('count') || _kl.includes('total'))) {
                                     const _n = _v[_k];
-                                    if (typeof _n === 'number' && _n >= 0) { blogReviews = _n; break; }
+                                    // > 0 만 인정 (visitorReviewCount 폴백과 동일) — 0값 키는
+                                    // 잘못된 필드일 수 있어 무시하고 정직하게 None(정보없음) 유지.
+                                    if (typeof _n === 'number' && _n > 0) { blogReviews = _n; break; }
                                 }
                             }
                             if (blogReviews !== null && blogReviews !== undefined) break;
