@@ -430,9 +430,29 @@ async def get_store_details(page, url):
             }
 
             // 블로그 리뷰: JSON + DOM
-            const blogReviews =
-                mNum([/"cafeBlogReviewsTotal"\\s*:\\s*(\\d+)/, /"blogCafeReviewCount"\\s*:\\s*(\\d+)/, /"blogReviewCount"\\s*:\\s*(\\d+)/]) ||
+            let blogReviews =
+                mNum([/"cafeBlogReviewsTotal"\\s*:\\s*(\\d+)/, /"blogCafeReviewCount"\\s*:\\s*(\\d+)/, /"blogReviewCount"\\s*:\\s*(\\d+)/, /"fsasReviewsTotal"\\s*:\\s*(\\d+)/]) ||
                 domNum([/블로그\\s*리뷰?\\s*([\\d,]+)/, /블로그([\\d,]+)/, /blog[\\s:]*([\\d,]+)/i]);
+            // Apollo state 폴백 (visitorReviewCount와 동일 방식) — blog/cafe 리뷰 카운트 키 탐색
+            if (blogReviews === null || blogReviews === undefined) {
+                try {
+                    const _st = window.__APOLLO_STATE__;
+                    if (_st) {
+                        for (const _v of Object.values(_st)) {
+                            if (!_v || typeof _v !== 'object') continue;
+                            for (const _k of Object.keys(_v)) {
+                                const _kl = _k.toLowerCase();
+                                if ((_kl.includes('blog') || _kl.includes('cafe')) && _kl.includes('review')
+                                        && (_kl.includes('count') || _kl.includes('total'))) {
+                                    const _n = _v[_k];
+                                    if (typeof _n === 'number' && _n >= 0) { blogReviews = _n; break; }
+                                }
+                            }
+                            if (blogReviews !== null && blogReviews !== undefined) break;
+                        }
+                    }
+                } catch(e) {}
+            }
 
             // 별점: DOM 텍스트 우선 (1.0~5.0 범위 숫자)
             const starScore =

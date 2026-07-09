@@ -72,6 +72,8 @@ _INTENT_TOKENS = [
     "피부관리","피부케어","피부미용","에스테틱","에스테틱샵","피부샵","관리샵",
     "윤곽관리","윤곽마사지","여드름관리","여드름케어","여드름","모공관리","피지관리",
     "웨딩관리","웨딩케어","리프팅","탄력관리","미백관리","수분관리",
+    # 산전산후 = 서비스어(임신·출산 관리). '산'을 '산(山)' 지명으로 오인식하면 안 됨.
+    "산전산후관리","산후관리","산전관리","산후케어","산후비만관리","산후마사지","임산부관리","임산부마사지",
     "마사지","스파","아로마","림프마사지","왁싱관리",
     "피부과","피부과의원","레이저","보톡스","필러","성형외과",
     # 피부과 시술·기기 (써마지/울쎄라 등 오인식 방지 — location으로 잘못 분류되면 안 됨)
@@ -342,15 +344,21 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
         # v8.42: 랜드마크 전체 검색 (산/강/천/계곡/공원/호수)
         # keywordList 어디에 있든 추출 — 금호강, 용오름계곡, 팔공산 등
         # v8.43: 짧은 것 우선 추출 (동금호강보다 금호강 우선)
-        landmarks_found = []
-        for landmark in re.findall(r'[가-힣]{2}(?:산|강|천)|[가-힣]{2}(?:계곡|공원|호수)', kw):
-            landmarks_found.append(landmark)
-        for landmark in re.findall(r'[가-힣]{3}(?:산|강|천)|[가-힣]{3,4}(?:계곡|공원|호수)', kw):
-            if not any(lm in landmark for lm in landmarks_found):
+        # v8.44: 자연 랜드마크 추출은 캠핑·펜션·여행 등 '지역형 업종'에서만.
+        #        도심 서비스업(에스테틱·피부과·학원 등)은 '산전산후관리'의 '산',
+        #        '관리'의 '리' 같은 서비스어 글자를 가짜 지명(양재산·전산후관리)으로
+        #        오인식하므로 자연 지명 추출을 아예 하지 않는다. (실제 지역은
+        #        주소·역·지점명 등 authoritative 소스에서만 뽑는다.)
+        if _is_regional_biz:
+            landmarks_found = []
+            for landmark in re.findall(r'[가-힣]{2}(?:산|강|천)|[가-힣]{2}(?:계곡|공원|호수)', kw):
                 landmarks_found.append(landmark)
-        for landmark in landmarks_found:
-            if landmark not in locations and landmark not in _INTENT_TOKENS:
-                locations.append(landmark)
+            for landmark in re.findall(r'[가-힣]{3}(?:산|강|천)|[가-힣]{3,4}(?:계곡|공원|호수)', kw):
+                if not any(lm in landmark for lm in landmarks_found):
+                    landmarks_found.append(landmark)
+            for landmark in landmarks_found:
+                if landmark not in locations and landmark not in _INTENT_TOKENS:
+                    locations.append(landmark)
 
         if not added_by_method1:
             for plen in (3, 2):
@@ -367,8 +375,12 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                                              for t in _INTENT_TOKENS) or
                                          any(prefix.startswith(t) and len(t) >= 2 and t != prefix
                                              for t in _INTENT_TOKENS))
+                    # v8.44: 도심 서비스업에서 '산/강/천/호'로 끝나는 prefix는 가짜 지명.
+                    #        실제 동네명(역삼·강남·서초·논현…)은 이 글자로 끝나지 않는다.
+                    #        '양재산'(양재+산전산후관리) 같은 서비스어 오분리 차단.
+                    _nature_tail = (not _is_regional_biz and prefix[-1] in ('산', '강', '천', '호'))
                     if (re.match(r'^[가-힣]+$', prefix) and not is_derived2 and not is_extension2
-                            and not _is_intent_prefix
+                            and not _is_intent_prefix and not _nature_tail
                             and any(t in rest for t in _INTENT_TOKENS if len(t) >= 3)):
                         if prefix not in locations:
                             locations.append(prefix)
@@ -404,8 +416,12 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
             if len(t) >= 3 and t in remaining4:
                 remaining4 = remaining4.replace(t, '', 1)
                 break
-        _LOC_SFXS = {'역', '동', '구', '산', '강', '천', '호', '읍', '면', '리'}
-        _LOC_SFXS2 = {'공원', '호수', '댐', '계곡'}
+        # v8.44: 도심 서비스업은 행정 접미(역·동·구)만 지명으로 인정.
+        #        자연·시골 접미(산·강·천·호·읍·면·리)는 '관리'의 '리', '산전산후'의 '산'
+        #        같은 서비스어 글자를 가짜 지명으로 만들므로 지역형 업종에서만 허용.
+        _LOC_SFXS = ({'역', '동', '구', '산', '강', '천', '호', '읍', '면', '리'}
+                     if _is_regional_biz else {'역', '동', '구'})
+        _LOC_SFXS2 = {'공원', '호수', '댐', '계곡'} if _is_regional_biz else set()
         for chunk in re.findall(r'[가-힣]{2,5}', remaining4):
             loc_suffix_ok = (chunk[-1] in _LOC_SFXS or chunk[-2:] in _LOC_SFXS2)
             # v8.43: 기존 지역(특히 랜드마크)을 포함하면 제외 (변동금호강 ← 금호강 포함)
