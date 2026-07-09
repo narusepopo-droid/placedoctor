@@ -216,9 +216,16 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
             loc_match = re.search(r'([가-힣a-zA-Z0-9]+)' + suffix + r'$', clean_name)
             if loc_match:
                 loc = loc_match.group(1).split()[-1]
-                locations.extend([loc, f"{loc}역"])
-                if address and not address.startswith("서울") and not address.startswith("경기"):
-                    locations.append(f"{loc}동")
+                locations.append(loc)
+                # v8.44: 지점명 loc에서 역/동을 합성할 땐 '실제 지명 base'일 때만.
+                #        '계양구청점' → loc '계양구청'에서 '계양구청역/계양구청동'(가짜)을
+                #        만들던 문제 차단. 시설·행정 접미로 끝나거나 5자↑면 합성 안 함.
+                _loc_synth_ok = (2 <= len(loc) <= 4
+                                 and not loc.endswith(('청', '역', '구', '동', '점', '원', '장', '교')))
+                if _loc_synth_ok:
+                    locations.append(f"{loc}역")
+                    if address and not address.startswith("서울") and not address.startswith("경기"):
+                        locations.append(f"{loc}동")
                 if "호수" in loc: locations.append(loc.replace("호수", ""))
                 clean_name = clean_name.replace(loc_match.group(0), "").strip()
             break
@@ -245,7 +252,9 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
         if token.endswith("구") and len(token) > 1:
             locations.append(token)  # 강남구 추가
             # 화이트리스트 구만 지역명 추가 (강남구 → 강남, 중구 → 명동/을지로)
-            if token in _GU_TO_LOCATIONS:
+            # v8.44: 명동·을지로·성수 등은 서울 전용 지명. '중구'는 대전·부산·대구에도
+            #        있어 대전 중구에 '명동'을 붙이는 오류가 있었음 → 서울 주소일 때만 적용.
+            if token in _GU_TO_LOCATIONS and address.startswith("서울"):
                 locations.extend(_GU_TO_LOCATIONS[token])
         elif token.endswith("군") and len(token) > 1:
             locations.append(token[:-1])
@@ -291,15 +300,17 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
             # 노선명 먼저 제거 (신분당선신논현역 → 신논현역)
             _station_clean = station
             for _line in ["신분당선", "수인분당선", "경의중앙선", "경춘선", "경강선",
-                          "서해선", "신림선", "우이신설선", "김포골드라인", "용인경전철", "의정부경전철"]:
+                          "서해선", "신림선", "우이신설선", "김포골드라인", "용인경전철",
+                          "의정부경전철", "인천1호선", "인천2호선", "에버라인", "김포도시철도"]:
                 _station_clean = _station_clean.replace(_line, "")
-            _station_clean = re.sub(r'\d호선|공항철도', '', _station_clean)
+            _station_clean = re.sub(r'\d호선|공항철도', '', _station_clean).strip()
 
-            m_st = re.search(r'([가-힣]{2,3})역$', _station_clean)
-            if not m_st:
-                m_st = re.search(r'([가-힣]{4})역$', _station_clean)
-            if m_st:
-                locations.append(m_st.group(1) + "역")
+            # v8.44: 노선·호선 제거 후 남은 '…역' 전체를 그대로 사용한다.
+            #        예전엔 마지막 2~3글자만 잘라(([가-힣]{2,3})역$) '구로디지털단지역'을
+            #        '털단지역', '용인동백역'을 '인동백역'으로 조작하는 버그가 있었음.
+            #        긴 역명도 실제 역이므로 통째로 유지.
+            if _station_clean.endswith("역") and 3 <= len(_station_clean) <= 9:
+                locations.append(_station_clean)
 
     locations = list(dict.fromkeys([l for l in locations if l and len(l) >= 2]))
     for skip in ["서울", "경기"]:
@@ -325,6 +336,43 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                    if k and len(k.strip()) >= 2 and not _BAD_PATTERNS.search(k)]
     kw_list = [k for k in kw_list_raw
                if not (len(k) >= 10 and ' ' not in k)]
+
+    # ── 지명 검증 기준 (v8.44 — 상시 통용 룰) ────────────────────────────────
+    #  authoritative 지명 = 주소·역·지점명에서 뽑은 것 (이 시점까지의 locations).
+    #  keywordList 텍스트에서 파생된 지명은 반드시 아래 _valid_derived_loc로 검증한다:
+    #  실제 주소에 그 지명(또는 그 base)이 있거나, naver가 준 실제 인근역과 일치해야만
+    #  인정. → '화덕생선구'(생선구이), '규동', '드마산역' 같은 가짜 지명을 근본 차단.
+    _addr_nospace = re.sub(r'\s+', '', address or '')
+    _auth_locations = set(locations)
+    _station_names = set(l for l in locations if l.endswith('역'))
+    _station_bases = set(s[:-1] for s in _station_names)
+
+    def _valid_derived_loc(cand):
+        # 자연 랜드마크(산/강/천/호/계곡/공원/호수)는 지역형 업종에서만 추출되며 그대로 인정
+        if _is_regional_biz and (cand[-1] in ('산', '강', '천', '호')
+                                 or cand[-2:] in ('계곡', '공원', '호수')):
+            return True
+        # 역: 실제 인근역(주소 base 또는 naver 역)과 일치해야 — 잘린/가짜 역 제거
+        if cand.endswith('역'):
+            base = cand[:-1]
+            if cand in _station_names or base in _station_bases:
+                return True
+            return base in _addr_nospace
+        # 행정 접미(지구·구·군·시·읍·면·동·리): base가 주소나 인근역에 있어야 실제 행정지명
+        for sfx in ('지구', '구', '군', '시', '읍', '면', '동', '리'):
+            if cand.endswith(sfx) and len(cand) > len(sfx):
+                base = cand[:-len(sfx)]
+                if not base:
+                    return False
+                if base in _addr_nospace:
+                    return True
+                # 인근 역명 base와 일치하면 실제 동네로 인정 (철산동 ← 철산역).
+                # 단, 역이 시설(구청·시청·대학·터미널 등)이면 '…동'은 실제 행정동이 아님 → 제외
+                #   (계양구청역 → '계양구청동'은 가짜).
+                return (base in _station_bases
+                        and not base.endswith(('청', '교', '원', '장', '터미널', '차고지')))
+        # 접미 없는 순수 지명: 주소나 역명에 등장해야 인정 (양재 ← 양재역)
+        return cand in _addr_nospace or any(cand in s for s in _station_names)
 
     # ── keywordList에서 추가 지역 토큰 추출 ──
     for kw in kw_list_raw:
@@ -384,10 +432,8 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                             and any(t in rest for t in _INTENT_TOKENS if len(t) >= 3)):
                         if prefix not in locations:
                             locations.append(prefix)
-                        if not prefix.endswith(('역', '동', '구', '시', '군', '읍', '면', '리', '대', '산', '강')):
-                            st_cand = prefix + "역"
-                            if st_cand not in locations:
-                                locations.append(st_cand)
+                        # v8.44: 'prefix + 역' 합성 제거 — 실재하지 않는 역(서북역·일산동역)을
+                        #        만들어냈음. 역은 naver가 준 실제 인근역에서만 가져온다.
                         break
 
         cands3_all = []
@@ -445,7 +491,13 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                         locations.append(prefix)
                         break
 
-    locations = list(dict.fromkeys([l for l in locations if l and len(l) >= 2 and _is_valid_location(l)]))
+    # v8.44: authoritative(주소·역·지점명) 지명은 그대로, keywordList에서 파생된 지명은
+    #        주소/인근역 앵커 검증(_valid_derived_loc)을 통과한 것만 남긴다.
+    locations = list(dict.fromkeys([
+        l for l in locations
+        if l and len(l) >= 2 and _is_valid_location(l)
+        and (l in _auth_locations or _valid_derived_loc(l))
+    ]))
     for skip in ["서울", "경기"]:
         if skip in locations: locations.remove(skip)
     if not locations: locations = [""]
@@ -537,8 +589,21 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
             fallback = ["카페", "커피", "디저트"]
         elif any(x in cat_str for x in ['고기', '갈비', '국밥', '식당', '음식점']):
             fallback = ["맛집", "고기집", "맛있는집"]
+        elif any(x in cat_str for x in ['배터리', '밧데리', '자동차', '정비', '카센터', '타이어']):
+            fallback = ["자동차배터리", "배터리교체", "출장배터리", "긴급출동배터리"]
+        elif any(x in cat_str for x in ['청소', '입주청소', '이사청소']):
+            fallback = ["입주청소", "이사청소", "청소업체"]
+        elif any(x in cat_str for x in ['철거', '폐기물']):
+            fallback = ["철거업체", "철거공사", "폐기물처리"]
+        elif any(x in cat_str for x in ['도배', '인테리어', '장판']):
+            fallback = ["도배", "인테리어", "도배업체"]
         else:
             fallback = [w.strip() for w in category.split(',') if len(w.strip()) >= 2][:3]
+            # 카테고리도 비면 매장명 기반 최소 키워드 (지역 × 매장명) — '키워드 0개' 방지
+            if not fallback:
+                _nm = re.sub(r'[^가-힣a-zA-Z0-9]', '', store_name)[:6]
+                if len(_nm) >= 2:
+                    fallback = [_nm]
             fallback.append("추천")
         for loc in locations:
             for intent in fallback:
