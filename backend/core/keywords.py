@@ -124,6 +124,7 @@ _INTENT_TOKENS = [
     "인테리어","리모델링","소파","싱크대","바닥재","타일","도배","페인트","조명","가구",
     # 자동차
     "세차","자동세차","손세차","타이어","블랙박스","튜닝","광택","유리막","PPF","카센터",
+    "랩핑","카랩핑","스팀세차","디테일링","썬팅","광택복원","차량랩핑",
     # 부동산
     "공인중개사","부동산","매매","전세","월세","원룸","투룸","오피스텔","상가","분양",
     # 법률/세무
@@ -134,6 +135,15 @@ _INTENT_TOKENS = [
     "웨딩홀","스드메","웨딩스튜디오","웨딩촬영","예식장","웨딩플래너",
     # 산후조리
     "산후조리원","조리원","산모","산후","신생아","모유수유","산후케어",
+    # 55개 실매장 감사 기반 사전 갭 보완 (2026-07-10) — 사전에 없어 검출이 비던 실서비스어
+    "누수탐지","에어컨청소","에어컨설치","시스템에어컨","냉매충전","에어컨가스충전",
+    "이사청소","입주청소","오피스텔청소","청소업체","신축입주청소","아파트입주청소",
+    "철거업체","철거공사","폐기물처리","상가철거","공장철거",
+    "파크골프","스크린파크골프","파크골프용품",
+    "향수공방","도자기공방","원데이클래스","물레체험","단체향수클래스",
+    "포장이사","반포장이사",
+    "오리고기","생선구이","간장게장","민어회","세발낙지",
+    "속눈썹","몰딩교체","도배시공","합지도배","실크도배",
 ]
 
 # 대학교 약칭 화이트리스트 (플마 v8.42 — "경상대 맛집" 등에서 실제 대학만 지명 인정)
@@ -239,15 +249,11 @@ def _find_tokens_in_kw(kw, locations):
     dict_found = [t for t in dict_found if not _trapped(t)]
     found.extend(dict_found)
 
-    # 2) 지역 제거 후 남은 전체 문자열도 토큰으로 추가 (대형베이커리카페 같은 복합어 지원)
-    # 단, 8글자 이상 긴 복합어는 제외 (과학영재고입시사고력유아수학 같은 SEO 합성어)
-    # v8.43: 지역 suffix로 끝나면 제외 (변동금호강 같은 지역 합성어)
-    _loc_suffixes = ('산', '강', '천', '동', '역', '구', '읍', '면', '리', '계곡', '공원', '호수')
-    if (re.match(r'^[가-힣]+$', remaining) and remaining not in found
-        and 3 <= len(remaining) <= 7
-        and not any(remaining.endswith(s) for s in _loc_suffixes)):
-        found.append(remaining)
-
+    # v8.45: 사전(_INTENT_TOKENS)에 있는 토큰만 반환한다.
+    #   예전엔 '지역 제거 후 남은 전체 문자열'을 비사전이어도 토큰으로 추가했는데,
+    #   이게 '랩핑전체부분'·'생보종생보종'·'PPF전체부분' 같은 쓰레기 조합의 원천이었다.
+    #   원칙(2026-07-10 확정): 사전에 없는 단어는 조합에서 아예 차단.
+    #   누락된 신규 서비스어는 플라이휠(발견→검색량→승인→사전편입)로 채운다.
     return list(dict.fromkeys(found))
 
 
@@ -489,9 +495,21 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
         and (_has_location(k) or _has_intent(k))
     ))
 
+    # v8.45: keywordList·official_keywords·menu 전부에서 '사전에 있는 토큰'만 뽑는다.
+    #   (_find_tokens_in_kw가 이제 사전 토큰만 반환) → 지역 × 사전토큰 2조합만 생성.
+    #   공식태그·메뉴를 원본 통짜로 조합하던 옛 2순위/메뉴 경로는 제거(랩핑전체부분 원천).
+    _MENU_GRADE_SKIP = {"스페셜", "럭셔리", "프리미엄", "베이직", "스탠다드", "기본형", "일반형", "고급형"}
     all_kw_tokens = []
     for kw in kw_list_raw:
         all_kw_tokens.extend(_find_tokens_in_kw(kw, locations))
+    for tag in clean_official:
+        _ct = re.sub(r'[^가-힣a-zA-Z0-9]', '', tag)
+        if _ct:
+            all_kw_tokens.extend(_find_tokens_in_kw(_ct, locations))
+    for menu in menu_items:
+        _cm = re.sub(r'[^가-힣a-zA-Z0-9]', '', menu)
+        if _cm and _cm not in _MENU_GRADE_SKIP:
+            all_kw_tokens.extend(_find_tokens_in_kw(_cm, locations))
     all_kw_tokens = list(dict.fromkeys(t for t in all_kw_tokens if len(t) >= 2))
 
     _seen_tokens = set(all_kw_tokens)
@@ -515,30 +533,9 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                 kws.append(combined)
                 kws_set.add(combined)
 
-    # ── 2순위: 지역 × official_keywords 조합 ─────────────────────────────────
-    _kw_filter_set = [t for t in all_kw_tokens if len(t) >= 3]
-    for tag in clean_official:
-        clean_tag = re.sub(r'[^가-힣a-zA-Z0-9]', '', tag).strip()
-        if len(clean_tag) < 2:
-            continue
-        if kw_list and _kw_filter_set:
-            if not any(t in clean_tag or clean_tag in t for t in _kw_filter_set):
-                continue
-        for loc in locations:
-            if loc and loc in clean_tag:
-                kws.append(clean_tag)
-            else:
-                kws.append(f"{loc} {clean_tag}".strip())
-
-    _MENU_GRADE_SKIP = {"스페셜", "럭셔리", "프리미엄", "베이직", "스탠다드", "기본형", "일반형", "고급형"}
-    for menu in menu_items:
-        clean_m = re.sub(r'[^가-힣a-zA-Z0-9]', '', menu)
-        if (2 <= len(clean_m) <= 12
-                and not _BAD_PATTERNS.search(clean_m)
-                and clean_m not in _MENU_GRADE_SKIP
-                and _has_intent(clean_m)):
-            for loc in locations:
-                kws.append(f"{loc} {clean_m}".strip() if loc and loc not in clean_m else clean_m)
+    # v8.45: 옛 '2순위(지역 × 공식태그 원본)'·'메뉴 원본 조합' 제거.
+    #   → 공식태그·메뉴의 사전 토큰은 위 all_kw_tokens 조합에서 이미 반영됨.
+    #   원본 통짜 조합이 '김포 랩핑전체부분'·'김포 PPF전체부분' 쓰레기의 원천이었음.
 
     # ── 3순위: keywordList·official_keywords 둘 다 없을 때만 카테고리 폴백 ────
     if not kw_list and not clean_official:

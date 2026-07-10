@@ -9,8 +9,8 @@ import sys
 from backend.core.keywords import generate_keywords as G
 
 CASES = []
-def case(label, kwargs, bad_first=(), must_have=(), note=""):
-    CASES.append((label, kwargs, tuple(bad_first), tuple(must_have), note))
+def case(label, kwargs, bad_first=(), must_have=(), bad_contains=(), note=""):
+    CASES.append((label, kwargs, tuple(bad_first), tuple(must_have), tuple(bad_contains), note))
 
 # ── 가짜 산/강/천 (서비스어 글자를 지명으로 오인) ────────────────────────────
 case("끌레르 에스테틱 — 양재산/재산전산",
@@ -91,6 +91,16 @@ case("자바누수 — 서북역(천안 서북구)",
           keyword_list=['불당동누수탐지','천안누수탐지','서북구청주누수탐지']),
      bad_first=('서북역',))
 
+# ── 비사전 합성어 차단 (사전에 없는 단어는 조합 안 함) ───────────────────────
+case("에스와이커스텀 — 랩핑전체부분/PPF전체부분/생보종생보종(비사전 합성어)",
+     dict(store_name='에스와이커스텀', category='튜닝',
+          address='경기 김포시 김포한강8로194번길 143 1층 전체',
+          menu_items=['랩핑PPF전체부분','생보종생보종'],
+          official_keywords=['김포랩핑','김포PPF전체부분','랩핑전체부분'],
+          nearby_stations=['김포골드마산역'],
+          keyword_list=['김포랩핑','김포PPF','김포유리막','김포스팀세차']),
+     bad_contains=('전체부분','생보종'), must_have=('김포 랩핑','김포 PPF'))
+
 # ── 회귀: 유지되어야 할 정상 동작 ────────────────────────────────────────────
 case("[회귀] 캠핑장 랜드마크 유지",
      dict(store_name='금호강 오토캠핑장', category='캠핑장,야영장',
@@ -108,15 +118,17 @@ case("[회귀] 대학 인식(경상대)",
 # ── 실행 ─────────────────────────────────────────────────────────────────────
 def run():
     all_pass = True
-    for label, kwargs, bad_first, must_have, note in CASES:
+    for label, kwargs, bad_first, must_have, bad_contains, note in CASES:
         ks = G(**kwargs)
         firsts = set(k.split()[0] for k in ks if ' ' in k)
         found_bad = [b for b in bad_first if b in firsts]
+        found_sub = [b for b in bad_contains if any(b in k for k in ks)]
         missing = [m for m in must_have if not any(m in k for k in ks)]
-        ok = not found_bad and not missing
+        ok = not found_bad and not found_sub and not missing
         all_pass = all_pass and ok
         print(("PASS" if ok else "FAIL") + f" {label} ({len(ks)}개)")
-        if found_bad: print(f"   ✗ 쓰레기 잔존: {found_bad}")
+        if found_bad: print(f"   ✗ 쓰레기 잔존(지명): {found_bad}")
+        if found_sub: print(f"   ✗ 쓰레기 잔존(합성어): {found_sub}")
         if missing:   print(f"   ✗ 정상 누락: {missing}")
     print("=" * 60)
     print("종합: " + ("✓ 전체 통과" if all_pass else "✗ 일부 실패"))
