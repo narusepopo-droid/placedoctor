@@ -6182,12 +6182,18 @@ async function loadTokens(){
       const dt=t.created_at?new Date(t.created_at).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}):'';
 
       let actionHtml='';
+      const reason=t.approval_reason?` title="${t.approval_reason}"`:'';
       if(t.status==='pending'){
         actionHtml=`<button class="token-btn approve" onclick="approveToken(${t.id},'${t.token}')">승인</button>
           <button class="token-btn reject" onclick="rejectToken(${t.id},'${t.token}')">거절</button>`;
+      }else if(t.status==='rejected'){
+        // 거절됨 → 다시 승인으로 되돌릴 수 있음
+        actionHtml=`<span class="token-status rejected"${reason}>거절됨</span>
+          <button class="token-btn approve" onclick="approveToken(${t.id},'${t.token}')" title="다시 승인">↩ 승인으로</button>`;
       }else{
-        const reason=t.approval_reason?` title="${t.approval_reason}"`:'';
-        actionHtml=`<span class="token-status ${t.status}"${reason}>${t.status==='approved'?'승인됨':'거절됨'}</span>`;
+        // 승인됨 → 다시 거절로 되돌릴 수 있음
+        actionHtml=`<span class="token-status approved"${reason}>승인됨</span>
+          <button class="token-btn reject" onclick="rejectToken(${t.id},'${t.token}')" title="다시 거절">↩ 거절로</button>`;
       }
 
       html+=`<tr>
@@ -6212,7 +6218,7 @@ async function approveToken(id,token){
   try{
     const r=await fetch('/admin/api/token/'+id+'/approve?reason='+encodeURIComponent(reason),{method:'POST'});
     if(r.ok){
-      alert(token+' 승인 완료!\\n\\n다음 배포 시 키워드 사전에 반영됩니다.');
+      alert(token+' 승인 완료!\\n\\n다음 분석부터 즉시 키워드 사전에 반영됩니다 (재배포 불필요).');
       loadTokens();
     }else{
       alert('실패: '+await r.text());
