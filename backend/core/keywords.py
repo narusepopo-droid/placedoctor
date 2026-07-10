@@ -660,48 +660,78 @@ def detect_unregistered_tokens(store_name: str, category: str, menu_items: list,
     """
     사전(_INTENT_TOKENS)에 없는 신규 토큰 감지.
 
+    목적: 새로운 업종 서비스어 발견 → 승인 → 사전 추가 → 키워드 조합에 사용
+    예: "유리막코팅" 발견 → 승인 → 이후 "김포 유리막코팅" 자동 생성
+
     Returns:
-        미등록 토큰 목록 [{"token": "...", "source": "keyword_list|tag|menu|category"}, ...]
+        미등록 토큰 목록 [{"token": "...", "source": "tag|menu|category"}, ...]
     """
     candidates = {}  # token -> source_field
+
+    # 지명 suffix (이걸로 끝나면 지명으로 간주)
+    _LOC_SUFFIXES = ('동', '구', '시', '군', '읍', '면', '리', '역', '산', '강', '천', '로', '길')
+
+    def is_location(token: str) -> bool:
+        """지명 여부 판단"""
+        if any(token.endswith(s) for s in _LOC_SUFFIXES):
+            return True
+        if len(token) <= 4 and re.match(r'^[가-힣]+$', token):
+            # 짧은 한글 (강남, 홍대, 신촌 등 지명일 가능성)
+            return True
+        return False
+
+    def is_combined_keyword(text: str) -> bool:
+        """이미 '지명+서비스어' 조합된 키워드인지 판단"""
+        clean = re.sub(r'[^가-힣]', '', text)
+        if len(clean) < 4:
+            return False
+        # 앞부분이 지명이고 뒷부분이 사전에 있으면 조합된 것
+        for i in range(2, len(clean) - 1):
+            prefix, suffix = clean[:i], clean[i:]
+            if is_location(prefix) and suffix in _INTENT_SET:
+                return True
+        return False
 
     def add_candidate(token: str, source: str):
         clean = re.sub(r'[^가-힣]', '', token)
         if 2 <= len(clean) <= 10 and clean not in candidates:
-            candidates[clean] = source
+            # 이미 조합된 키워드면 스킵 (범계역혼밥 = 범계역 + 혼밥)
+            if not is_combined_keyword(clean):
+                candidates[clean] = source
 
-    # keywordList에서 토큰 추출 (네이버 검색 키워드)
-    for kw in (keyword_list or []):
-        add_candidate(kw, "keyword_list")
-        for part in kw.split():
-            add_candidate(part, "keyword_list")
+    # ❌ keywordList는 토큰 추출 대상 아님
+    #    → 이미 "지명+서비스어" 조합된 결과물 (범계역혼밥, 안양스테이크 등)
+    #    → 여기서 신규 서비스어를 찾는 건 의미 없음
 
-    # official_keywords에서 토큰 추출 (매장 태그)
+    # ✅ official_keywords에서 토큰 추출 (매장 태그 - 순수 서비스어)
     for kw in (official_keywords or []):
-        add_candidate(kw, "tag")
+        # 공백 분리된 개별 단어만
         for part in kw.split():
             add_candidate(part, "tag")
+        # 전체가 짧으면 (공백 없이 단일 태그)
+        if ' ' not in kw and len(kw) <= 10:
+            add_candidate(kw, "tag")
 
-    # menu에서 토큰 추출
+    # ✅ menu에서 토큰 추출 (메뉴 - 순수 서비스어)
     for menu in (menu_items or []):
         add_candidate(menu, "menu")
 
-    # 카테고리에서 토큰 추출
+    # ✅ 카테고리에서 토큰 추출
     for cat in (category or "").split(","):
         add_candidate(cat.strip(), "category")
 
-    # 필터링: 사전에 없고, 지명이 아닌 것만
-    _LOC_SUFFIXES = ('동', '구', '시', '군', '읍', '면', '리', '역', '산', '강', '천')
+    # 필터링
     _COMMON_WORDS = {'전문', '추천', '후기', '리뷰', '가격', '비용', '문의', '상담', '예약',
-                     '매장', '가게', '샵', '스토어', '센터', '하우스', '플레이스', '스튜디오'}
+                     '매장', '가게', '샵', '스토어', '센터', '하우스', '플레이스', '스튜디오',
+                     '맛집', '카페', '음식점', '식당', '레스토랑'}
     unregistered = []
 
     for token, source in candidates.items():
         # 이미 사전에 있으면 스킵
         if token in _INTENT_SET:
             continue
-        # 지명 suffix로 끝나면 스킵 (지역명일 가능성)
-        if any(token.endswith(s) for s in _LOC_SUFFIXES):
+        # 지명이면 스킵
+        if is_location(token):
             continue
         # 너무 짧으면 스킵
         if len(token) < 2:
