@@ -5683,6 +5683,13 @@ _ADMIN_HTML = """<!DOCTYPE html>
   .token-status.approved{background:var(--green-soft);color:var(--green-d)}
   .token-status.rejected{background:#ffebee;color:#d32f2f}
   .token-status.pending{background:#fff3e0;color:#e65100}
+  .ttab{padding:8px 16px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:13px;font-weight:700;color:var(--sub);cursor:pointer}
+  .ttab.active{background:var(--green);color:#fff;border-color:var(--green)}
+  .tk-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:1000}
+  .tk-modal{background:#fff;border-radius:14px;padding:22px 24px;max-width:440px;width:90%;box-shadow:0 12px 44px rgba(0,0,0,.22)}
+  .reject-reasons{display:flex;flex-direction:column;gap:7px}
+  .reject-reasons button{text-align:left;padding:10px 14px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:13px;cursor:pointer;transition:.12s}
+  .reject-reasons button:hover{background:#ffebee;border-color:#d32f2f;color:#d32f2f}
 </style>
 </head>
 <body>
@@ -5863,14 +5870,11 @@ _ADMIN_HTML = """<!DOCTYPE html>
       <div class="panel">
         <h2>미등록 토큰 목록</h2>
         <p class="desc">분석 시 사전에 없는 단어가 자동으로 감지됩니다. 검색량이 높으면 승인하여 키워드 생성에 활용하세요.</p>
-        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-          <select id="tokenStatusFilter" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px">
-            <option value="pending">대기 중</option>
-            <option value="approved">승인됨</option>
-            <option value="rejected">거절됨</option>
-            <option value="">전체</option>
-          </select>
-          <button onclick="loadTokens()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">조회</button>
+        <div class="token-tabs" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+          <button class="ttab active" data-st="pending" onclick="setTokenTab('pending',this)">대기 중</button>
+          <button class="ttab" data-st="approved" onclick="setTokenTab('approved',this)">승인됨</button>
+          <button class="ttab" data-st="rejected" onclick="setTokenTab('rejected',this)">거절됨</button>
+          <button class="ttab" data-st="" onclick="setTokenTab('',this)">전체</button>
         </div>
         <table>
           <thead>
@@ -5888,6 +5892,18 @@ _ADMIN_HTML = """<!DOCTYPE html>
             <tr><td colspan="7" style="color:var(--sub);text-align:center;padding:24px">로딩 중...</td></tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- 거절 사유 선택 모달 -->
+      <div id="rejectModal" class="tk-modal-bg" style="display:none" onclick="if(event.target===this)closeRejectModal()">
+        <div class="tk-modal">
+          <h3 id="rejectModalTitle" style="margin:0 0 4px">토큰 거절</h3>
+          <p style="color:var(--sub);font-size:12.5px;margin:0 0 14px">거절 사유를 선택하세요 (추후 데이터 분석용)</p>
+          <div class="reject-reasons" id="rejectReasons"></div>
+          <div style="text-align:right;margin-top:14px">
+            <button onclick="closeRejectModal()" style="padding:8px 16px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:13px;cursor:pointer">취소</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -6130,8 +6146,15 @@ async function loadSendHistory(){
 }
 
 // ─── 토큰 관리 ───
+let _tokenTab='pending';
+function setTokenTab(status,btn){
+  _tokenTab=status;
+  document.querySelectorAll('.ttab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  loadTokens();
+}
 async function loadTokens(){
-  const status=document.getElementById('tokenStatusFilter')?.value||'pending';
+  const status=_tokenTab;
   const tb=document.getElementById('tokenTable');
   tb.innerHTML='<tr><td colspan="7" style="color:var(--sub);text-align:center;padding:24px">로딩 중...</td></tr>';
 
@@ -6212,30 +6235,34 @@ async function loadTokens(){
   }
 }
 
+// 승인: 원클릭 (사유 입력 없음)
 async function approveToken(id,token){
-  const reason=prompt(token+' 토큰을 승인합니다.\\n\\n승인 사유를 입력하세요 (선택):','업종 필수 서비스어');
-  if(reason===null)return;
+  if(!confirm('"'+token+'" 승인하시겠어요?\\n다음 분석부터 즉시 키워드에 반영됩니다.'))return;
   try{
-    const r=await fetch('/admin/api/token/'+id+'/approve?reason='+encodeURIComponent(reason),{method:'POST'});
-    if(r.ok){
-      alert(token+' 승인 완료!\\n\\n다음 분석부터 즉시 키워드 사전에 반영됩니다 (재배포 불필요).');
-      loadTokens();
-    }else{
-      alert('실패: '+await r.text());
-    }
+    const r=await fetch('/admin/api/token/'+id+'/approve?reason=',{method:'POST'});
+    if(r.ok){ loadTokens(); }
+    else{ alert('실패: '+await r.text()); }
   }catch(e){alert('오류: '+e.message);}
 }
 
-async function rejectToken(id,token){
-  const reason=prompt(token+' 토큰을 거절합니다.\\n\\n거절 사유를 입력하세요 (선택):','일반 단어 / 지명');
-  if(reason===null)return;
+// 거절: 세분화된 사유 선택 모달 (추후 데이터 분석용)
+const REJECT_REASONS=['일반 단어(사전 불필요)','지명·지역명','오타·깨진 조각','비사전 합성어(수식 결합)','브랜드·상호명','검색량 낮음','중복·유사어 있음','업종 무관','기타'];
+let _rejectId=null,_rejectTk='';
+function rejectToken(id,token){
+  _rejectId=id;_rejectTk=token;
+  document.getElementById('rejectModalTitle').textContent='"'+token+'" 거절';
+  document.getElementById('rejectReasons').innerHTML=REJECT_REASONS.map((r,i)=>'<button onclick="doReject('+i+')">'+r+'</button>').join('');
+  document.getElementById('rejectModal').style.display='flex';
+}
+function closeRejectModal(){document.getElementById('rejectModal').style.display='none';_rejectId=null;}
+async function doReject(idx){
+  if(_rejectId===null)return;
+  const id=_rejectId,reason=REJECT_REASONS[idx]||'기타';
   try{
     const r=await fetch('/admin/api/token/'+id+'/reject?reason='+encodeURIComponent(reason),{method:'POST'});
-    if(r.ok){
-      loadTokens();
-    }else{
-      alert('실패: '+await r.text());
-    }
+    closeRejectModal();
+    if(r.ok){ loadTokens(); }
+    else{ alert('실패: '+await r.text()); }
   }catch(e){alert('오류: '+e.message);}
 }
 
