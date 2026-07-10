@@ -637,6 +637,26 @@ async def get_store_details(page, url):
             except Exception:
                 pass
 
+        # 블로그 리뷰 수: Apollo에서 0으로 나오는 경우 블로그 리뷰 탭에서 직접 파싱
+        # 네이버가 cafeBlogReviewsTotal을 0으로 보내지만 실제로는 리뷰가 있는 경우 대응
+        if (blog_reviews is None or blog_reviews == 0) and p_id:
+            try:
+                blog_rev_url = f"https://pcmap.place.naver.com/place/{p_id}/review/ugc"
+                await page.goto(blog_rev_url, wait_until="domcontentloaded", timeout=12000)
+                await page.wait_for_timeout(2000)
+                # "리뷰64" 형태에서 숫자 추출
+                blog_count = await page.evaluate(r'''() => {
+                    const body = document.body ? document.body.innerText : "";
+                    // "리뷰N" 패턴 (블로그 리뷰 탭에서 표시되는 형태)
+                    const m = body.match(/리뷰\s*(\d+)/);
+                    return m ? parseInt(m[1]) : null;
+                }''')
+                if blog_count and blog_count > 0:
+                    blog_reviews = blog_count
+                    logger.info(f"  블로그 리뷰 탭에서 수집: {blog_reviews}개")
+            except Exception:
+                pass
+
         logger.info(
             f"리뷰: 방문자 {visitor_reviews} / 블로그 {blog_reviews} | "
             f"별점: {star_score} | 사진: {photo_count} | 최근리뷰: {latest_review_date} | "
