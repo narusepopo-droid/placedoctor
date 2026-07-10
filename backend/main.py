@@ -5782,7 +5782,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
           <button onclick="loadAnalysesFiltered()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">검색</button>
         </div>
         <table>
-          <thead><tr><th>매장명</th><th>분석유형</th><th>플레이스</th><th>지역/업종</th><th>지수</th><th>검색어</th><th>유입</th><th>시각</th></tr></thead>
+          <thead><tr><th>매장명</th><th>분석유형</th><th>플레이스</th><th>지역/업종</th><th>지수</th><th>유입</th><th>시각</th></tr></thead>
           <tbody id="recentTable"></tbody>
         </table>
         <!-- 페이지네이션 -->
@@ -6112,10 +6112,9 @@ async function loadAnalysesFiltered(page=0){
     if(x.has_place) typeBadges+='<span class="type-badge tb-place">플레이스</span>';
     if(x.has_blog) typeBadges+='<span class="type-badge tb-blog">블로그</span>';
     if(!typeBadges) typeBadges='<span style="color:var(--sub)">-</span>';
-    const searchQ=x.search_query||'-';
-    html+=`<tr><td>${x.store_name}${cntBadge}</td><td>${typeBadges}</td><td>${placeBtn}</td><td>${regionCat}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${searchQ}</td><td>${srcLabel}</td><td>${t}</td></tr>`;
+    html+=`<tr><td>${x.store_name}${cntBadge}</td><td>${typeBadges}</td><td>${placeBtn}</td><td>${regionCat}</td><td><b>${x.total_score?Math.round(x.total_score):'-'}</b></td><td>${srcLabel}</td><td>${t}</td></tr>`;
   });
-  document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="8" style="color:var(--sub);text-align:center">검색 결과가 없습니다</td></tr>';
+  document.getElementById('recentTable').innerHTML=html||'<tr><td colspan="7" style="color:var(--sub);text-align:center">검색 결과가 없습니다</td></tr>';
   const pages=Math.ceil(d.total/limit);
   let paging='';
   for(let i=0;i<pages&&i<10;i++){

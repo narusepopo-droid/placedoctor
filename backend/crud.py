@@ -552,8 +552,10 @@ def subscribe_alarm(
             )
             .first()
         )
-    # place_id가 없는 경우 번호+매장명으로 중복 판정
-    if not existing and phone and store_name and not place_id:
+    # 최종 fallback: 같은 번호+같은 매장명이면 place_id 상태와 무관하게 동일 리드로 병합.
+    #  (한쪽은 place_id 없이(휴대폰), 다른쪽은 place_id 있게(PC) 신청해 중복 행이 생기던
+    #   끌레르 케이스 방지 — 예전엔 'not place_id'일 때만 검사해서 놓쳤음)
+    if not existing and phone and store_name:
         existing = (
             db.query(models.Subscriber)
             .filter(
@@ -568,6 +570,9 @@ def subscribe_alarm(
         existing.phone = phone
         existing.store_name = store_name
         existing.store_url = store_url
+        # place_id 백필: 기존 행에 place_id가 없고 이번에 해석됐으면 채운다 (순위추적 가능해짐)
+        if place_id and not existing.place_id:
+            existing.place_id = place_id
         existing.alarm_on = True
         existing.agreed_at = now
         db.commit()
