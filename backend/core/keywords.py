@@ -232,7 +232,7 @@ def _find_tokens_in_kw(kw, locations):
     found = []
 
     # 1) 사전 매칭 (기존 로직 유지 - 회귀 방지)
-    dict_found = [t for t in _INTENT_TOKENS if len(t) >= 2 and t.lower() in remaining_lower]
+    dict_found = [t for t in _INTENT_TOKENS_EFF if len(t) >= 2 and t.lower() in remaining_lower]
     dict_found = [t for t in dict_found if not any(t != o and o.endswith(t) for o in dict_found)]
 
     # v8.44: 동음이의 함정어 제거 — 토큰이 함정어(고등어) 안에만 있고 독립 등장 안 하면 버림
@@ -465,7 +465,7 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
         #   방지 위해 추출 안 함 (v8.44 — 플마엔 없는 플랭 개선점, 유지).
         if _is_regional_biz:
             for landmark in re.findall(r'[가-힣]{2,4}(?:산|강|천|계곡|공원|호수)', kw):
-                if landmark not in locations and landmark not in _INTENT_TOKENS:
+                if landmark not in locations and landmark not in _INTENT_TOKENS_EFF:
                     locations.append(landmark)
 
     # v8.44: authoritative(주소·역·지점명) 지명은 그대로, keywordList에서 파생된 지명은
@@ -486,7 +486,7 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
         return sum(1 for loc in locations if loc and len(loc) >= 2 and loc in kw) >= 2
     def _has_intent(kw):
         kw_lower = kw.lower()
-        return any(t.lower() in kw_lower for t in _INTENT_TOKENS if len(t) >= 2)
+        return any(t.lower() in kw_lower for t in _INTENT_TOKENS_EFF if len(t) >= 2)
 
     kws = list(dict.fromkeys(
         k for k in kw_list
@@ -623,7 +623,7 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
         return w
 
     # v8.42: 쓰레기 키워드 필터
-    _intent_set = set(_INTENT_TOKENS)
+    _intent_set = set(_INTENT_TOKENS_EFF)
     def _is_garbage_kw(kw):
         parts = kw.split()
         last_token = parts[-1] if parts else kw
@@ -650,6 +650,22 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
 
 # ── 미등록 토큰 감지 ─────────────────────────────────────────────────────────────
 _INTENT_SET = frozenset(_INTENT_TOKENS)
+
+# ── 관리자 승인 토큰 런타임 반영 (승인 → 재배포 없이 즉시 엔진이 사용) ──────────────
+#  관리자페이지에서 승인한 미등록 토큰을 DB에서 불러와 유효 사전에 합친다.
+#  분석 직전 set_approved_tokens()를 호출하면 이후 조합·추출·검출이 이 토큰들도 인식.
+_APPROVED_TOKENS = []
+_INTENT_TOKENS_EFF = list(_INTENT_TOKENS)      # 유효 사전 = 기본 사전 + 승인 토큰
+_INTENT_SET_EFF = _INTENT_SET
+
+
+def set_approved_tokens(tokens):
+    """관리자 승인 토큰 목록을 엔진 유효 사전에 반영. (분석 시작 직전 호출)"""
+    global _APPROVED_TOKENS, _INTENT_TOKENS_EFF, _INTENT_SET_EFF
+    _APPROVED_TOKENS = [t.strip() for t in (tokens or [])
+                        if t and t.strip() and t.strip() not in _INTENT_SET]
+    _INTENT_TOKENS_EFF = _INTENT_TOKENS + _APPROVED_TOKENS
+    _INTENT_SET_EFF = frozenset(_INTENT_TOKENS_EFF)
 
 
 def detect_unregistered_tokens(store_name: str, category: str, menu_items: list,
@@ -685,7 +701,7 @@ def detect_unregistered_tokens(store_name: str, category: str, menu_items: list,
         # 앞부분이 지명이고 뒷부분이 사전에 있으면 조합된 것
         for i in range(2, len(clean) - 1):
             prefix, suffix = clean[:i], clean[i:]
-            if is_location(prefix) and suffix in _INTENT_SET:
+            if is_location(prefix) and suffix in _INTENT_SET_EFF:
                 return True
         return False
 
@@ -725,7 +741,7 @@ def detect_unregistered_tokens(store_name: str, category: str, menu_items: list,
 
     for token, source in candidates.items():
         # 이미 사전에 있으면 스킵
-        if token in _INTENT_SET:
+        if token in _INTENT_SET_EFF:
             continue
         # 지명이면 스킵
         if is_location(token):

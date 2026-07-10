@@ -4153,6 +4153,13 @@ async def diagnose_stream_endpoint(
     """
     import json as json_module
 
+    # 관리자 승인 미등록 토큰을 엔진 유효 사전에 반영 (승인 → 이 분석부터 즉시 조합·검색에 사용)
+    try:
+        from backend.core import keywords as _kwmod
+        _kwmod.set_approved_tokens(crud.get_approved_tokens(db))
+    except Exception:
+        pass
+
     place_id = _extract_place_id(place_url)
     ad_flags = {
         "place": ad_place,
