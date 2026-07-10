@@ -644,12 +644,27 @@ async def get_store_details(page, url):
                 blog_rev_url = f"https://pcmap.place.naver.com/place/{p_id}/review/ugc"
                 await page.goto(blog_rev_url, wait_until="domcontentloaded", timeout=12000)
                 await page.wait_for_timeout(2000)
-                # "리뷰64" 형태에서 숫자 추출
+                # "리뷰64" 형태에서 숫자 추출 (탭 영역의 "리뷰N", "OO리뷰 N"은 제외)
                 blog_count = await page.evaluate(r'''() => {
                     const body = document.body ? document.body.innerText : "";
-                    // "리뷰N" 패턴 (블로그 리뷰 탭에서 표시되는 형태)
-                    const m = body.match(/리뷰\s*(\d+)/);
-                    return m ? parseInt(m[1]) : null;
+                    // "리뷰N" 패턴 모두 찾기
+                    const matches = body.match(/리뷰\s*(\d+)/g) || [];
+                    // "XX리뷰 N" 형태(튜닝리뷰 66 등)가 아닌 순수 "리뷰N" 찾기
+                    for (const m of matches) {
+                        // "리뷰" 앞에 한글이 붙지 않은 것 (줄 시작이거나 공백 뒤)
+                        const idx = body.indexOf(m);
+                        if (idx === 0 || /[\s\n]/.test(body[idx-1])) {
+                            const num = m.match(/\d+/);
+                            if (num) return parseInt(num[0]);
+                        }
+                    }
+                    // 폴백: 마지막 "리뷰N" 사용 (보통 탭 영역이 마지막)
+                    if (matches.length > 0) {
+                        const last = matches[matches.length - 1];
+                        const num = last.match(/\d+/);
+                        if (num) return parseInt(num[0]);
+                    }
+                    return null;
                 }''')
                 if blog_count and blog_count > 0:
                     blog_reviews = blog_count
