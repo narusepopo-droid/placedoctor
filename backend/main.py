@@ -5843,7 +5843,6 @@ _ADMIN_HTML = """<!DOCTYPE html>
     <section class="page" id="tokens">
       <div class="head">
         <div><h1>토큰 관리</h1><p>사전에 없는 신규 서비스어 자동 감지 → 승인 시 키워드 생성에 반영</p></div>
-        <button class="btn" onclick="fetchTokenVolumes()"><i data-lucide="search" class="adm-icon"></i> 검색량 일괄 조회</button>
       </div>
 
       <div class="cards">
