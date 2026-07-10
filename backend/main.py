@@ -4305,17 +4305,19 @@ async def diagnose_stream_endpoint(
                         import logging
                         logging.getLogger(__name__).warning(f"DB 저장 실패: {e}")
 
-                    # 미등록 토큰 저장 + 검색량 자동 조회
+                    # 미등록 토큰 저장 (쓰레기통에 빠르게 넣기만 — 검색량 조회 안 함)
+                    #   검색량 네이버 API 호출을 분석 도중에 하면 이용자가 느려짐.
+                    #   → 여기선 저장만(monthly_search_volume=None). 검색량은 별도 백그라운드
+                    #     cron(fetch_search_volumes.py)이 나중에 자동 조회해 채운다.
                     detected_tokens = result.get("detected_tokens", [])
                     if detected_tokens:
                         import logging
                         logger = logging.getLogger(__name__)
-                        logger.info(f"[토큰 저장] {len(detected_tokens)}개 미등록 토큰 발견")
+                        logger.info(f"[토큰 저장] {len(detected_tokens)}개 미등록 토큰 발견 (검색량은 추후 백그라운드 조회)")
 
-                        saved_tokens = []
                         for t in detected_tokens[:20]:  # 과도한 저장 방지
                             try:
-                                saved = crud.save_unregistered_token(
+                                crud.save_unregistered_token(
                                     db,
                                     token=t["token"],
                                     store_name=result.get("store_name"),
@@ -4323,25 +4325,8 @@ async def diagnose_stream_endpoint(
                                     category=result.get("category"),
                                     source_field=t.get("source"),
                                 )
-                                # 새로 저장된 토큰만 검색량 조회 대상
-                                if saved and saved.monthly_search_volume is None:
-                                    saved_tokens.append(saved)
                             except Exception as e:
                                 logger.warning(f"토큰 저장 실패 [{t['token']}]: {e}")
-
-                        # 검색량 자동 조회
-                        if saved_tokens:
-                            try:
-                                from backend.services.naver_ad import get_search_volume
-                                keywords = [t.token for t in saved_tokens]
-                                volumes = await get_search_volume(keywords)
-                                for t in saved_tokens:
-                                    vol = volumes.get(t.token)
-                                    if vol is not None:
-                                        crud.update_token_search_volume(db, t.id, vol)
-                                        logger.info(f"[검색량] {t.token}: {vol:,}회/월")
-                            except Exception as e:
-                                logger.warning(f"검색량 자동 조회 실패: {e}")
 
                     yield f"event: complete\ndata: {json_module.dumps(result, ensure_ascii=False)}\n\n"
                 else:
