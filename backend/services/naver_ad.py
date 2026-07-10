@@ -67,11 +67,12 @@ async def get_search_volume(keywords: list[str]) -> dict[str, int | None]:
     result = {kw: None for kw in keywords}
 
     try:
-        headers = _get_headers(method, uri)
-
         # 키워드별로 개별 조회 (한번에 여러개는 hintKeywords 방식)
         async with httpx.AsyncClient(timeout=30.0) as client:
             for kw in keywords:
+                # 서명 헤더는 요청마다 새로 생성 — X-Timestamp 신선도를 네이버가 검증하므로
+                # 루프 밖에서 한 번만 만들면 뒤쪽 요청이 시간 지나 거부(None)됨.
+                headers = _get_headers(method, uri)
                 params = {
                     "hintKeywords": kw,
                     "showDetail": "1",
