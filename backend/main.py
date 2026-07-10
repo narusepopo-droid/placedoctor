@@ -4366,6 +4366,13 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
     import json as json_module
     place_id = _extract_place_id(req.place_url)
 
+    # 관리자 승인 미등록 토큰을 엔진 유효 사전에 반영 (승인 → 이 분석부터 즉시 사용)
+    try:
+        from backend.core import keywords as _kwmod
+        _kwmod.set_approved_tokens(crud.get_approved_tokens(db))
+    except Exception:
+        pass
+
     # 키워드광고 체크박스 입력
     ad_flags = {
         "place":     req.ad_place,
@@ -4566,6 +4573,11 @@ async def analyze_blog_standalone(req: schemas.BlogStandaloneRequest, db: Sessio
     """
     import json as json_module
     from .core.keywords import generate_keywords
+    from backend.core import keywords as _kwmod
+    try:
+        _kwmod.set_approved_tokens(crud.get_approved_tokens(db))
+    except Exception:
+        pass
 
     place_id = _extract_place_id(req.place_url)
     keywords = []
@@ -4729,6 +4741,11 @@ async def analyze_blog_stream_endpoint(
     """
     import json as json_module
     from .core.scraper import analyze_blog_stream
+    from backend.core import keywords as _kwmod
+    try:
+        _kwmod.set_approved_tokens(crud.get_approved_tokens(db))
+    except Exception:
+        pass
 
     place_id = _extract_place_id(place_url)
     keywords = []
