@@ -4305,6 +4305,25 @@ async def diagnose_stream_endpoint(
                         import logging
                         logging.getLogger(__name__).warning(f"DB 저장 실패: {e}")
 
+                    # 미등록 토큰 저장 + 검색량 조회
+                    detected_tokens = result.get("detected_tokens", [])
+                    if detected_tokens:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.info(f"[토큰 저장] {len(detected_tokens)}개 미등록 토큰 발견")
+                        for t in detected_tokens[:20]:  # 과도한 저장 방지
+                            try:
+                                crud.save_unregistered_token(
+                                    db,
+                                    token=t["token"],
+                                    store_name=result.get("store_name"),
+                                    place_id=result_place_id,
+                                    category=result.get("category"),
+                                    source_field=t.get("source"),
+                                )
+                            except Exception as e:
+                                logger.warning(f"토큰 저장 실패 [{t['token']}]: {e}")
+
                     yield f"event: complete\ndata: {json_module.dumps(result, ensure_ascii=False)}\n\n"
                 else:
                     yield f"event: {event_type}\ndata: {json_module.dumps(event, ensure_ascii=False)}\n\n"
@@ -5361,6 +5380,97 @@ def admin_region_stats(
     return crud.get_region_stats(db)
 
 
+@app.get("/admin/api/unregistered-tokens", tags=["관리자"])
+def admin_unregistered_tokens(
+    status: str = None,
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """미등록 토큰 목록 조회"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    tokens = crud.get_unregistered_tokens(db, status=status, limit=200)
+    return [
+        {
+            "id": t.id,
+            "token": t.token,
+            "source_store_name": t.source_store_name,
+            "source_category": t.source_category,
+            "source_field": t.source_field,
+            "monthly_search_volume": t.monthly_search_volume,
+            "hit_count": t.hit_count,
+            "categories_seen": t.categories_seen,
+            "status": t.status,
+            "approval_reason": t.approval_reason,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        }
+        for t in tokens
+    ]
+
+
+@app.post("/admin/api/token/{token_id}/approve", tags=["관리자"])
+def admin_approve_token(
+    token_id: int,
+    reason: str = "",
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """토큰 승인 (사전에 추가 대기)"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    ok = crud.update_token_status(db, token_id, "approved", reason=reason)
+    if not ok:
+        raise HTTPException(status_code=404, detail="토큰 없음")
+    return {"ok": True}
+
+
+@app.post("/admin/api/token/{token_id}/reject", tags=["관리자"])
+def admin_reject_token(
+    token_id: int,
+    reason: str = "",
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """토큰 거절 (사전에 추가 안 함)"""
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+    ok = crud.update_token_status(db, token_id, "rejected", reason=reason)
+    if not ok:
+        raise HTTPException(status_code=404, detail="토큰 없음")
+    return {"ok": True}
+
+
+@app.post("/admin/api/tokens/fetch-volume", tags=["관리자"])
+async def admin_fetch_token_volume(
+    admin_session: Opt[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """
+    pending 상태 토큰들의 검색량을 네이버 광고 API로 조회해서 업데이트.
+    한 번에 최대 50개 처리.
+    """
+    if not _check_admin(admin_session):
+        raise HTTPException(status_code=401, detail="로그인 필요")
+
+    from backend.services.naver_ad import get_search_volume
+
+    tokens = crud.get_pending_tokens_for_volume_check(db, limit=50)
+    if not tokens:
+        return {"updated": 0, "message": "검색량 조회 필요한 토큰 없음"}
+
+    keyword_list = [t.token for t in tokens]
+    volumes = await get_search_volume(keyword_list)
+
+    updated = 0
+    for t in tokens:
+        vol = volumes.get(t.token)
+        if vol is not None:
+            crud.update_token_search_volume(db, t.id, vol)
+            updated += 1
+
+    return {"updated": updated, "total": len(tokens)}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 관리자 페이지 HTML
 # ─────────────────────────────────────────────────────────────────────────────
@@ -5525,6 +5635,26 @@ _ADMIN_HTML = """<!DOCTYPE html>
     .chart-grid{grid-template-columns:1fr}
     .insight-grid{grid-template-columns:1fr}
   }
+  /* 토큰 관리 */
+  .token-word{font-weight:700;font-size:15px;color:var(--ink)}
+  .token-vol{font-weight:700;color:var(--green-d)}
+  .token-vol.low{color:var(--sub)}
+  .token-vol.high{color:#E65100}
+  .token-source{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;background:#f0f4f8;color:var(--sub)}
+  .token-source.menu{background:#fff3e0;color:#e65100}
+  .token-source.tag{background:#e3f2fd;color:#1976d2}
+  .token-source.keyword_list{background:#f3e5f5;color:#7b1fa2}
+  .token-source.category{background:#e8f5e9;color:#388e3c}
+  .token-cats{font-size:12px;color:var(--sub);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .token-btn{padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-right:4px}
+  .token-btn.approve{background:var(--green-soft);color:var(--green-d)}
+  .token-btn.approve:hover{background:var(--green);color:#fff}
+  .token-btn.reject{background:#ffebee;color:#d32f2f}
+  .token-btn.reject:hover{background:#d32f2f;color:#fff}
+  .token-status{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700}
+  .token-status.approved{background:var(--green-soft);color:var(--green-d)}
+  .token-status.rejected{background:#ffebee;color:#d32f2f}
+  .token-status.pending{background:#fff3e0;color:#e65100}
 </style>
 </head>
 <body>
@@ -5550,6 +5680,7 @@ _ADMIN_HTML = """<!DOCTYPE html>
       <button class="on" data-p="dash"><i data-lucide="layout-dashboard" class="adm-icon"></i> 대시보드</button>
       <button data-p="lead"><i data-lucide="users" class="adm-icon"></i> 회원·리드</button>
       <button data-p="store"><i data-lucide="bar-chart-3" class="adm-icon"></i> 분석 인사이트</button>
+      <button data-p="tokens"><i data-lucide="sparkles" class="adm-icon"></i> 토큰 관리</button>
       <button data-p="alim"><i data-lucide="message-square" class="adm-icon"></i> 알림톡 관리</button>
     </nav>
     <div class="side-foot"><a onclick="doLogout()">로그아웃</a></div>
@@ -5689,6 +5820,50 @@ _ADMIN_HTML = """<!DOCTYPE html>
       </div>
     </section>
 
+    <!-- 토큰 관리 -->
+    <section class="page" id="tokens">
+      <div class="head">
+        <div><h1>토큰 관리</h1><p>사전에 없는 신규 서비스어 자동 감지 → 승인 시 키워드 생성에 반영</p></div>
+        <button class="btn" onclick="fetchTokenVolumes()"><i data-lucide="search" class="adm-icon"></i> 검색량 일괄 조회</button>
+      </div>
+
+      <div class="cards">
+        <div class="card"><div class="lbl">대기 중</div><div class="num" id="tokenPending">-</div></div>
+        <div class="card hl"><div class="lbl">승인됨</div><div class="num" id="tokenApproved">-</div></div>
+        <div class="card"><div class="lbl">거절됨</div><div class="num" id="tokenRejected">-</div></div>
+      </div>
+
+      <div class="panel">
+        <h2>미등록 토큰 목록</h2>
+        <p class="desc">분석 시 사전에 없는 단어가 자동으로 감지됩니다. 검색량이 높으면 승인하여 키워드 생성에 활용하세요.</p>
+        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <select id="tokenStatusFilter" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+            <option value="pending">대기 중</option>
+            <option value="approved">승인됨</option>
+            <option value="rejected">거절됨</option>
+            <option value="">전체</option>
+          </select>
+          <button onclick="loadTokens()" style="padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">조회</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>토큰</th>
+              <th>월간 검색량</th>
+              <th>발견 횟수</th>
+              <th>출처</th>
+              <th>발견 업종</th>
+              <th>등록일</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody id="tokenTable">
+            <tr><td colspan="7" style="color:var(--sub);text-align:center;padding:24px">로딩 중...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- 알림톡 관리 -->
     <section class="page" id="alim">
       <div class="head"><div><h1>알림톡 관리</h1><p>승인 골격은 고정 · 아래 추가문구만 자유롭게 수정</p></div></div>
@@ -5796,6 +5971,7 @@ async function loadAll(){
   loadMonitor();
   loadTemplates();
   loadSendHistory();
+  loadTokens();
 }
 
 let dailyChart=null, sourceChart=null;
@@ -5924,6 +6100,120 @@ async function loadSendHistory(){
   }catch(e){
     tb.innerHTML='<tr><td colspan="4" style="color:var(--sub);text-align:center;padding:24px">이력을 불러오지 못했습니다</td></tr>';
   }
+}
+
+// ─── 토큰 관리 ───
+async function loadTokens(){
+  const status=document.getElementById('tokenStatusFilter')?.value||'pending';
+  const tb=document.getElementById('tokenTable');
+  tb.innerHTML='<tr><td colspan="7" style="color:var(--sub);text-align:center;padding:24px">로딩 중...</td></tr>';
+
+  try{
+    const r=await fetch('/admin/api/unregistered-tokens'+(status?'?status='+status:''));
+    const d=await r.json();
+
+    // 카운트 업데이트
+    let pending=0,approved=0,rejected=0;
+    const allR=await fetch('/admin/api/unregistered-tokens');
+    const allD=await allR.json();
+    allD.forEach(t=>{
+      if(t.status==='pending')pending++;
+      else if(t.status==='approved')approved++;
+      else if(t.status==='rejected')rejected++;
+    });
+    document.getElementById('tokenPending').textContent=pending;
+    document.getElementById('tokenApproved').textContent=approved;
+    document.getElementById('tokenRejected').textContent=rejected;
+
+    if(!d.length){
+      tb.innerHTML='<tr><td colspan="7" style="color:var(--sub);text-align:center;padding:24px">토큰이 없습니다</td></tr>';
+      return;
+    }
+
+    let html='';
+    d.forEach(t=>{
+      const vol=t.monthly_search_volume;
+      let volClass='';
+      let volText='미조회';
+      if(vol!==null){
+        volText=vol.toLocaleString()+'회/월';
+        if(vol>=10000)volClass='high';
+        else if(vol<1000)volClass='low';
+      }
+
+      const srcClass=t.source_field||'';
+      const srcLabel={'menu':'메뉴','tag':'태그','keyword_list':'키워드','category':'업종'}[t.source_field]||t.source_field||'-';
+
+      let cats='-';
+      if(t.categories_seen){
+        try{
+          const arr=JSON.parse(t.categories_seen);
+          cats=arr.join(', ');
+        }catch(e){}
+      }
+
+      const dt=t.created_at?new Date(t.created_at).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}):'';
+
+      let actionHtml='';
+      if(t.status==='pending'){
+        actionHtml=`<button class="token-btn approve" onclick="approveToken(${t.id},'${t.token}')">승인</button>
+          <button class="token-btn reject" onclick="rejectToken(${t.id},'${t.token}')">거절</button>`;
+      }else{
+        const reason=t.approval_reason?` title="${t.approval_reason}"`:'';
+        actionHtml=`<span class="token-status ${t.status}"${reason}>${t.status==='approved'?'승인됨':'거절됨'}</span>`;
+      }
+
+      html+=`<tr>
+        <td><span class="token-word">${t.token}</span></td>
+        <td><span class="token-vol ${volClass}">${volText}</span></td>
+        <td>${t.hit_count}회</td>
+        <td><span class="token-source ${srcClass}">${srcLabel}</span></td>
+        <td class="token-cats" title="${cats}">${cats}</td>
+        <td>${dt}</td>
+        <td>${actionHtml}</td>
+      </tr>`;
+    });
+    tb.innerHTML=html;
+  }catch(e){
+    tb.innerHTML='<tr><td colspan="7" style="color:var(--red);text-align:center;padding:24px">로드 실패: '+e.message+'</td></tr>';
+  }
+}
+
+async function approveToken(id,token){
+  const reason=prompt(token+' 토큰을 승인합니다.\\n\\n승인 사유를 입력하세요 (선택):','업종 필수 서비스어');
+  if(reason===null)return;
+  try{
+    const r=await fetch('/admin/api/token/'+id+'/approve?reason='+encodeURIComponent(reason),{method:'POST'});
+    if(r.ok){
+      alert(token+' 승인 완료!\\n\\n다음 배포 시 키워드 사전에 반영됩니다.');
+      loadTokens();
+    }else{
+      alert('실패: '+await r.text());
+    }
+  }catch(e){alert('오류: '+e.message);}
+}
+
+async function rejectToken(id,token){
+  const reason=prompt(token+' 토큰을 거절합니다.\\n\\n거절 사유를 입력하세요 (선택):','일반 단어 / 지명');
+  if(reason===null)return;
+  try{
+    const r=await fetch('/admin/api/token/'+id+'/reject?reason='+encodeURIComponent(reason),{method:'POST'});
+    if(r.ok){
+      loadTokens();
+    }else{
+      alert('실패: '+await r.text());
+    }
+  }catch(e){alert('오류: '+e.message);}
+}
+
+async function fetchTokenVolumes(){
+  if(!confirm('네이버 광고 API로 검색량을 조회합니다.\\n(최대 50개 토큰)'))return;
+  try{
+    const r=await fetch('/admin/api/tokens/fetch-volume',{method:'POST'});
+    const d=await r.json();
+    alert('검색량 조회 완료!\\n\\n업데이트: '+d.updated+'개 / 전체: '+d.total+'개');
+    loadTokens();
+  }catch(e){alert('오류: '+e.message);}
 }
 
 async function loadStats(){

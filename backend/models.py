@@ -207,3 +207,23 @@ class SiteVisit(Base):
     anon_id    = Column(String(36), index=True, nullable=True)
     source     = Column(String(100), nullable=True)  # utm_source
     path       = Column(String(200), nullable=True)  # 방문 경로 (/, /admin 등)
+
+
+class UnregisteredToken(Base):
+    """미등록 토큰 (사전에 없는 신규 업종어 감지)"""
+    __tablename__ = "unregistered_tokens"
+
+    id                    = Column(Integer, primary_key=True, index=True)
+    token                 = Column(String(100), nullable=False, unique=True, index=True)
+    source_store_name     = Column(String(200), nullable=True)   # 최초 발견 매장명
+    source_place_id       = Column(String(20), nullable=True)
+    source_category       = Column(String(100), nullable=True)   # 매장 업종
+    source_field          = Column(String(50), nullable=True)    # 발견 위치: menu/category/tag/official_keywords
+    monthly_search_volume = Column(Integer, nullable=True)        # 네이버 월간 검색량
+    search_volume_updated = Column(DateTime(timezone=True), nullable=True)  # 검색량 조회 시각
+    hit_count             = Column(Integer, default=1)            # 발견 횟수
+    categories_seen       = Column(Text, nullable=True)           # JSON: 이 토큰이 나타난 카테고리 목록 ["에스테틱", "피부과", ...]
+    status                = Column(String(20), default="pending") # pending | approved | rejected
+    approval_reason       = Column(String(200), nullable=True)    # 승인/거절 사유
+    created_at            = Column(DateTime(timezone=True), default=_now)
+    updated_at            = Column(DateTime(timezone=True), default=_now, onupdate=_now)

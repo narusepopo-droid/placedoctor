@@ -649,3 +649,70 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
     deduped = [k for k in deduped if ' ' in k or k in _kw_set]
 
     return deduped[:100]
+
+
+# ── 미등록 토큰 감지 ─────────────────────────────────────────────────────────────
+_INTENT_SET = frozenset(_INTENT_TOKENS)
+
+
+def detect_unregistered_tokens(store_name: str, category: str, menu_items: list,
+                                official_keywords: list, keyword_list: list) -> list[dict]:
+    """
+    사전(_INTENT_TOKENS)에 없는 신규 토큰 감지.
+
+    Returns:
+        미등록 토큰 목록 [{"token": "...", "source": "keyword_list|tag|menu|category"}, ...]
+    """
+    candidates = {}  # token -> source_field
+
+    def add_candidate(token: str, source: str):
+        clean = re.sub(r'[^가-힣]', '', token)
+        if 2 <= len(clean) <= 10 and clean not in candidates:
+            candidates[clean] = source
+
+    # keywordList에서 토큰 추출 (네이버 검색 키워드)
+    for kw in (keyword_list or []):
+        add_candidate(kw, "keyword_list")
+        for part in kw.split():
+            add_candidate(part, "keyword_list")
+
+    # official_keywords에서 토큰 추출 (매장 태그)
+    for kw in (official_keywords or []):
+        add_candidate(kw, "tag")
+        for part in kw.split():
+            add_candidate(part, "tag")
+
+    # menu에서 토큰 추출
+    for menu in (menu_items or []):
+        add_candidate(menu, "menu")
+
+    # 카테고리에서 토큰 추출
+    for cat in (category or "").split(","):
+        add_candidate(cat.strip(), "category")
+
+    # 필터링: 사전에 없고, 지명이 아닌 것만
+    _LOC_SUFFIXES = ('동', '구', '시', '군', '읍', '면', '리', '역', '산', '강', '천')
+    _COMMON_WORDS = {'전문', '추천', '후기', '리뷰', '가격', '비용', '문의', '상담', '예약',
+                     '매장', '가게', '샵', '스토어', '센터', '하우스', '플레이스', '스튜디오'}
+    unregistered = []
+
+    for token, source in candidates.items():
+        # 이미 사전에 있으면 스킵
+        if token in _INTENT_SET:
+            continue
+        # 지명 suffix로 끝나면 스킵 (지역명일 가능성)
+        if any(token.endswith(s) for s in _LOC_SUFFIXES):
+            continue
+        # 너무 짧으면 스킵
+        if len(token) < 2:
+            continue
+        # 한글 없으면 스킵
+        if not re.search(r'[가-힣]', token):
+            continue
+        # 흔한 단어 스킵
+        if token in _COMMON_WORDS:
+            continue
+
+        unregistered.append({"token": token, "source": source})
+
+    return unregistered

@@ -1718,3 +1718,133 @@ def get_week_comparison(db: Session) -> dict:
             "leads": calc_change(this_leads, last_leads),
         }
     }
+
+
+# ── 미등록 토큰 관리 ──────────────────────────────────────────────────────────────
+
+def save_unregistered_token(
+    db: Session,
+    token: str,
+    store_name: str = None,
+    place_id: str = None,
+    category: str = None,
+    source_field: str = None,
+) -> models.UnregisteredToken | None:
+    """
+    미등록 토큰 저장.
+    이미 있으면 hit_count 증가 + 카테고리 목록에 추가.
+    """
+    existing = db.query(models.UnregisteredToken).filter(
+        models.UnregisteredToken.token == token
+    ).first()
+
+    if existing:
+        existing.hit_count += 1
+        existing.updated_at = datetime.now(timezone.utc)
+        # 카테고리 목록 업데이트 (중복 제거)
+        if category:
+            try:
+                cats = json.loads(existing.categories_seen or "[]")
+            except:
+                cats = []
+            if category not in cats:
+                cats.append(category)
+                existing.categories_seen = json.dumps(cats, ensure_ascii=False)
+        db.commit()
+        return existing
+
+    # 새 토큰 생성
+    cats_json = json.dumps([category], ensure_ascii=False) if category else None
+    new_token = models.UnregisteredToken(
+        token=token,
+        source_store_name=store_name,
+        source_place_id=place_id,
+        source_category=category,
+        source_field=source_field,
+        categories_seen=cats_json,
+        status="pending",
+    )
+    db.add(new_token)
+    db.commit()
+    db.refresh(new_token)
+    return new_token
+
+
+def get_unregistered_tokens(
+    db: Session,
+    status: str = None,
+    limit: int = 100,
+) -> list[models.UnregisteredToken]:
+    """
+    미등록 토큰 목록 조회.
+    검색량이 있는 것 우선, 그 다음 hit_count 순.
+    """
+    query = db.query(models.UnregisteredToken)
+    if status:
+        query = query.filter(models.UnregisteredToken.status == status)
+
+    return query.order_by(
+        models.UnregisteredToken.monthly_search_volume.desc().nullslast(),
+        models.UnregisteredToken.hit_count.desc(),
+        models.UnregisteredToken.created_at.desc(),
+    ).limit(limit).all()
+
+
+def update_token_search_volume(
+    db: Session,
+    token_id: int,
+    volume: int | None,
+) -> bool:
+    """검색량 업데이트"""
+    token = db.query(models.UnregisteredToken).filter(
+        models.UnregisteredToken.id == token_id
+    ).first()
+    if not token:
+        return False
+
+    token.monthly_search_volume = volume
+    token.search_volume_updated = datetime.now(timezone.utc)
+    db.commit()
+    return True
+
+
+def update_token_status(
+    db: Session,
+    token_id: int,
+    status: str,
+    reason: str = None,
+) -> bool:
+    """토큰 상태 변경 (pending → approved/rejected) + 사유 기록"""
+    token = db.query(models.UnregisteredToken).filter(
+        models.UnregisteredToken.id == token_id
+    ).first()
+    if not token:
+        return False
+
+    token.status = status
+    if reason:
+        token.approval_reason = reason
+    token.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return True
+
+
+def get_approved_tokens(db: Session) -> list[str]:
+    """승인된 토큰 목록 (사전에 추가할 후보)"""
+    tokens = db.query(models.UnregisteredToken.token).filter(
+        models.UnregisteredToken.status == "approved"
+    ).all()
+    return [t[0] for t in tokens]
+
+
+def get_pending_tokens_for_volume_check(
+    db: Session,
+    limit: int = 50,
+) -> list[models.UnregisteredToken]:
+    """검색량 조회가 필요한 토큰 (volume이 None인 pending 토큰)"""
+    return db.query(models.UnregisteredToken).filter(
+        models.UnregisteredToken.status == "pending",
+        models.UnregisteredToken.monthly_search_volume.is_(None),
+    ).order_by(
+        models.UnregisteredToken.created_at.desc()
+    ).limit(limit).all()

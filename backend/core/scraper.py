@@ -21,7 +21,7 @@ import urllib.parse
 
 from playwright.async_api import async_playwright
 
-from .keywords import generate_keywords
+from .keywords import generate_keywords, detect_unregistered_tokens
 from .scoring import calculate_scores
 
 logger = logging.getLogger(__name__)
@@ -1602,6 +1602,18 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
             logger.info(f"  {i:2d}. {kw}")
         logger.info("=" * 60)
 
+        # ── 미등록 토큰 감지 (사전에 없는 서비스어 자동 발굴) ────────────────
+        detected_tokens = detect_unregistered_tokens(
+            store_name=store_name,
+            category=category,
+            menu_items=menu_items,
+            official_keywords=official_keywords,
+            keyword_list=keyword_list,
+        )
+        if detected_tokens:
+            logger.info(f"[미등록 토큰 감지] {len(detected_tokens)}개: "
+                        f"{[t['token'] for t in detected_tokens[:10]]}...")
+
         # ── 병렬 키워드 순위 검색 ─────────────────────────────────────────
         # P단계: 경쟁사 비교는 이 키워드 검색 결과를 재사용한다(추가 요청 0 = 속도 개선).
         # 기존엔 경쟁사에 get_store_details(주소·키워드·리뷰·m.place 리뷰탭) 전체 크롤 →
@@ -1679,6 +1691,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
             "competitor":         competitor,
             "scores":             scores,
             "ad_flags":           ad_flags or {},
+            "detected_tokens":    detected_tokens,  # 미등록 토큰 [{token, source}, ...]
         }
     finally:
         await close_browser(playwright, browser)
@@ -1731,6 +1744,15 @@ async def diagnose_store_stream(
                 nearby_stations=nearby_stations,
                 keyword_list=keyword_list,
             )[:MAX_KW]
+
+        # ── 미등록 토큰 감지 ──
+        detected_tokens = detect_unregistered_tokens(
+            store_name=store_name,
+            category=category,
+            menu_items=menu_items,
+            official_keywords=official_keywords,
+            keyword_list=keyword_list,
+        )
 
         # ⭐ started 이벤트 즉시 전송 (504 방지 핵심)
         yield {
@@ -1854,6 +1876,7 @@ async def diagnose_store_stream(
                 "competitor": competitor,
                 "scores": scores,
                 "ad_flags": ad_flags or {},
+                "detected_tokens": detected_tokens,
             }
         }
     finally:
