@@ -407,53 +407,77 @@ async def get_store_details(page, url):
                 return null;
             }
 
-            // 방문자 리뷰: JSON 우선, DOM 텍스트·Apollo state 폴백
-            let visitorReviews = mNum([
-                /"visitorReviewCount"\\s*:\\s*(\\d+)/,
-                /"visitorReviewsTotal"\\s*:\\s*(\\d+)/,
-                /"reviewCount"\\s*:\\s*(\\d+)/,
-                /"visitor_review_count"\\s*:\\s*(\\d+)/,
-                /"totalReviewCount"\\s*:\\s*(\\d+)/,
-                /"placeReviewCount"\\s*:\\s*(\\d+)/
-            ]) ?? domNum([/방문자\\s*리뷰?\\s*([\\d,]+)/, /방문자\\s*([\\d,]+)\\s*개/]);
-            if (visitorReviews === null || visitorReviews === undefined) {
-                try {
-                    const _st = window.__APOLLO_STATE__;
-                    if (_st) {
-                        for (const _v of Object.values(_st)) {
-                            if (_v && typeof _v === 'object' && typeof _v.visitorReviewCount === 'number' && _v.visitorReviewCount > 0) {
+            // 방문자 리뷰: Apollo state 1순위 (가장 신뢰) → JSON 정규식 → DOM 텍스트
+            let visitorReviews = null;
+            try {
+                const _st = window.__APOLLO_STATE__;
+                if (_st) {
+                    for (const _v of Object.values(_st)) {
+                        if (_v && typeof _v === 'object') {
+                            // visitorReviewsTotal (현재 네이버 메인 키)
+                            if (typeof _v.visitorReviewsTotal === 'number' && _v.visitorReviewsTotal > 0) {
+                                visitorReviews = _v.visitorReviewsTotal; break;
+                            }
+                            // visitorReviewCount (구버전 호환)
+                            if (typeof _v.visitorReviewCount === 'number' && _v.visitorReviewCount > 0) {
                                 visitorReviews = _v.visitorReviewCount; break;
                             }
                         }
                     }
-                } catch(e) {}
+                }
+            } catch(e) {}
+            // JSON 정규식 폴백
+            if (visitorReviews === null) {
+                visitorReviews = mNum([
+                    /"visitorReviewsTotal"\\s*:\\s*(\\d+)/,
+                    /"visitorReviewCount"\\s*:\\s*(\\d+)/,
+                    /"reviewCount"\\s*:\\s*(\\d+)/,
+                    /"totalReviewCount"\\s*:\\s*(\\d+)/,
+                    /"placeReviewCount"\\s*:\\s*(\\d+)/
+                ]);
+            }
+            // DOM 텍스트 폴백
+            if (visitorReviews === null) {
+                visitorReviews = domNum([/방문자\\s*리뷰?\\s*([\\d,]+)/, /방문자\\s*([\\d,]+)\\s*개/]);
             }
 
-            // 블로그 리뷰: JSON + DOM
-            let blogReviews =
-                mNum([/"cafeBlogReviewsTotal"\\s*:\\s*(\\d+)/, /"blogCafeReviewCount"\\s*:\\s*(\\d+)/, /"blogReviewCount"\\s*:\\s*(\\d+)/, /"fsasReviewsTotal"\\s*:\\s*(\\d+)/]) ||
-                domNum([/블로그\\s*리뷰?\\s*([\\d,]+)/, /블로그([\\d,]+)/, /blog[\\s:]*([\\d,]+)/i]);
-            // Apollo state 폴백 (visitorReviewCount와 동일 방식) — blog/cafe 리뷰 카운트 키 탐색
-            if (blogReviews === null || blogReviews === undefined) {
-                try {
-                    const _st = window.__APOLLO_STATE__;
-                    if (_st) {
-                        for (const _v of Object.values(_st)) {
-                            if (!_v || typeof _v !== 'object') continue;
+            // 블로그 리뷰: Apollo state 1순위 → JSON 정규식 → DOM 텍스트
+            let blogReviews = null;
+            try {
+                const _st = window.__APOLLO_STATE__;
+                if (_st) {
+                    for (const _v of Object.values(_st)) {
+                        if (_v && typeof _v === 'object') {
+                            // cafeBlogReviewsTotal (현재 네이버 메인 키)
+                            if (typeof _v.cafeBlogReviewsTotal === 'number' && _v.cafeBlogReviewsTotal > 0) {
+                                blogReviews = _v.cafeBlogReviewsTotal; break;
+                            }
+                            // 기타 blog/cafe 관련 키
                             for (const _k of Object.keys(_v)) {
                                 const _kl = _k.toLowerCase();
                                 if ((_kl.includes('blog') || _kl.includes('cafe')) && _kl.includes('review')
                                         && (_kl.includes('count') || _kl.includes('total'))) {
                                     const _n = _v[_k];
-                                    // > 0 만 인정 (visitorReviewCount 폴백과 동일) — 0값 키는
-                                    // 잘못된 필드일 수 있어 무시하고 정직하게 None(정보없음) 유지.
                                     if (typeof _n === 'number' && _n > 0) { blogReviews = _n; break; }
                                 }
                             }
-                            if (blogReviews !== null && blogReviews !== undefined) break;
+                            if (blogReviews !== null) break;
                         }
                     }
-                } catch(e) {}
+                }
+            } catch(e) {}
+            // JSON 정규식 폴백
+            if (blogReviews === null) {
+                blogReviews = mNum([
+                    /"cafeBlogReviewsTotal"\\s*:\\s*(\\d+)/,
+                    /"blogCafeReviewCount"\\s*:\\s*(\\d+)/,
+                    /"blogReviewCount"\\s*:\\s*(\\d+)/,
+                    /"fsasReviewsTotal"\\s*:\\s*(\\d+)/
+                ]);
+            }
+            // DOM 텍스트 폴백
+            if (blogReviews === null) {
+                blogReviews = domNum([/블로그\\s*리뷰?\\s*([\\d,]+)/, /블로그([\\d,]+)/, /blog[\\s:]*([\\d,]+)/i]);
             }
 
             // 별점: DOM 텍스트 우선 (1.0~5.0 범위 숫자)
@@ -466,25 +490,39 @@ async def get_store_details(page, url):
                 domNum([/사진\\s*([\\d,]+)/, /포토\\s*([\\d,]+)/]) ||
                 mNum([/"representativePhotoCount"\\s*:\\s*(\\d+)/, /"photoCount"\\s*:\\s*(\\d+)/, /"imageCount"\\s*:\\s*(\\d+)/]);
 
-            // 최근 리뷰 날짜: JSON 패턴 (리뷰 탭 차단 시에도 메인에서 추출 시도)
-            let latestReview = mStr([
-                /"latestVisitorReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
-                /"latestReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
-                /"recentReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
-                /"created"\\s*:\\s*"(20[12]\\d[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/
-            ]);
-            // B단계: 메인페이지 "date" 전역 스캔 제거 — 추천/고정 리뷰의 옛 날짜를
-            // 최신 리뷰로 잘못 잡아 최근활동 점수를 왜곡시켰음(예: 7개월 전 날짜).
-            // 최신 리뷰 날짜는 아래 리뷰 탭(최신순 맨 위)에서만 신뢰해 가져온다.
+            // 최근 리뷰 날짜: Apollo state 1순위 → JSON 정규식 폴백
+            let latestReview = null;
+            try {
+                const _st = window.__APOLLO_STATE__;
+                if (_st) {
+                    for (const _v of Object.values(_st)) {
+                        if (_v && typeof _v === 'object' && typeof _v.date === 'string') {
+                            // "2026.07.04." 형태 → "2026.07.04"로 정규화
+                            const d = _v.date.replace(/\\.+$/, '');
+                            if (/^20\\d{2}\\.\\d{2}\\.\\d{2}$/.test(d)) {
+                                latestReview = d; break;
+                            }
+                        }
+                    }
+                }
+            } catch(e) {}
+            // JSON 정규식 폴백
+            if (!latestReview) {
+                latestReview = mStr([
+                    /"latestVisitorReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
+                    /"latestReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
+                    /"recentReviewDate"\\s*:\\s*"(\\d{4}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/,
+                    /"date"\\s*:\\s*"(20\\d{2}[.\\-\\/]\\d{2}[.\\-\\/]\\d{2})"/
+                ]);
+            }
             return { visitorReviews, blogReviews, starScore, photoCount, latestReview };
         }''')
         visitor_reviews  = review_data.get("visitorReviews")
         blog_reviews     = review_data.get("blogReviews")
         star_score       = review_data.get("starScore")
         photo_count      = review_data.get("photoCount")
-        # B단계: 메인페이지 날짜는 신뢰도 낮아 미사용. 최신 리뷰 날짜는 리뷰 탭(최신순 맨 위)에서만
-        # 설정한다. 리뷰 탭이 차단/실패하면 None으로 둔다(거짓 옛 날짜보다 "수집 실패"가 정확).
-        latest_review_date = None
+        # 메인 페이지 Apollo state에서 가져온 날짜 (리뷰 탭 실패 시 폴백으로 사용)
+        latest_review_date = review_data.get("latestReview")
 
         # 블로그리뷰·사진수·별점이 없으면 모바일 페이지에서 보완
         if (blog_reviews is None or photo_count is None or star_score is None) and p_id:
