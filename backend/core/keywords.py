@@ -619,22 +619,26 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
             _si_words.add(_t); _si_words.add(_t[:-1])
 
     def _loc_tier(loc):
-        """1=동(최우선) · 2=역 · 3=랜드마크 · 4=구 · 5=시(최하위)"""
+        """1=정식동 · 2=역 · 3=동파생bare · 4=랜드마크 · 5=구 · 6=시(최하위)
+        정식 동(논현동)은 역보다 우선하되, 중복인 bare 동(논현)은 역 뒤로 내려
+        MAX_KW 안에 '동(논현동) + 역(신논현역)'이 둘 다 들어가게 한다."""
         if not loc or len(loc) < 2:
-            return 5
-        if loc.endswith('동') or loc in _dong_words:
+            return 6
+        if loc.endswith('동'):
             return 1
         if loc.endswith('역'):
             return 2
-        if loc[-1] in ('산', '강', '천', '호') or loc[-2:] in ('공원', '계곡', '호수'):
+        if loc in _dong_words:          # 동에서 파생된 bare (논현) — 정식동/역 다음
             return 3
-        if loc.endswith('구') or loc in _gu_words:
+        if loc[-1] in ('산', '강', '천', '호') or loc[-2:] in ('공원', '계곡', '호수'):
             return 4
-        if loc.endswith('시') or loc in _si_words:
+        if loc.endswith('구') or loc in _gu_words:
             return 5
-        return 2  # 알 수 없는 bare 지명(역·랜드마크 base 등) → 구보다 앞
+        if loc.endswith('시') or loc in _si_words:
+            return 6
+        return 2  # 알 수 없는 bare 지명(역·랜드마크 base 등) → 역급
 
-    _TIER_W = {1: 50, 2: 40, 3: 35, 4: 20, 5: 10}
+    _TIER_W = {1: 50, 2: 40, 3: 38, 4: 35, 5: 20, 6: 10}
     _kw_list_set = set(kw_list)
 
     def sort_weight(kw):
