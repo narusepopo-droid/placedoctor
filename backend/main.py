@@ -3826,16 +3826,121 @@ def track_visit(
 
 
 @app.get("/sitemap.xml", tags=["SEO"])
-async def sitemap():
-    content = """<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://placeranking.com/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-</urlset>"""
+async def sitemap(db: Session = Depends(get_db)):
+    from urllib.parse import quote
+    urls = ['<url><loc>https://placeranking.com/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>',
+            '<url><loc>https://placeranking.com/rank</loc><changefreq>daily</changefreq><priority>0.9</priority></url>']
+    try:
+        for item in crud.get_keyword_rankings(db):
+            slug = quote(item["keyword"].replace(" ", "-"))
+            urls.append(f'<url><loc>https://placeranking.com/rank/{slug}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>')
+    except Exception:
+        pass
+    content = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+               '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+               + "\n".join(urls) + "\n</urlset>")
     return Response(content=content, media_type="application/xml")
+
+
+# ── 자동 SEO 콘텐츠: 지역+업종 순위 페이지 (분석 데이터 → 검색 유입 자가증식) ──────
+_SEO_CSS = """
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,'Malgun Gothic',sans-serif;color:#1a1f24;background:#f6f8f7;line-height:1.6}
+.wrap{max-width:720px;margin:0 auto;padding:20px 16px 60px}
+.top{display:flex;align-items:center;gap:8px;padding:14px 0}.top a{color:#03c75a;font-weight:800;text-decoration:none;font-size:18px}
+h1{font-size:22px;margin:18px 0 6px;line-height:1.35}.sub{color:#5b6770;font-size:14px;margin:0 0 18px}
+.card{background:#fff;border:1px solid #e5eae7;border-radius:14px;padding:18px;margin:14px 0}
+table{width:100%;border-collapse:collapse}td{padding:11px 8px;border-bottom:1px solid #eef2f0;font-size:15px}
+.rk{font-weight:800;color:#03c75a;width:64px}.rk.top{color:#e8a400}
+.cta{display:block;text-align:center;background:#03c75a;color:#fff;font-weight:800;font-size:17px;padding:16px;border-radius:12px;text-decoration:none;margin:20px 0}
+.note{color:#5b6770;font-size:13.5px}.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chip{background:#fff;border:1px solid #e5eae7;border-radius:20px;padding:7px 13px;font-size:13.5px;text-decoration:none;color:#1a1f24}
+.chip:hover{border-color:#03c75a;color:#03c75a}.foot{color:#9aa5ad;font-size:12.5px;text-align:center;margin-top:30px}
+h2{font-size:16px;margin:22px 0 8px}
+"""
+
+def _seo_head(title, desc, canonical, jsonld=""):
+    ld = f'<script type="application/ld+json">{jsonld}</script>' if jsonld else ""
+    return (f'<!doctype html><html lang="ko"><head><meta charset="utf-8">'
+            f'<meta name="viewport" content="width=device-width,initial-scale=1">'
+            f'<title>{title}</title><meta name="description" content="{desc}">'
+            f'<link rel="canonical" href="{canonical}">'
+            f'<meta property="og:title" content="{title}"><meta property="og:description" content="{desc}">'
+            f'<meta property="og:type" content="website"><meta name="robots" content="index,follow">'
+            f'<style>{_SEO_CSS}</style>{ld}</head><body><div class="wrap">'
+            f'<div class="top"><a href="/">📊 플레이스랭킹</a></div>')
+
+_SEO_FOOT = ('<a class="cta" href="/">👉 내 가게 순위 무료로 확인하기</a>'
+             '<p class="foot">플레이스랭킹 · 네이버 플레이스 순위 무료 진단 · '
+             '<a href="/rank" style="color:#9aa5ad">전체 순위</a></p></div></body></html>')
+
+
+@app.get("/rank", response_class=HTMLResponse, include_in_schema=False)
+async def rank_index(db: Session = Depends(get_db)):
+    from urllib.parse import quote
+    import html as _h
+    data = crud.get_keyword_rankings(db)
+    # 지역별 그룹
+    by_region = {}
+    for it in data:
+        by_region.setdefault(it["region"], []).append(it)
+    title = "지역별·업종별 네이버 플레이스 순위 | 플레이스랭킹"
+    desc = "지역·업종별 네이버 플레이스 실제 순위를 한눈에. 내 가게 순위도 무료로 바로 확인하세요."
+    body = ['<h1>지역별 · 업종별 플레이스 순위</h1>',
+            '<p class="sub">네이버 플레이스에서 어떤 가게가 몇 위인지, 실제 분석 데이터로 확인하세요.</p>']
+    for region in sorted(by_region.keys()):
+        items = by_region[region]
+        body.append(f'<h2>{_h.escape(region)}</h2><div class="chips">')
+        for it in sorted(items, key=lambda x: len(x["stores"]), reverse=True)[:40]:
+            slug = quote(it["keyword"].replace(" ", "-"))
+            body.append(f'<a class="chip" href="/rank/{slug}">{_h.escape(it["service"])} <b>({len(it["stores"])})</b></a>')
+        body.append('</div>')
+    if not data:
+        body.append('<div class="card note">아직 분석 데이터가 쌓이는 중입니다. 매장을 분석할수록 이 페이지가 풍성해집니다.</div>')
+    return HTMLResponse(_seo_head(title, desc, "https://placeranking.com/rank") + "".join(body) + _SEO_FOOT)
+
+
+@app.get("/rank/{slug}", response_class=HTMLResponse, include_in_schema=False)
+async def rank_detail(slug: str, db: Session = Depends(get_db)):
+    from urllib.parse import quote, unquote
+    import html as _h
+    keyword = unquote(slug).replace("-", " ").strip()
+    data = crud.get_keyword_rankings(db)
+    item = next((x for x in data if x["keyword"] == keyword), None)
+    if not item:
+        # 없으면 인덱스로
+        return HTMLResponse(status_code=404, content=_seo_head(
+            "순위 정보 없음 | 플레이스랭킹", "요청하신 순위 페이지가 아직 없습니다.",
+            "https://placeranking.com/rank") + '<h1>아직 데이터가 없어요</h1>'
+            '<p class="sub">이 키워드는 아직 분석 기록이 없습니다.</p>' + _SEO_FOOT)
+    kw = item["keyword"]; region = item["region"]; service = item["service"]; stores = item["stores"]
+    n = len(stores)
+    title = f"{kw} 순위 TOP {n} | 네이버 플레이스 순위 - 플레이스랭킹"
+    desc = f"{kw} 네이버 플레이스 순위 데이터 {n}건. {region}에서 {service} 검색 시 상위 노출 매장을 확인하고, 내 가게 순위도 무료로 진단하세요."
+    items_ld = ",".join(
+        f'{{"@type":"ListItem","position":{i},"name":"{_h.escape(nm)}"}}'
+        for i, (nm, pid, rk) in enumerate(stores, 1))
+    jsonld = ('{"@context":"https://schema.org","@type":"ItemList",'
+              f'"name":"{_h.escape(kw)} 순위","numberOfItems":{n},"itemListElement":[{items_ld}]}}')
+    rows = ""
+    for nm, pid, rk in stores:
+        cls = "rk top" if rk <= 3 else "rk"
+        rows += f'<tr><td class="{cls}">{rk}위</td><td>{_h.escape(nm)}</td></tr>'
+    # 인근 관련 페이지(같은 지역 다른 업종) 내부링크
+    related = [x for x in data if x["region"] == region and x["keyword"] != kw][:8]
+    rel_html = ""
+    if related:
+        rel_html = '<h2>' + _h.escape(region) + ' 다른 업종 순위</h2><div class="chips">'
+        for x in related:
+            rel_html += f'<a class="chip" href="/rank/{quote(x["keyword"].replace(" ","-"))}">{_h.escape(x["service"])}</a>'
+        rel_html += '</div>'
+    body = (f'<h1>{_h.escape(kw)} 네이버 플레이스 순위</h1>'
+            f'<p class="sub">{_h.escape(region)}에서 <b>{_h.escape(service)}</b> 검색 시 상위 노출된 매장입니다. '
+            f'(플레이스랭킹 분석 데이터 · {n}건)</p>'
+            f'<div class="card"><table>{rows}</table></div>'
+            f'<p class="note">순위는 분석 시점 기준이며 실시간과 다를 수 있습니다. '
+            f'내 가게가 여기 없거나 순위를 올리고 싶다면 아래에서 무료로 진단해 보세요.</p>'
+            + rel_html)
+    return HTMLResponse(_seo_head(title, desc, f"https://placeranking.com/rank/{quote(kw.replace(' ','-'))}", jsonld) + body + _SEO_FOOT)
 
 
 @app.get("/search-place", tags=["검색"])

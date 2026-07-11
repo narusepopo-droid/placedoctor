@@ -1853,3 +1853,59 @@ def get_pending_tokens_for_volume_check(
     ).order_by(
         models.UnregisteredToken.created_at.desc()
     ).limit(limit).all()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 자동 SEO 콘텐츠 — 분석 데이터로 "지역+업종 순위" 페이지 생성 (검색 유입 자가증식)
+# ─────────────────────────────────────────────────────────────────────────────
+import time as _time
+_seo_cache = {"ts": 0, "data": None}
+
+def get_keyword_rankings(db: Session, limit: int = 800, ttl: int = 600) -> list[dict]:
+    """분석된 place_results를 키워드별로 집계 (SEO 페이지용).
+    반환: [{keyword, region, service, stores:[[name, place_id, rank], ...]}, ...]
+    매장 수 많은 순. 10분 캐시(크롤 부하 없이 DB만)."""
+    now = _time.time()
+    if _seo_cache["data"] is not None and now - _seo_cache["ts"] < ttl:
+        return _seo_cache["data"]
+    rows = (
+        db.query(models.AnalysisHistory)
+        .filter(
+            models.AnalysisHistory.analysis_type == "place",
+            models.AnalysisHistory.result_json.isnot(None),
+        )
+        .order_by(models.AnalysisHistory.analyzed_at.desc())
+        .all()
+    )
+    agg = {}  # keyword -> {place_id: [name, rank]}
+    for r in rows:
+        try:
+            d = json.loads(r.result_json)
+        except Exception:
+            continue
+        store = d.get("store_name")
+        pid = d.get("place_id")
+        if not store or not pid:
+            continue
+        for p in (d.get("place_results") or []):
+            kw = p.get("keyword")
+            rank = p.get("rank")
+            if not kw or not rank or " " not in kw:
+                continue
+            m = agg.setdefault(kw, {})
+            if pid not in m or rank < m[pid][1]:
+                m[pid] = [store, rank]
+    out = []
+    for kw, m in agg.items():
+        stores = sorted(([n, pid, rk] for pid, (n, rk) in m.items()), key=lambda x: x[2])
+        parts = kw.split()
+        out.append({
+            "keyword": kw,
+            "region": parts[0],
+            "service": " ".join(parts[1:]),
+            "stores": stores,
+        })
+    out.sort(key=lambda x: (len(x["stores"]), -min(s[2] for s in x["stores"])), reverse=True)
+    _seo_cache["ts"] = now
+    _seo_cache["data"] = out[:limit]
+    return _seo_cache["data"]
