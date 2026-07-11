@@ -669,17 +669,30 @@ def set_approved_tokens(tokens):
 
 
 def detect_unregistered_tokens(store_name: str, category: str, menu_items: list,
-                                official_keywords: list, keyword_list: list) -> list[dict]:
+                                official_keywords: list, keyword_list: list,
+                                address: str = "") -> list[dict]:
     """
     사전(_INTENT_TOKENS)에 없는 신규 토큰 감지.
 
     목적: 새로운 업종 서비스어 발견 → 승인 → 사전 추가 → 키워드 조합에 사용
-    예: "유리막코팅" 발견 → 승인 → 이후 "김포 유리막코팅" 자동 생성
+    예: "김포유리막코팅" 발견 → 지역(김포) 떼고 "유리막코팅"만 후보 → 승인 →
+        이후 "김포 유리막코팅" 자동 생성
 
     Returns:
         미등록 토큰 목록 [{"token": "...", "source": "tag|menu|category"}, ...]
     """
     candidates = {}  # token -> source_field
+
+    # 주소에서 지역 prefix 추출 → 후보에서 지역을 떼어 '서비스어'만 남긴다
+    #   (김포유리막코팅 → 유리막코팅). 구/동/시/군/읍/면 행정 토큰과 그 base만.
+    _loc_prefixes = set()
+    for _atok in re.split(r'[\s,]+', address or ''):
+        _atok = re.sub(r'[^가-힣]', '', _atok)
+        if len(_atok) >= 2 and _atok[-1] in '구동시군읍면':
+            _loc_prefixes.add(_atok)
+            if len(_atok[:-1]) >= 2:
+                _loc_prefixes.add(_atok[:-1])
+    _loc_sorted = sorted(_loc_prefixes, key=len, reverse=True)
 
     # 지명 suffix (이걸로 끝나면 지명으로 간주)
     _LOC_SUFFIXES = ('동', '구', '시', '군', '읍', '면', '리', '역', '산', '강', '천', '로', '길')
@@ -707,6 +720,11 @@ def detect_unregistered_tokens(store_name: str, category: str, menu_items: list,
 
     def add_candidate(token: str, source: str):
         clean = re.sub(r'[^가-힣]', '', token)
+        # 지역 prefix 제거 (김포유리막코팅 → 유리막코팅) — 서비스어만 후보로
+        for _lp in _loc_sorted:
+            if len(clean) > len(_lp) + 1 and clean.startswith(_lp):
+                clean = clean[len(_lp):]
+                break
         if 2 <= len(clean) <= 10 and clean not in candidates:
             # 이미 조합된 키워드면 스킵 (범계역혼밥 = 범계역 + 혼밥)
             if not is_combined_keyword(clean):
@@ -737,9 +755,6 @@ def detect_unregistered_tokens(store_name: str, category: str, menu_items: list,
     _COMMON_WORDS = {'전문', '추천', '후기', '리뷰', '가격', '비용', '문의', '상담', '예약',
                      '매장', '가게', '샵', '스토어', '센터', '하우스', '플레이스', '스튜디오',
                      '맛집', '카페', '음식점', '식당', '레스토랑'}
-    # 서비스어가 아닌 사양·수식 조각 — 승인 큐 오염 방지
-    _JUNK_SUBSTR = ('전체부분', '반부분', '전부분')                 # 조각으로 포함만 해도 쓰레기(김포전체부분)
-    _JUNK_EXACT = {'전체', '부분', '시공', '설치', '교체', '수리'}  # 단독일 때만 쓰레기(난로시공 등 복합어는 유지)
     unregistered = []
 
     for token, source in candidates.items():
@@ -758,17 +773,9 @@ def detect_unregistered_tokens(store_name: str, category: str, menu_items: list,
         # 흔한 단어 스킵
         if token in _COMMON_WORDS:
             continue
-        # v8.46: 발견 큐 오염 방지 (검색량 API를 쓰레기에 낭비하지 않도록 애초에 차단)
-        # ① 반복 조각 (생보종생보종 = 생보종×2)
-        if len(token) >= 4 and len(token) % 2 == 0 and token[:len(token)//2] == token[len(token)//2:]:
-            continue
-        # ② 사전 단어를 조각으로 포함 = [알려진 서비스어]+[군더더기] 합성어 (랩핑전체부분 ← 랩핑)
-        #    신규 '원자' 서비스어가 아니고, 그 부분들은 이미 조합에 반영되므로 발견 불필요
-        if any(d in token for d in _INTENT_SET_EFF if 2 <= len(d) < len(token)):
-            continue
-        # ③ 사양·수식 조각 (전체부분 포함/단독)
-        if any(j in token for j in _JUNK_SUBSTR) or token in _JUNK_EXACT:
-            continue
+        # ※ 여기서 쓰레기 후보(생보종생보종·전체부분류 등)를 미리 걸러내지 않는다.
+        #   사용자 결정: 발견은 폭넓게 하고 승인/거절은 관리자가 검색량 보고 직접 판단.
+        #   (지역은 add_candidate에서 이미 제거돼 '서비스어'만 후보로 올라감)
 
         unregistered.append({"token": token, "source": source})
 

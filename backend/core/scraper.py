@@ -1609,6 +1609,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
             menu_items=menu_items,
             official_keywords=official_keywords,
             keyword_list=keyword_list,
+            address=address,
         )
         if detected_tokens:
             logger.info(f"[미등록 토큰 감지] {len(detected_tokens)}개: "
@@ -1752,6 +1753,7 @@ async def diagnose_store_stream(
             menu_items=menu_items,
             official_keywords=official_keywords,
             keyword_list=keyword_list,
+            address=address,
         )
 
         # ⭐ started 이벤트 즉시 전송 (504 방지 핵심)
