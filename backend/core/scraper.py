@@ -259,8 +259,12 @@ async def get_store_details(page, url):
                     if (m && REGIONS.some(r => m[1].includes(r))) roadAddr = m[1];
                 }
                 if (!jibunAddr) {
-                    const m = t.match(/"jibunAddress"\\s*:\\s*"([^"]{5,80})"/);
-                    if (m && REGIONS.some(r => m[1].includes(r))) jibunAddr = m[1];
+                    // 네이버는 지번주소를 'jibunAddress'가 아니라 'address' 키로 준다.
+                    //   roadAddress=도로명(강남대로), address=지번(논현동 165-8).
+                    //   지번엔 '동/리'가 있고 도로명엔 '로/길'이라, 동/리 포함일 때만 지번으로 채택.
+                    let m = t.match(/"jibunAddress"\\s*:\\s*"([^"]{5,80})"/);
+                    if (!m) m = t.match(/"address"\\s*:\\s*"([^"]{5,80})"/);
+                    if (m && REGIONS.some(r => m[1].includes(r)) && /[가-힣]{2}(동|리)/.test(m[1])) jibunAddr = m[1];
                 }
                 if (roadAddr && jibunAddr) break;
             }
@@ -315,8 +319,9 @@ async def get_store_details(page, url):
                         if (m) road = m[1];
                     }
                     if (!jibun) {
-                        const m = t.match(/"jibunAddress"\\s*:\\s*"([^"]+)"/);
-                        if (m) jibun = m[1];
+                        let m = t.match(/"jibunAddress"\\s*:\\s*"([^"]+)"/);
+                        if (!m) m = t.match(/"address"\\s*:\\s*"([^"]{5,80})"/);
+                        if (m && /[가-힣]{2}(동|리)/.test(m[1])) jibun = m[1];
                     }
                     if (road && jibun) break;
                 }
