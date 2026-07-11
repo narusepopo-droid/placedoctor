@@ -285,8 +285,9 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                 clean_name = clean_name.replace(loc_match.group(0), "").strip()
             break
 
-    # 검색량 많은 구 → 지역명 화이트리스트 (강남 맛집, 종로 카페 등 검색 패턴)
-    # 해당 구에 위치하면 무조건 위치 키워드에 추가
+    # 구 → bare 지역명 화이트리스트 (여기 있는 구만 bare 지명으로 검색, 나머지 구는 검색 제외)
+    #  v8.47: 구-접미(강남구)는 너무 광범위해 순위 안 잡힘 → 생성 안 함. bare(강남)만 사용.
+    #  화이트리스트에 없는 구는 아예 제외(동·역·시로만 검색). 서울 외 구는 사용자 지정분만 추가.
     _GU_TO_LOCATIONS = {
         "강남구": ["강남"],
         "서초구": ["서초"],
@@ -296,8 +297,6 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
         "종로구": ["종로"],
         "영등포구": ["영등포"],
         "동대문구": ["동대문"],
-        "성동구": ["성수"],           # 성수동이 더 유명
-        "중구": ["명동", "을지로"],   # 중구 자체보단 동 단위
         "노원구": ["노원"],
     }
 
@@ -305,11 +304,10 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
     addr_tokens = address.replace(",", " ").split()
     for token in addr_tokens:
         if token.endswith("구") and len(token) > 1:
-            locations.append(token)  # 강남구 추가
-            # 화이트리스트 구만 지역명 추가 (강남구 → 강남, 중구 → 명동/을지로)
-            # v8.44: 명동·을지로·성수 등은 서울 전용 지명. '중구'는 대전·부산·대구에도
-            #        있어 대전 중구에 '명동'을 붙이는 오류가 있었음 → 서울 주소일 때만 적용.
-            if token in _GU_TO_LOCATIONS and address.startswith("서울"):
+            # v8.47: 구-접미(강남구)는 생성 안 함(너무 광범위·순위 미검출).
+            #   화이트리스트에 있는 구만 bare 지역명(강남)을 추가. 나머지 구는 검색 제외.
+            #   (화이트리스트가 곧 게이트 — 강남구 등은 서울 전용 명칭이라 서울 조건 불필요)
+            if token in _GU_TO_LOCATIONS:
                 locations.extend(_GU_TO_LOCATIONS[token])
         elif token.endswith("군") and len(token) > 1:
             locations.append(token[:-1])
