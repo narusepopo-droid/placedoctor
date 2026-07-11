@@ -361,7 +361,9 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
             for _line in ["신분당선", "수인분당선", "경의중앙선", "경춘선", "경강선",
                           "서해선", "신림선", "우이신설선", "김포골드라인", "김포골드",
                           "용인경전철", "의정부경전철", "인천1호선", "인천2호선",
-                          "에버라인", "김포도시철도", "우이신설"]:
+                          "에버라인", "김포도시철도", "우이신설",
+                          # 노선 약칭(선 없이 붙는 형태) — 신분당신논현역 → 신논현역
+                          "신분당", "수인분당", "경의중앙"]:
                 _station_clean = _station_clean.replace(_line, "")
             _station_clean = re.sub(r'\d호선|공항철도', '', _station_clean).strip()
 
@@ -598,27 +600,53 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
     # ── 중복 제거 + 정렬 (동탄 > 동탄역, 지역명 우선) ───────────────────────────────
     _kl_text = ''.join(kw_list_raw)
 
+    # ── 지역 단위 우선순위 (작은 단위 먼저): 동 > 역 > 랜드마크 > 구 > 시 ─────────
+    #  대도시(지하철有)는 구가 슬롯을 다 먹으면 동·역이 MAX_KW에서 잘려 검출 0.
+    #  '강남구 병원'류는 너무 광범위해 매장이 거의 안 잡힘 → 구를 뒤로.
+    #  소도시(제천 등)는 동/구/역이 없어 시·랜드마크가 자동으로 최상위가 됨.
+    _gu_words, _dong_words, _si_words = set(), set(), set()
+    for _t in addr_tokens:
+        if _t.endswith('구') and len(_t) > 1:
+            _gu_words.add(_t); _gu_words.add(_t[:-1])
+            for _e in _GU_TO_LOCATIONS.get(_t, []):
+                _gu_words.add(_e)
+        elif _t.endswith('동') and len(_t) > 1 and _t not in ["공동", "이동", "감동", "행동"]:
+            _dong_words.add(_t)
+            _dn = re.sub(r'\d+$', '', _t.replace('동', ''))
+            if len(_dn) >= 2:
+                _dong_words.add(_dn); _dong_words.add(_dn + '동')
+        elif _t.endswith('시') and len(_t) > 1:
+            _si_words.add(_t); _si_words.add(_t[:-1])
+
+    def _loc_tier(loc):
+        """1=동(최우선) · 2=역 · 3=랜드마크 · 4=구 · 5=시(최하위)"""
+        if not loc or len(loc) < 2:
+            return 5
+        if loc.endswith('동') or loc in _dong_words:
+            return 1
+        if loc.endswith('역'):
+            return 2
+        if loc[-1] in ('산', '강', '천', '호') or loc[-2:] in ('공원', '계곡', '호수'):
+            return 3
+        if loc.endswith('구') or loc in _gu_words:
+            return 4
+        if loc.endswith('시') or loc in _si_words:
+            return 5
+        return 2  # 알 수 없는 bare 지명(역·랜드마크 base 등) → 구보다 앞
+
+    _TIER_W = {1: 50, 2: 40, 3: 35, 4: 20, 5: 10}
+    _kw_list_set = set(kw_list)
+
     def sort_weight(kw):
-        if kw in set(kw_list): return 1000
-        w = 0
-
-        # "역" 포함 키워드는 무조건 후순위
-        if "역" in kw:
-            w += 10
-        # "동" 또는 "구" 포함 (동탄구, 영천동 등)
-        elif "동" in kw or "구" in kw:
-            w += 40
-        # 그 외 지역 (동탄 등)
-        else:
-            for loc in locations:
-                if loc and loc in kw and not loc.endswith('역'):
-                    w += 30
-                    break
-
-        # keywordList에 있는 지역과 매칭되면 보너스
-        for loc in locations:
-            if loc and len(loc) >= 3 and loc in kw and loc in _kl_text:
-                w += 15
+        if kw in _kw_list_set:
+            return 1000  # 대표키워드(업주 등록) 최우선
+        parts = kw.split()
+        loc = parts[0] if len(parts) >= 2 else ''
+        w = _TIER_W[_loc_tier(loc)]
+        # keywordList에 등장하는 지역명(긴 것) 보너스
+        for l in locations:
+            if l and len(l) >= 3 and l in kw and l in _kl_text:
+                w += 5
                 break
         return w
 
