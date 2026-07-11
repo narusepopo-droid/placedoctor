@@ -869,6 +869,10 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
         </div>
       </section>
 
+      <div style="text-align:center;margin:22px 0 4px">
+        <a href="/rank" style="color:var(--green);font-weight:700;text-decoration:none;font-size:.95rem">📊 지역별 · 업종별 네이버 플레이스 순위 한눈에 보기 →</a>
+      </div>
+
       <div class="search-divider" id="searchStart">
         <div class="sd-title">내 매장 순위, 지금 확인</div>
         <div class="sd-sub">아래에 매장 정보를 입력하세요</div>
