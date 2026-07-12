@@ -1446,38 +1446,41 @@ def _build_competitor_compare(place_results: list, my_place_id: str) -> dict:
 
     status:
       'ok'        → cards 있음
-      'no_sa'     → S/A급 키워드 자체가 없음 (상위 노출 키워드 부재)
-      'all_first' → S/A급 키워드가 있으나 전부 내가 1위 (칭찬)
-    """
-    grades = _calc_grades(place_results)
-    rmap = {r["keyword"]: r for r in place_results}
-    sa = [kw for kw in grades if grades[kw] in ("S", "A")]
-    if not sa:
-        return {"status": "no_sa", "cards": [], "first_place_keywords": []}
+      'no_rank'   → 내가 순위권(1~30위)에 든 키워드 자체가 없음
+      'all_first' → 순위권 키워드가 있으나 전부 내가 1위 (칭찬)
 
-    first_place = [kw for kw in sa if rmap.get(kw, {}).get("rank") == 1]
-    # 비교 후보: S/A이면서 내가 1위가 아닌 키워드 (rank != 1; rank None=순위권 밖도 포함)
-    cand = [kw for kw in sa if rmap.get(kw, {}).get("rank") != 1]
+    ※ businesses_total(등급) 수집은 속도 때문에 대부분 None이라 등급 기준으로 뽑으면
+      경쟁사 비교가 거의 항상 비었었음(Q단계). → 등급 의존을 없애고, "내가 순위권에 들었지만
+      1위가 아닌 키워드"를 순위 좋은 순(2위→3위…, '거의 다 왔다')으로 최대 3개 보여준다.
+      등급(grade)은 businesses_total이 있을 때만 뱃지에 곁들인다(없으면 None).
+    """
+    grades = _calc_grades(place_results)  # businesses_total 있을 때만 채워짐(없으면 {})
+    ranked = [r for r in place_results if r.get("rank")]
+    if not ranked:
+        return {"status": "no_rank", "cards": [], "first_place_keywords": []}
+
+    first_place = [r["keyword"] for r in ranked if r["rank"] == 1]
+    # 비교 후보: 내가 1위가 아닌 순위권 키워드
+    cand = [r for r in ranked if r["rank"] != 1]
     if not cand:
         return {"status": "all_first", "cards": [], "first_place_keywords": first_place}
 
-    grade_order = {"S": 0, "A": 1}
-    cand.sort(key=lambda kw: (grade_order.get(grades[kw], 9),
-                              -(rmap[kw].get("businesses_total") or 0)))
+    # 순위 좋은 순(2위→3위…, 격차 작은 것 우선 = "역전 가능" 동기부여),
+    # 동순위면 경쟁 치열한 곳(businesses_total 큰 순) 먼저
+    cand.sort(key=lambda r: (r["rank"], -(r.get("businesses_total") or 0)))
     cards = []
-    for kw in cand[:3]:
-        r = rmap[kw]
+    for r in cand[:3]:
         my_rank = r.get("rank")
         cards.append({
-            "keyword":         kw,
-            "grade":           grades[kw],
+            "keyword":         r["keyword"],
+            "grade":           grades.get(r["keyword"]),  # None 가능
             "my_rank":         my_rank,
             "competitor_id":   r.get("first_id"),
             "competitor_name": r.get("first_name") or None,
             "competitor_rank": 1,
             "gap":             (my_rank - 1) if my_rank else None,
         })
-    logger.info(f"  [경쟁사 비교] S/A {len(sa)}개 중 비교 {len(cards)}개: "
+    logger.info(f"  [경쟁사 비교] 순위권 {len(ranked)}개 중 비교 {len(cards)}개: "
                 f"{[(c['keyword'], c['grade'], c['my_rank']) for c in cards]}")
     return {"status": "ok", "cards": cards, "first_place_keywords": first_place}
 
@@ -1783,13 +1786,14 @@ async def diagnose_store_stream(
         async def _rank_task(kw: str, idx: int):
             pg = await page_pool.get()
             try:
+                await results_queue.put(("scan", kw))  # 시작 알림(현재 분석 중 키워드)
                 r, bt, first_id, first_name = await check_place_rank(pg, kw, place_id)
                 result = {"keyword": kw, "rank": r, "businesses_total": bt,
                           "first_id": first_id, "first_name": first_name}
-                await results_queue.put((idx, result))
+                await results_queue.put(("done", idx, result))
             except Exception as e:
                 logger.warning(f"[{kw}] 순위 검색 실패: {e}")
-                await results_queue.put((idx, {"keyword": kw, "rank": None, "businesses_total": None,
+                await results_queue.put(("done", idx, {"keyword": kw, "rank": None, "businesses_total": None,
                                                 "first_id": None, "first_name": None}))
             finally:
                 await page_pool.put(pg)
@@ -1803,7 +1807,12 @@ async def diagnose_store_stream(
         results_map = {}
 
         while completed < total:
-            idx, result = await results_queue.get()
+            item = await results_queue.get()
+            if item[0] == "scan":
+                yield {"type": "keyword_scanning", "keyword": item[1],
+                       "progress": completed, "total": total}
+                continue
+            _, idx, result = item
             results_map[idx] = result
             completed += 1
 
@@ -2074,6 +2083,7 @@ async def analyze_blog_stream(
             pg = await search_pool.get()
             ip = await insp_pool.get()
             try:
+                await results_queue.put(("scan", kw))  # 시작 알림(현재 분석 중 키워드)
                 hits = await check_blog_ranking_deep(
                     page=pg, inspect_page=ip, keyword=kw,
                     store_name=store_name, place_id=place_id, address=address,
@@ -2086,7 +2096,7 @@ async def analyze_blog_stream(
             finally:
                 search_pool.put_nowait(pg)
                 insp_pool.put_nowait(ip)
-            await results_queue.put((idx, kw, hits))
+            await results_queue.put(("done", idx, kw, hits))
 
         tasks = [asyncio.create_task(_blog_task(i, kw)) for i, kw in enumerate(keywords)]
 
@@ -2094,7 +2104,12 @@ async def analyze_blog_stream(
         total = len(keywords)
         results_map: dict = {}
         while completed < total:
-            idx, kw, hits = await results_queue.get()
+            item = await results_queue.get()
+            if item[0] == "scan":
+                yield {"type": "blog_scanning", "keyword": item[1],
+                       "progress": completed, "total": total}
+                continue
+            _, idx, kw, hits = item
             results_map[idx] = {"keyword": kw, "hits": hits}
             completed += 1
             matched_hits = [{"rank": h["rank"], "title": h.get("title", "")[:30]} for h in hits if h.get("rank")]
