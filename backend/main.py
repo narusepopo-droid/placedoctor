@@ -641,6 +641,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .kw-popup .kw-text{font-size:1.35rem;font-weight:700;color:var(--gray-800);margin-bottom:8px;letter-spacing:-.3px;}
 .kw-popup .kw-rank{font-size:1.15rem;font-weight:600;color:var(--gray-600);}
 .kw-popup .kw-rank.top{font-size:1.5rem;background:var(--primary-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800;}
+.kw-popup .kw-rank.out{font-size:1.05rem;color:#9ca3af;font-weight:600;}
 .kw-popup .kw-reaction{font-size:1.3rem;margin-top:6px;animation:reactionBounce .4s ease-out;}
 @keyframes kwPop{0%{opacity:0;transform:scale(1.4);}60%{transform:scale(0.95);}100%{opacity:1;transform:scale(1);}}
 @keyframes reactionBounce{0%{transform:scale(0.5);}50%{transform:scale(1.2);}100%{transform:scale(1);}}
@@ -651,13 +652,16 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .l-progress-count span{transition:transform .15s;}
 
 /* S단계: 상위 키워드 칩 누적 */
-.top-kw-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px;min-height:32px;}
+.top-kw-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px;min-height:32px;max-height:34vh;overflow-y:auto;padding:2px;}
 .top-kw-chip{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:20px;font-size:.82rem;font-weight:600;animation:chipIn .4s ease-out;}
 .top-kw-chip .chip-rank{font-weight:700;margin-right:2px;}
 .top-kw-chip.rank-1{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;border:1px solid #fcd34d;}
 .top-kw-chip.rank-2-3{background:linear-gradient(135deg,#f3f4f6,#e5e7eb);color:#374151;border:1px solid #d1d5db;}
 .top-kw-chip.rank-4-5{background:linear-gradient(135deg,#fed7aa,#fdba74);color:#9a3412;border:1px solid #fb923c;}
 .top-kw-chip.rank-6-10{background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb;}
+.top-kw-chip.rank-11-plus{background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb;}
+.top-kw-chip.rank-out{background:#fafafa;color:#9ca3af;border:1px solid #f0f0f0;font-weight:500;}
+.top-kw-chip.rank-out .chip-rank{color:#bcbcbc;font-weight:600;}
 @keyframes chipIn{0%{opacity:0;transform:scale(0.5) translateY(10px);}100%{opacity:1;transform:scale(1) translateY(0);}}
 /* 블로그 키워드 행 (키워드명 + 순위칩들) */
 .blog-kw-row{display:inline-flex;align-items:center;gap:4px;animation:chipIn .4s ease-out;}
@@ -668,6 +672,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .blog-rank-chip.rank-4-5{background:#fed7aa;color:#9a3412;}
 .blog-rank-chip.rank-6-10{background:#f3f4f6;color:#6b7280;}
 .blog-rank-chip.rank-11-plus{background:#f9fafb;color:#9ca3af;}
+.blog-rank-chip.rank-out{background:#fafafa;color:#bcbcbc;}
 @keyframes rowSlide{0%{opacity:0;transform:translateY(-10px);}100%{opacity:1;transform:translateY(0);}}
 @keyframes chipSnap{0%{opacity:0;transform:scale(0) translateX(-10px);}60%{transform:scale(1.1) translateX(0);}100%{opacity:1;transform:scale(1) translateX(0);}}
 
@@ -2341,49 +2346,47 @@ async function analyzePlaceOnly(){
         if(pctEl) pctEl.textContent = pct + '%';
       }
 
-      // 키워드 팝업 + 리액션 (순위 있는 것만 표시)
+      // 키워드 팝업 + 칩 (모든 키워드 표시 — 미검출도 "순위 밖")
       const area = document.getElementById('kwPopupArea');
       const rank = d.rank;
+      const found = (rank !== null && rank !== undefined);
 
-      if(rank !== null) {
-        let reaction = '';
-        let rankClass = '';
-        if(rank === 1) { reaction = '오~!'; rankClass = 'top'; }
-        else if(rank <= 3) { reaction = 'Nice!'; rankClass = 'top'; }
-        else if(rank <= 5) { reaction = 'Good!'; rankClass = 'top'; }
-        else if(rank <= 10) { rankClass = 'top'; }
+      let reaction = '', rankClass = '', chipClass = 'rank-out';
+      if(found) {
+        if(rank === 1)      { reaction = '오~!'; rankClass = 'top'; chipClass = 'rank-1'; }
+        else if(rank <= 3)  { reaction = 'Nice!'; rankClass = 'top'; chipClass = 'rank-2-3'; }
+        else if(rank <= 5)  { reaction = 'Good!'; rankClass = 'top'; chipClass = 'rank-4-5'; }
+        else if(rank <= 10) { rankClass = 'top'; chipClass = 'rank-6-10'; }
+        else                { chipClass = 'rank-11-plus'; }
+      }
+      const rankLabel = found ? (rank + '위') : '순위 밖';
 
-        const popup = document.createElement('div');
-        popup.className = 'kw-popup';
-        popup.innerHTML = `
-          <div class="kw-text">${esc(d.keyword)}</div>
-          <div class="kw-rank ${rankClass}">${rank}위</div>
-          ${reaction ? '<div class="kw-reaction">' + reaction + '</div>' : ''}
-        `;
-        area.innerHTML = '';
-        area.appendChild(popup);
+      // 팝업 (현재 키워드 결과)
+      const popup = document.createElement('div');
+      popup.className = 'kw-popup';
+      popup.innerHTML = `
+        <div class="kw-text">${esc(d.keyword)}</div>
+        <div class="kw-rank ${found ? rankClass : 'out'}">${rankLabel}</div>
+        ${reaction ? '<div class="kw-reaction">' + reaction + '</div>' : ''}
+      `;
+      area.innerHTML = '';
+      area.appendChild(popup);
 
-        // 상위 키워드 칩 누적
-        const chipsArea = document.getElementById('topKwChips');
-        let chipClass = 'rank-11-plus';
-        if(rank === 1) chipClass = 'rank-1';
-        else if(rank <= 3) chipClass = 'rank-2-3';
-        else if(rank <= 5) chipClass = 'rank-4-5';
-        else if(rank <= 10) chipClass = 'rank-6-10';
+      // 키워드 칩 누적 (검출/미검출 모두)
+      const chipsArea = document.getElementById('topKwChips');
+      const chip = document.createElement('span');
+      chip.className = 'top-kw-chip ' + chipClass;
+      chip.innerHTML = '<span class="chip-rank">' + rankLabel + '</span>' + esc(d.keyword);
+      chipsArea.appendChild(chip);
+      chipsArea.scrollTop = chipsArea.scrollHeight;
 
-        const chip = document.createElement('span');
-        chip.className = 'top-kw-chip ' + chipClass;
-        chip.innerHTML = '<span class="chip-rank">' + rank + '위</span>' + esc(d.keyword);
-        chipsArea.appendChild(chip);
-
-        // 1초 후 분석 중 펄스로 전환
-        if(d.progress < d.total) {
-          setTimeout(() => {
-            if(area.querySelector('.kw-popup')) {
-              _showAnalyzingPulse();
-            }
-          }, 1200);
-        }
+      // 다음 키워드 전까지 분석 중 펄스로 전환
+      if(d.progress < d.total) {
+        setTimeout(() => {
+          if(area.querySelector('.kw-popup')) {
+            _showAnalyzingPulse();
+          }
+        }, 1200);
       }
 
       // R단계: 점수 차오르기 (천장 규칙)
@@ -2533,29 +2536,36 @@ async function analyzeBlogOnly(){
       const matched = d.matched || 0;
       const best = d.best_rank;
       const hits = d.hits || [];
-      // 검출된 키워드만 팝업 (없으면 담백하게 펄스 유지)
-      if(matched > 0){
-        let reaction = '', rankClass = '';
+      const found = (matched > 0);
+
+      // 팝업 (모든 키워드 표시 — 미검출도 "블로그 없음")
+      let reaction = '', rankClass = '';
+      if(found){
         if(best === 1){ reaction='오~!'; rankClass='top'; }
         else if(best <= 3){ reaction='Nice!'; rankClass='top'; }
         else if(best <= 5){ reaction='Good!'; rankClass='top'; }
         else if(best <= 10){ rankClass='top'; }
+      }
+      const rankLine = found
+        ? `<div class="kw-rank ${rankClass}">${matched}개 검출${best?' · 최고 '+best+'위':''}</div>`
+        : `<div class="kw-rank out">블로그 없음</div>`;
 
-        const popup = document.createElement('div');
-        popup.className = 'kw-popup';
-        popup.innerHTML = `
-          <div class="kw-text">${esc(d.keyword)}</div>
-          <div class="kw-rank ${rankClass}">${matched}개 검출${best?' · 최고 '+best+'위':''}</div>
-          ${reaction ? '<div class="kw-reaction">' + reaction + '</div>' : ''}
-        `;
-        area.innerHTML = '';
-        area.appendChild(popup);
+      const popup = document.createElement('div');
+      popup.className = 'kw-popup';
+      popup.innerHTML = `
+        <div class="kw-text">${esc(d.keyword)}</div>
+        ${rankLine}
+        ${reaction ? '<div class="kw-reaction">' + reaction + '</div>' : ''}
+      `;
+      area.innerHTML = '';
+      area.appendChild(popup);
 
-        // 칩 누적 (키워드 + 모든 순위 칩이 탁탁 붙음)
-        const chipsArea = document.getElementById('topKwChips');
-        const kwRow = document.createElement('div');
-        kwRow.className = 'blog-kw-row';
-        kwRow.innerHTML = `<span class="blog-kw-name">${esc(d.keyword)}</span>`;
+      // 칩 누적 (검출/미검출 모두)
+      const chipsArea = document.getElementById('topKwChips');
+      const kwRow = document.createElement('div');
+      kwRow.className = 'blog-kw-row';
+      kwRow.innerHTML = `<span class="blog-kw-name">${esc(d.keyword)}</span>`;
+      if(found){
         hits.sort((a,b) => a.rank - b.rank).forEach((h, i) => {
           const rankChip = document.createElement('span');
           let rc = 'rank-11-plus';
@@ -2568,11 +2578,17 @@ async function analyzeBlogOnly(){
           rankChip.style.animationDelay = (i * 0.1) + 's';
           kwRow.appendChild(rankChip);
         });
-        chipsArea.appendChild(kwRow);
+      } else {
+        const noChip = document.createElement('span');
+        noChip.className = 'blog-rank-chip rank-out';
+        noChip.textContent = '미검출';
+        kwRow.appendChild(noChip);
+      }
+      chipsArea.appendChild(kwRow);
+      chipsArea.scrollTop = chipsArea.scrollHeight;
 
-        if(d.progress < d.total){
-          setTimeout(() => { if(area.querySelector('.kw-popup')) _showBlogPulse(); }, 1200);
-        }
+      if(d.progress < d.total){
+        setTimeout(() => { if(area.querySelector('.kw-popup')) _showBlogPulse(); }, 1200);
       }
     });
 
