@@ -717,16 +717,20 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .kw-analyzing-dots span:nth-child(2){animation-delay:.1s;}
 .kw-analyzing-dots span:nth-child(3){animation-delay:.2s;}
 /* 실시간 진단 피드 */
-.scan-hero{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:7px;margin:8px 0 8px;min-height:34px;}
-.scan-hero .scan-ico{display:inline-flex;animation:analyzePulse 1.2s ease-in-out infinite;}
-.scan-hero .scan-ico .rpt-icon{width:18px;height:18px;color:var(--green);}
-/* 병렬 진행 중 키워드 칩 (워커 수만큼 동시 표시) */
-.scan-live{display:inline-flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;}
-.live-chip{display:inline-flex;align-items:center;font-size:.85rem;font-weight:700;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;padding:5px 11px;border-radius:16px;animation:livePop .2s ease-out;}
-.live-chip::before{content:'';width:6px;height:6px;border-radius:50%;background:#14b8a6;margin-right:6px;animation:livePulse .9s ease-in-out infinite;}
+.scan-hero{display:flex;flex-direction:column;align-items:center;gap:8px;margin:10px 0 10px;}
+/* 엔진 가동 라벨 (회전 레이더 아이콘) */
+.scan-engine{display:inline-flex;align-items:center;gap:7px;font-size:.9rem;font-weight:800;color:#0f766e;}
+.scan-engine-ico{width:19px !important;height:19px !important;color:#14b8a6;animation:engineSpin 1.4s linear infinite;}
+@keyframes engineSpin{to{transform:rotate(360deg);}}
+/* 병렬 진행 중 키워드 칩 (워커 수만큼 동시 표시, 빛이 스윕하며 처리 중 느낌) */
+.scan-live{display:inline-flex;flex-wrap:wrap;gap:7px;justify-content:center;align-items:center;}
+.live-chip{position:relative;overflow:hidden;display:inline-flex;align-items:center;font-size:.92rem;font-weight:700;color:#0f766e;background:#ccfbf1;border:1px solid #5eead4;padding:8px 14px;border-radius:16px;animation:livePop .2s ease-out;}
+.live-chip::before{content:'';width:7px;height:7px;border-radius:50%;background:#14b8a6;margin-right:7px;flex-shrink:0;box-shadow:0 0 0 0 rgba(20,184,166,.6);animation:liveDot .9s ease-in-out infinite;}
+.live-chip::after{content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 25%,rgba(255,255,255,.65) 50%,transparent 75%);transform:translateX(-100%);animation:shimmer 1.1s linear infinite;}
 .scan-live-wait{font-size:.9rem;color:var(--gray-400);font-weight:500;}
 @keyframes livePop{from{opacity:0;transform:scale(.8);}to{opacity:1;transform:scale(1);}}
-@keyframes livePulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+@keyframes liveDot{0%,100%{box-shadow:0 0 0 0 rgba(20,184,166,.55);}50%{box-shadow:0 0 0 5px rgba(20,184,166,0);}}
+@keyframes shimmer{to{transform:translateX(100%);}}
 .scan-found{text-align:center;font-size:.85rem;color:#15803d;font-weight:700;margin:2px 0 8px;}
 .scan-found .rpt-icon{width:15px;height:15px;vertical-align:-2px;color:#16a34a;}
 .scan-found b{font-size:1rem;margin:0 1px;}
@@ -1067,8 +1071,8 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
       <!-- 실시간 진단 피드 -->
       <div class="scan-hero" id="scanHero" style="display:none;">
-        <span class="scan-ico"><i data-lucide="search" class="rpt-icon"></i></span>
-        <span class="scan-live" id="scanLive"></span>
+        <div class="scan-engine"><i data-lucide="radar" class="rpt-icon scan-engine-ico"></i><span id="scanEngineLabel">키워드 검색 엔진 가동 중</span></div>
+        <div class="scan-live" id="scanLive"></div>
       </div>
       <div class="scan-found" id="scanFound" style="display:none;"><i data-lucide="sparkles" class="rpt-icon"></i> 상위 노출 <b id="scanFoundN">0</b>개 발견</div>
       <div class="scan-top" id="scanTopChips"></div>
@@ -2265,7 +2269,9 @@ function _renderScanLive(){
   const hero=document.getElementById('scanHero'), box=document.getElementById('scanLive');
   if(!hero||!box) return;
   hero.style.display='flex';
-  const arr=[..._scanLive].slice(-5);  // 최대 5개(=워커수) 동시 표시
+  const all=[..._scanLive], arr=all.slice(-5);  // 최대 5개(=워커수) 동시 표시
+  const lbl=document.getElementById('scanEngineLabel');
+  if(lbl) lbl.textContent = all.length ? `키워드 검색 엔진 · ${all.length}개 동시 검색 중` : '키워드 검색 엔진 가동 중';
   box.innerHTML = arr.length
     ? arr.map(k=>`<span class="live-chip">${esc(k)}</span>`).join('')
     : '<span class="scan-live-wait">다음 키워드 준비 중…</span>';
