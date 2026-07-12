@@ -89,45 +89,56 @@ def generate_card(data: dict) -> bytes:
     best = results[0] if results else None
     first_page = len([r for r in results if r["rank"] <= 10])
 
-    img = Image.new("RGB", (W, H), _WHITE)
+    img = Image.new("RGB", (W, H), _GREEN)
     d = ImageDraw.Draw(img)
 
-    # 상단 초록 바
-    d.rectangle([0, 0, W, 14], fill=_GREEN)
+    # 배경: 초록 세로 그라데이션 (이미지 프레임 = 임팩트)
+    top, bot = (34, 197, 94), (21, 128, 61)
+    for y in range(H):
+        t = y / H
+        d.line([(0, y), (W, y)], fill=(
+            int(top[0] + (bot[0] - top[0]) * t),
+            int(top[1] + (bot[1] - top[1]) * t),
+            int(top[2] + (bot[2] - top[2]) * t)))
+
+    # 흰 카드 패널 (초록 배경 위에 떠 있는 느낌)
+    PX0, PY0, PX1, PY1 = 40, 40, W - 40, H - 40
+    d.rounded_rectangle([PX0, PY0, PX1, PY1], radius=34, fill=_WHITE)
 
     # 브랜드
-    d.text((70, 56), "플레이스랭킹", font=_font(42), fill=_GREEN)
-    d.text((72, 116), "네이버 플레이스 순위 무료 진단", font=_font(26), fill=_GRAY)
+    d.text((86, 80), "플레이스랭킹", font=_font(44), fill=_GREEN)
+    d.text((88, 142), "네이버 플레이스 순위 무료 진단", font=_font(27), fill=_GRAY)
 
-    # 매장명 (좌측, 폭에 맞춰 자동 축소)
-    name_font = _fit_font(d, store, 780, 76, 40)
-    d.text((70, 214), store, font=name_font, fill=_DARK)
-    if category:
-        d.text((72, 214 + name_font.size + 18), category, font=_font(32), fill=_GRAY)
-
-    # 점수 링 (우측)
+    # 점수 링 (우측, 크게)
     g, gc = _grade(score)
-    cx, cy, r = 1006, 224, 104
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=_LIGHT, width=16)
-    # 점수 비율만큼 채우는 호(arc)
+    cx, cy, r = 995, 232, 128
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=_LIGHT, width=20)
     sweep = 360 * max(0, min(100, score)) / 100
-    d.arc([cx - r, cy - r, cx + r, cy + r], start=-90, end=-90 + sweep, fill=gc, width=16)
-    d.text((cx, cy - 12), str(score), font=_font(86), fill=gc, anchor="mm")
-    d.text((cx, cy + 46), "점", font=_font(26), fill=_GRAY, anchor="mm")
-    d.text((cx, cy + r + 30), f"{g}등급", font=_font(30), fill=gc, anchor="mm")
+    d.arc([cx - r, cy - r, cx + r, cy + r], start=-90, end=-90 + sweep, fill=gc, width=20)
+    d.text((cx, cy - 14), str(score), font=_font(108), fill=gc, anchor="mm")
+    d.text((cx, cy + 58), "점", font=_font(30), fill=_GRAY, anchor="mm")
+    d.text((cx, cy + r + 34), f"{g}등급", font=_font(32), fill=gc, anchor="mm")
 
-    # 핵심 한 줄 (하단 라이트 카드)
-    d.rounded_rectangle([70, 404, 1130, 508], radius=22, fill=_LIGHT)
+    # 매장명 (좌측, 링과 안 겹치게 폭 자동 축소)
+    name_font = _fit_font(d, store, 720, 78, 42)
+    d.text((86, 232), store, font=name_font, fill=_DARK)
+    if category:
+        d.text((88, 232 + name_font.size + 20), category, font=_font(33), fill=_GRAY)
+
+    # 핵심 한 줄 (라이트 그린 카드)
+    d.rounded_rectangle([86, 430, W - 86, 524], radius=22, fill=(240, 253, 244))
     if best:
         line = f"‘{best['keyword']}’ {best['rank']}위" + (f"  ·  첫 화면 노출 {first_page}개" if first_page else "")
     else:
         line = "지금 내 가게 순위를 무료로 확인해보세요"
-    line_font = _fit_font(d, line, 1000, 40, 26)
-    d.text((100, 456), line, font=line_font, fill=_DARK, anchor="lm")
+    line_font = _fit_font(d, line, 980, 42, 27)
+    d.text((116, 477), line, font=line_font, fill=(21, 128, 61), anchor="lm")
 
-    # 하단 URL
-    d.text((70, 556), "placeranking.com", font=_font(30), fill=_GREEN_D)
-    d.text((320, 560), "에서 내 가게 순위를 무료로 확인하세요", font=_font(26), fill=_GRAY)
+    # 하단 URL (겹침 방지: URL 폭 측정 후 뒤 문구 배치)
+    url_font = _font(31)
+    d.text((86, 548), "placeranking.com", font=url_font, fill=_GREEN_D)
+    url_w = d.textlength("placeranking.com", font=url_font)
+    d.text((86 + url_w + 14, 552), "에서 내 가게 순위 무료 확인", font=_font(27), fill=_GRAY)
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")

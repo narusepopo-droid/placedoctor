@@ -3591,12 +3591,10 @@ function handleShare(){
   const pid = d.place_id;
   // 매장별 전용 리포트 URL → 카카오톡이 매장 맞춤 큰 미리보기 카드로 표시
   const url = pid ? ('https://placeranking.com/report/' + encodeURIComponent(pid)) : 'https://placeranking.com';
-  const ranked = (d.place_results || []).filter(k => k.rank).sort((a,b)=>a.rank-b.rank)[0];
-
-  const title = storeName + ' 네이버 플레이스 순위 ' + score + '점';
-  const text = ranked ? ("'" + ranked.keyword + "' " + ranked.rank + "위 · 무료 순위 진단")
-                      : '네이버 플레이스 순위 무료 확인';
-  const shareText = title + ' - ' + text + ' ' + url;
+  // 받는 사람이 '내 가게는 몇 위지?' 궁금해서 눌러보게 하는 훅 (매장·점수는 카드 이미지가 보여줌)
+  const title = '우리 가게 네이버 플레이스 순위는 몇 위일까?';
+  const text = '1분이면 무료로 확인 👀';
+  const shareText = title + ' ' + text + ' ' + url;
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if(isMobile && navigator.share){
@@ -3912,18 +3910,17 @@ def _report_data(place_id: str, data: dict) -> dict:
     if best:
         headline = f"‘{_h.escape(str(best['keyword']))}’ {best['rank']}위" + (
             f" · 첫 화면 노출 {len(first_page)}개" if first_page else "")
-        desc = (f"‘{best['keyword']}’ {best['rank']}위 · 첫 화면 노출 {len(first_page)}개"
-                " — 내 가게 순위도 무료로 확인하세요")
     else:
         headline = "아직 상위 노출 키워드가 없어요"
-        desc = "내 가게 네이버 플레이스 순위를 무료로 확인하세요"
+    # 카톡 공유 시 받는 사람이 '내 가게는?' 궁금해서 눌러보게 하는 훅 (제목·설명)
+    desc = "1분이면 무료로 내 가게 순위·경쟁사 비교까지 확인할 수 있어요"
 
     return {
         "store": store, "category": category, "score": score,
         "grade": g, "gc": gc, "gbg": gbg, "results": results,
         "first_page": first_page, "best": best, "headline": headline, "desc": desc,
-        "title": f"{store} 네이버 플레이스 순위 {score}점",
-        "og_img": f"https://placeranking.com/og/{place_id}.png",
+        "title": "우리 가게 네이버 플레이스 순위는 몇 위일까?",
+        "og_img": f"https://placeranking.com/og/{place_id}.png?v=2",
         "url": f"https://placeranking.com/report/{place_id}",
     }
 
