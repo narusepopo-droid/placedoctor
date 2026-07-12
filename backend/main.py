@@ -26,6 +26,12 @@ from . import crud, schemas
 from .core.scraper import diagnose_store, diagnose_store_stream, analyze_blog_ranking
 from .core.scoring import apply_ad_flags
 
+# 공유용 OG 카드 생성 (Pillow). 미설치·폰트 문제로 사이트 전체가 죽지 않도록 방어 임포트.
+try:
+    from .services import og_image as _og
+except Exception as _e:  # noqa: BLE001
+    _og = None
+
 # ── Windows ProactorEventLoop 전용 스레드 ────────────────────────────────────
 # uvicorn --reload 모드에서는 SelectorEventLoop를 강제하므로
 # Playwright subprocess 호출이 실패한다.
@@ -3607,16 +3613,17 @@ function handlePwa(){
   else alert('브라우저 주소창 옆 설치 아이콘을 눌러주세요.');
 }
 function handleShare(){
-  const storeName = _lastResultData?.store_name || '매장';
-  const score = _lastResultData?.scores?.total || 0;
-  const keywords = _lastResultData?.keyword_ranks || [];
-  const topKw = keywords.find(k => k.rank && k.rank <= 10);
-  const keyword = topKw?.keyword || (keywords[0]?.keyword || '');
-  const rank = topKw?.rank || (keywords[0]?.rank || '');
+  const d = _lastResultData || {};
+  const storeName = d.store_name || '매장';
+  const score = Math.round(d.scores?.total || 0);
+  const pid = d.place_id;
+  // 매장별 전용 리포트 URL → 카카오톡이 매장 맞춤 큰 미리보기 카드로 표시
+  const url = pid ? ('https://placeranking.com/report/' + encodeURIComponent(pid)) : 'https://placeranking.com';
+  const ranked = (d.place_results || []).filter(k => k.rank).sort((a,b)=>a.rank-b.rank)[0];
 
-  const title = storeName + ' 플레이스 지수 ' + score + '점';
-  const text = keyword ? ("'" + keyword + "' " + rank + "위") : '네이버 플레이스 순위 무료 확인';
-  const url = 'https://placeranking.com';
+  const title = storeName + ' 네이버 플레이스 순위 ' + score + '점';
+  const text = ranked ? ("'" + ranked.keyword + "' " + ranked.rank + "위 · 무료 순위 진단")
+                      : '네이버 플레이스 순위 무료 확인';
   const shareText = title + ' - ' + text + ' ' + url;
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -3624,7 +3631,7 @@ function handleShare(){
     navigator.share({title: title, text: text, url: url}).catch(()=>{});
   } else {
     navigator.clipboard.writeText(shareText).then(()=>{
-      alert('링크가 복사되었습니다!');
+      alert('공유 링크가 복사되었습니다!');
     }).catch(()=>{
       prompt('아래 링크를 복사하세요:', shareText);
     });
@@ -3899,6 +3906,163 @@ def index():
 @app.get("/health", tags=["시스템"])
 def health():
     return {"status": "ok"}
+
+
+# ── 공유 리포트 페이지 + OG 카드 이미지 (카카오톡 큰 미리보기) ──────────────────
+
+def _grade_of(score: int):
+    if score >= 80:
+        return "S", "#16a34a", "#dcfce7"
+    if score >= 60:
+        return "A", "#3b82f6", "#dbeafe"
+    if score >= 40:
+        return "B", "#f97316", "#ffedd5"
+    return "C", "#ef4444", "#fee2e2"
+
+
+def _report_data(place_id: str, data: dict) -> dict:
+    import html as _h
+    store = _h.escape((data.get("store_name") or "내 가게")[:40])
+    category = _h.escape((data.get("category") or "매장")[:30])
+    scores = data.get("scores") or {}
+    try:
+        score = int(round(float(scores.get("total") or 0)))
+    except (TypeError, ValueError):
+        score = 0
+    results = sorted([r for r in (data.get("place_results") or []) if r.get("rank")],
+                     key=lambda r: r["rank"])
+    best = results[0] if results else None
+    first_page = [r for r in results if r["rank"] <= 10]
+    g, gc, gbg = _grade_of(score)
+
+    if best:
+        headline = f"‘{_h.escape(str(best['keyword']))}’ {best['rank']}위" + (
+            f" · 첫 화면 노출 {len(first_page)}개" if first_page else "")
+        desc = (f"‘{best['keyword']}’ {best['rank']}위 · 첫 화면 노출 {len(first_page)}개"
+                " — 내 가게 순위도 무료로 확인하세요")
+    else:
+        headline = "아직 상위 노출 키워드가 없어요"
+        desc = "내 가게 네이버 플레이스 순위를 무료로 확인하세요"
+
+    return {
+        "store": store, "category": category, "score": score,
+        "grade": g, "gc": gc, "gbg": gbg, "results": results,
+        "first_page": first_page, "best": best, "headline": headline, "desc": desc,
+        "title": f"{store} 네이버 플레이스 순위 {score}점",
+        "og_img": f"https://placeranking.com/og/{place_id}.png",
+        "url": f"https://placeranking.com/report/{place_id}",
+    }
+
+
+def _build_report_html(place_id: str, data: dict) -> str:
+    import html as _h
+    r = _report_data(place_id, data)
+
+    kw_rows = ""
+    for row in r["results"][:6]:
+        rank = row["rank"]
+        color = ("#16a34a" if rank <= 5 else "#3b82f6" if rank <= 10
+                 else "#f97316" if rank <= 15 else "#9ca3af")
+        kw_rows += (f'<li><span class="kw">{_h.escape(str(row["keyword"]))}</span>'
+                    f'<span class="rk" style="color:{color}">{rank}위</span></li>')
+    if not kw_rows:
+        kw_rows = '<li class="empty">아직 상위 노출 키워드가 없어요</li>'
+
+    return f"""<!doctype html><html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{r['title']}</title>
+<meta name="description" content="{r['desc']}">
+<link rel="canonical" href="{r['url']}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="플레이스랭킹">
+<meta property="og:title" content="{r['title']}">
+<meta property="og:description" content="{r['desc']}">
+<meta property="og:image" content="{r['og_img']}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="{r['url']}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{r['title']}">
+<meta name="twitter:description" content="{r['desc']}">
+<meta name="twitter:image" content="{r['og_img']}">
+<style>
+*{{margin:0;padding:0;box-sizing:border-box;}}
+body{{font-family:-apple-system,'Malgun Gothic','Apple SD Gothic Neo',sans-serif;background:#f6f8f7;color:#111827;padding:18px;line-height:1.5;}}
+.wrap{{max-width:460px;margin:0 auto;}}
+.brand{{font-weight:800;color:#16a34a;font-size:1.05rem;padding:6px 0 14px;}}
+.card{{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px 20px;}}
+.cat{{display:inline-block;font-size:.78rem;color:#6b7280;background:#f3f4f6;padding:4px 11px;border-radius:20px;margin-bottom:10px;}}
+h1{{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;margin-bottom:18px;}}
+.score-wrap{{display:flex;align-items:center;gap:14px;margin-bottom:18px;}}
+.score-num{{font-size:3rem;font-weight:800;line-height:1;}}
+.score-num span{{font-size:1.1rem;color:#9ca3af;margin-left:2px;}}
+.grade{{font-size:.85rem;font-weight:800;color:#fff;padding:6px 14px;border-radius:20px;}}
+.headline{{font-size:1rem;font-weight:600;color:#374151;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:13px 15px;margin-bottom:18px;}}
+.kwlist{{list-style:none;}}
+.kwlist li{{display:flex;justify-content:space-between;align-items:center;padding:11px 2px;border-bottom:1px solid #f3f4f6;font-size:.95rem;}}
+.kwlist li:last-child{{border-bottom:none;}}
+.kwlist .kw{{color:#374151;font-weight:500;}}
+.kwlist .rk{{font-weight:800;}}
+.kwlist .empty{{justify-content:center;color:#9ca3af;}}
+.cta{{display:block;text-align:center;margin-top:18px;padding:17px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;font-size:1.05rem;font-weight:800;border-radius:14px;text-decoration:none;}}
+.foot{{text-align:center;color:#9ca3af;font-size:.8rem;margin-top:16px;}}
+</style></head><body>
+<div class="wrap">
+  <div class="brand">📊 플레이스랭킹</div>
+  <div class="card">
+    <span class="cat">{r['category']}</span>
+    <h1>{r['store']}</h1>
+    <div class="score-wrap">
+      <div class="score-num" style="color:{r['gc']}">{r['score']}<span>점</span></div>
+      <div class="grade" style="background:{r['gc']}">{r['grade']}등급</div>
+    </div>
+    <div class="headline">{r['headline']}</div>
+    <ul class="kwlist">{kw_rows}</ul>
+  </div>
+  <a class="cta" href="/">내 가게 순위도 무료로 확인하기 →</a>
+  <div class="foot">네이버 플레이스 순위 무료 진단 · placeranking.com</div>
+</div>
+</body></html>"""
+
+
+def _report_not_found_html() -> str:
+    return """<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>플레이스랭킹 · 네이버 플레이스 순위 무료 진단</title>
+<meta property="og:title" content="네이버 플레이스 순위 무료 확인 | 플레이스랭킹">
+<meta property="og:description" content="내 매장 키워드 순위를 무료로 확인하세요.">
+<meta http-equiv="refresh" content="2; url=/">
+<style>body{font-family:-apple-system,'Malgun Gothic',sans-serif;background:#f6f8f7;text-align:center;padding:60px 20px;color:#374151;}
+a{color:#16a34a;font-weight:800;text-decoration:none;}</style></head><body>
+<h2 style="color:#16a34a;">📊 플레이스랭킹</h2>
+<p style="margin:16px 0;">아직 이 매장의 분석 결과가 없어요.</p>
+<a href="/">내 가게 순위 무료로 확인하기 →</a>
+</body></html>"""
+
+
+@app.get("/og/{place_id}.png", include_in_schema=False)
+def og_card(place_id: str, db: Session = Depends(get_db)):
+    if _og is None:
+        return Response(status_code=404)
+    data = crud.get_latest_analysis_result(db, place_id, "place")
+    if not data:
+        return Response(status_code=404)
+    try:
+        png = _og.generate_card(data)
+    except Exception as e:  # noqa: BLE001
+        _pkg_logger.warning(f"OG 카드 생성 실패({place_id}): {e}")
+        return Response(status_code=404)
+    return Response(content=png, media_type="image/png",
+                    headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/report/{place_id}", response_class=HTMLResponse, include_in_schema=False)
+def report_page(place_id: str, db: Session = Depends(get_db)):
+    data = crud.get_latest_analysis_result(db, place_id, "place")
+    if not data:
+        return HTMLResponse(_report_not_found_html())
+    return HTMLResponse(_build_report_html(place_id, data))
 
 
 def _source_from_ua(ua: str, referer: str = "") -> str | None:
