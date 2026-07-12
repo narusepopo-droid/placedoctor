@@ -365,10 +365,9 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .report-action-b b{color:#ea580c;}
 .report-threat{font-size:.85rem;color:var(--gray-600);line-height:1.5;padding:4px 2px 2px;}
 .report-threat b{color:#dc2626;}
-.report-cta{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:14px;padding:14px;background:linear-gradient(135deg,#16a34a,#15803d);border-radius:12px;text-decoration:none;transition:transform .15s;}
-.report-cta:active{transform:scale(.98);}
-.report-cta-main{font-size:.95rem;font-weight:800;color:#fff;}
-.report-cta-sub{font-size:.8rem;color:#dcfce7;font-weight:600;}
+.report-cta{display:block;text-align:center;margin-top:14px;padding:13px 8px 3px;border-top:1px solid var(--gray-100);text-decoration:none;}
+.report-cta-main{display:block;font-size:.82rem;color:var(--gray-500);font-weight:500;line-height:1.5;}
+.report-cta-sub{display:inline-block;margin-top:2px;font-size:.84rem;color:var(--green);font-weight:600;}
 /* S단계: 날짜별 순위 흐름 */
 .kw-trend-flow{display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:.72rem;}
 .kw-trend-flow.up .trend-rank:last-child{color:#16a34a;font-weight:700;}
@@ -1090,8 +1089,8 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
         <div class="report-action" id="reportAction" style="display:none;"></div>
         <div class="report-threat" id="reportThreat" style="display:none;"></div>
         <a class="report-cta" id="reportCta" href="https://pf.kakao.com/_qsxlXX/chat" target="_blank" rel="noopener">
-          <span class="report-cta-main">상위노출, 직접 하기 막막하신가요?</span>
-          <span class="report-cta-sub">플레이스 전문가에게 무료로 물어보기 →</span>
+          <span class="report-cta-main">순위 관리가 막막하거나 궁금한 점이 있다면</span>
+          <span class="report-cta-sub">편하게 문의해보세요 →</span>
         </a>
       </div>
 
