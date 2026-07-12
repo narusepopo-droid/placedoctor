@@ -3899,7 +3899,9 @@ def _extract_place_id(url: str) -> str | None:
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def index():
-    return HTMLResponse(_HTML)
+    # 메인 HTML은 인라인(자산 버전관리 없음)이라 브라우저가 옛 화면을 캐시하면
+    # "배포했는데 안 바뀜" 혼란이 생긴다 → 항상 재검증(no-cache)해서 최신 화면 보장.
+    return HTMLResponse(_HTML, headers={"Cache-Control": "no-cache, must-revalidate"})
 
 
 @app.get("/health", tags=["시스템"])
