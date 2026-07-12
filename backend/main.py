@@ -717,20 +717,34 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .kw-analyzing-dots span:nth-child(2){animation-delay:.1s;}
 .kw-analyzing-dots span:nth-child(3){animation-delay:.2s;}
 /* 실시간 진단 피드 */
-.scan-hero{display:flex;align-items:center;justify-content:center;gap:9px;margin:8px 0 4px;min-height:32px;}
+.scan-hero{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:7px;margin:8px 0 8px;min-height:34px;}
 .scan-hero .scan-ico{display:inline-flex;animation:analyzePulse 1.2s ease-in-out infinite;}
-.scan-hero .scan-ico .rpt-icon{width:19px;height:19px;color:var(--green);}
-.scan-kw{font-size:1.05rem;font-weight:700;color:var(--gray-800);letter-spacing:-.3px;}
-.scan-kw .sk-q{color:var(--gray-400);font-weight:600;}
-.scan-kw .sk-tail{font-size:.85rem;color:var(--gray-400);font-weight:500;}
-.scan-found{text-align:center;font-size:.85rem;color:#15803d;font-weight:700;margin:2px 0 12px;}
+.scan-hero .scan-ico .rpt-icon{width:18px;height:18px;color:var(--green);}
+/* 병렬 진행 중 키워드 칩 (워커 수만큼 동시 표시) */
+.scan-live{display:inline-flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;}
+.live-chip{display:inline-flex;align-items:center;font-size:.85rem;font-weight:700;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;padding:5px 11px;border-radius:16px;animation:livePop .2s ease-out;}
+.live-chip::before{content:'';width:6px;height:6px;border-radius:50%;background:#14b8a6;margin-right:6px;animation:livePulse .9s ease-in-out infinite;}
+.scan-live-wait{font-size:.9rem;color:var(--gray-400);font-weight:500;}
+@keyframes livePop{from{opacity:0;transform:scale(.8);}to{opacity:1;transform:scale(1);}}
+@keyframes livePulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+.scan-found{text-align:center;font-size:.85rem;color:#15803d;font-weight:700;margin:2px 0 8px;}
 .scan-found .rpt-icon{width:15px;height:15px;vertical-align:-2px;color:#16a34a;}
 .scan-found b{font-size:1rem;margin:0 1px;}
-.scan-feed{display:flex;flex-direction:column;gap:7px;max-height:280px;overflow:hidden;margin-bottom:16px;-webkit-mask-image:linear-gradient(to bottom,#000 80%,transparent);mask-image:linear-gradient(to bottom,#000 80%,transparent);}
-.scan-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;background:#fff;border:1px solid var(--gray-100);border-radius:12px;animation:feedIn .35s cubic-bezier(.2,.8,.2,1);}
-.scan-row .sr-kw{font-size:.92rem;color:var(--gray-700);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.scan-row .sr-badge{flex-shrink:0;font-size:.85rem;font-weight:800;padding:4px 12px;border-radius:20px;}
-.scan-row.r-1{border-color:#fcd34d;box-shadow:0 2px 11px rgba(245,158,11,.2);}
+/* 상위 노출(≤10위) = 위에 자석처럼 탁 붙는 칩 */
+.scan-top{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin:0 0 12px;}
+.scan-top:empty{display:none;}
+.scan-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:20px;font-size:.85rem;font-weight:700;animation:chipSnap .32s cubic-bezier(.2,1.4,.4,1) backwards;}
+.scan-chip .sc-rank{font-weight:800;}
+.scan-chip.r-1{background:linear-gradient(135deg,#fef3c7,#fcd34d);color:#92400e;border:1px solid #f59e0b;box-shadow:0 2px 9px rgba(245,158,11,.25);}
+.scan-chip.r-2-3{background:linear-gradient(135deg,#dcfce7,#bbf7d0);color:#15803d;border:1px solid #86efac;}
+.scan-chip.r-4-5{background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;}
+.scan-chip.r-6-10{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;}
+/* 검출 시도 키워드 = 전부 표기 (그리드, 잘림 없음) */
+.scan-feed{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:7px;margin-bottom:16px;}
+.scan-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;background:#fff;border:1px solid var(--gray-100);border-radius:11px;animation:feedIn .3s ease-out;min-width:0;}
+.scan-row .sr-kw{font-size:.85rem;color:var(--gray-700);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.scan-row .sr-badge{flex-shrink:0;font-size:.8rem;font-weight:800;padding:3px 10px;border-radius:16px;}
+.scan-row.r-1{border-color:#fcd34d;box-shadow:0 2px 11px rgba(245,158,11,.18);}
 .scan-row.r-1 .sr-badge{background:linear-gradient(135deg,#fef3c7,#fcd34d);color:#92400e;}
 .scan-row.r-2-3{border-color:#bbf7d0;}
 .scan-row.r-2-3 .sr-badge{background:linear-gradient(135deg,#dcfce7,#bbf7d0);color:#15803d;}
@@ -739,8 +753,8 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .scan-row.r-11 .sr-badge{background:#f3f4f6;color:#6b7280;}
 .scan-row.r-out{background:#fafafa;border-color:#f3f4f6;}
 .scan-row.r-out .sr-kw{color:#9ca3af;font-weight:500;}
-.scan-row.r-out .sr-badge{background:transparent;color:#c0c0c0;font-weight:600;padding:4px 2px;}
-@keyframes feedIn{from{opacity:0;transform:translateY(-14px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
+.scan-row.r-out .sr-badge{background:transparent;color:#c0c0c0;font-weight:600;padding:3px 2px;}
+@keyframes feedIn{from{opacity:0;transform:translateY(-10px) scale(.96);}to{opacity:1;transform:translateY(0) scale(1);}}
 @keyframes analyzePulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.1);opacity:.7;}}
 @keyframes dotBounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-4px);}}
 
@@ -1054,9 +1068,10 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       <!-- 실시간 진단 피드 -->
       <div class="scan-hero" id="scanHero" style="display:none;">
         <span class="scan-ico"><i data-lucide="search" class="rpt-icon"></i></span>
-        <span class="scan-kw" id="scanKw"></span>
+        <span class="scan-live" id="scanLive"></span>
       </div>
       <div class="scan-found" id="scanFound" style="display:none;"><i data-lucide="sparkles" class="rpt-icon"></i> 상위 노출 <b id="scanFoundN">0</b>개 발견</div>
+      <div class="scan-top" id="scanTopChips"></div>
       <div class="scan-feed" id="scanFeed"></div>
 
       <div class="l-bar-wrap"><div class="l-bar" id="lBar"></div></div>
@@ -2237,52 +2252,62 @@ const L_STEPS_BLOG = [
 ];
 
 // ── 실시간 진단 피드 헬퍼 (전역) ──────────────────────────────────────────────
+let _scanLive = new Set();  // 지금 병렬로 분석 중인 키워드들(워커 수만큼)
 function _resetScan(){
-  const feed=document.getElementById('scanFeed'); if(feed) feed.innerHTML='';
+  _scanLive = new Set();
+  ['scanFeed','scanTopChips','scanLive'].forEach(id=>{const el=document.getElementById(id); if(el) el.innerHTML='';});
   const fb=document.getElementById('scanFound'); if(fb) fb.style.display='none';
   const fn=document.getElementById('scanFoundN'); if(fn) fn.textContent='0';
   const hero=document.getElementById('scanHero'); if(hero) hero.style.display='none';
-  const kw=document.getElementById('scanKw'); if(kw) kw.textContent='';
 }
-function _setScanKw(kw){
-  const hero=document.getElementById('scanHero'), el=document.getElementById('scanKw');
-  if(!hero||!el) return;
+// 병렬 진행 중 키워드 표시 (시작=추가 / 완료=제거) — 실제 워커 병렬을 그대로 노출
+function _renderScanLive(){
+  const hero=document.getElementById('scanHero'), box=document.getElementById('scanLive');
+  if(!hero||!box) return;
   hero.style.display='flex';
-  el.innerHTML = `<span class="sk-q">'</span>${esc(kw)}<span class="sk-q">'</span><span class="sk-tail"> 분석 중…</span>`;
+  const arr=[..._scanLive].slice(-5);  // 최대 5개(=워커수) 동시 표시
+  box.innerHTML = arr.length
+    ? arr.map(k=>`<span class="live-chip">${esc(k)}</span>`).join('')
+    : '<span class="scan-live-wait">다음 키워드 준비 중…</span>';
 }
+function _scanLiveAdd(kw){ _scanLive.add(kw); _renderScanLive(); }
+function _scanLiveDone(kw){ _scanLive.delete(kw); _renderScanLive(); }
 function _bumpFound(){
   const fb=document.getElementById('scanFound'), fn=document.getElementById('scanFoundN');
   if(fb) fb.style.display='block';
   if(fn) fn.textContent = (parseInt(fn.textContent||'0',10)+1);
 }
-// 완료된 키워드를 피드 맨 위에 한 줄 추가 (rank=null이면 순위 밖)
+function _rankCls(rank){
+  if(rank===1) return 'r-1'; if(rank<=3) return 'r-2-3';
+  if(rank<=5) return 'r-4-5'; if(rank<=10) return 'r-6-10'; return 'r-11';
+}
+// 검출 시도 키워드를 그리드에 전부 표기 (최신이 앞) — rank=null이면 순위 밖
 function _addScanRow(kw, rank){
   const feed=document.getElementById('scanFeed'); if(!feed) return;
   const found=(rank!==null&&rank!==undefined);
-  let cls='r-out', badge='순위 밖';
-  if(found){
-    badge=rank+'위';
-    if(rank===1) cls='r-1'; else if(rank<=3) cls='r-2-3';
-    else if(rank<=5) cls='r-4-5'; else if(rank<=10) cls='r-6-10'; else cls='r-11';
-  }
+  const cls=found?_rankCls(rank):'r-out', badge=found?(rank+'위'):'순위 밖';
   const row=document.createElement('div');
   row.className='scan-row '+cls;
   row.innerHTML=`<span class="sr-kw">${esc(kw)}</span><span class="sr-badge">${badge}</span>`;
   feed.insertBefore(row, feed.firstChild);
 }
-// 블로그용 피드 행 (검출 개수·최고순위)
+// 블로그용 그리드 행 (검출 개수·최고순위)
 function _addBlogScanRow(kw, matched, best){
   const feed=document.getElementById('scanFeed'); if(!feed) return;
   let cls='r-out', badge='미검출';
-  if(matched>0){
-    badge = best ? (best+'위') : (matched+'개');
-    if(best===1) cls='r-1'; else if(best<=3) cls='r-2-3';
-    else if(best<=5) cls='r-4-5'; else if(best<=10) cls='r-6-10'; else cls='r-11';
-  }
+  if(matched>0){ badge = best ? (best+'위') : (matched+'개'); cls = best ? _rankCls(best) : 'r-11'; }
   const row=document.createElement('div');
   row.className='scan-row '+cls;
   row.innerHTML=`<span class="sr-kw">${esc(kw)}</span><span class="sr-badge">${badge}</span>`;
   feed.insertBefore(row, feed.firstChild);
+}
+// 상위 노출(≤10위) = 위에 자석처럼 탁 붙는 칩
+function _addScanTopChip(kw, rank){
+  const box=document.getElementById('scanTopChips'); if(!box) return;
+  const chip=document.createElement('span');
+  chip.className='scan-chip '+_rankCls(rank);
+  chip.innerHTML=`<span class="sc-rank">${rank}위</span>${esc(kw)}`;
+  box.appendChild(chip);
 }
 
 function startLoading(type){
@@ -2435,9 +2460,9 @@ async function analyzePlaceOnly(){
       _resetScan();
     });
 
-    // 현재 분석 중인 키워드 표시 (시작 이벤트)
+    // 현재 병렬로 분석 중인 키워드 추가 (시작 이벤트)
     eventSource.addEventListener('keyword_scanning', (e) => {
-      try { _setScanKw(JSON.parse(e.data).keyword); } catch(_){}
+      try { _scanLiveAdd(JSON.parse(e.data).keyword); } catch(_){}
     });
 
     eventSource.addEventListener('keyword', (e) => {
@@ -2453,11 +2478,12 @@ async function analyzePlaceOnly(){
         if(pctEl) pctEl.textContent = pct + '%';
       }
 
-      // 실시간 진단 피드: 완료된 키워드를 위에서 아래로 한 줄씩 쌓음
+      // 완료 → 병렬셋에서 제거 + 그리드에 전부 표기 + 상위노출(≤10)은 위 칩 자석
       const rank = d.rank;
       const found = (rank !== null && rank !== undefined);
+      _scanLiveDone(d.keyword);
       _addScanRow(d.keyword, rank);
-      if(found && rank <= 10) _bumpFound();
+      if(found && rank <= 10){ _bumpFound(); _addScanTopChip(d.keyword, rank); }
     });
 
     eventSource.addEventListener('complete', (e) => {
@@ -2559,9 +2585,9 @@ async function analyzeBlogOnly(){
       _resetScan();
     });
 
-    // 현재 분석 중인 블로그 키워드 표시
+    // 현재 병렬로 분석 중인 블로그 키워드 추가
     eventSource.addEventListener('blog_scanning', (e) => {
-      try { _setScanKw(JSON.parse(e.data).keyword); } catch(_){}
+      try { _scanLiveAdd(JSON.parse(e.data).keyword); } catch(_){}
     });
 
     eventSource.addEventListener('blog_keyword', (e) => {
@@ -2575,9 +2601,10 @@ async function analyzeBlogOnly(){
       }
       const matched = d.matched || 0;
       const best = d.best_rank;
-      // 실시간 진단 피드: 블로그 검출 결과를 위에서 아래로 쌓음
+      // 완료 → 병렬셋 제거 + 그리드 전부 표기 + 상위노출은 위 칩
+      _scanLiveDone(d.keyword);
       _addBlogScanRow(d.keyword, matched, best);
-      if(matched > 0 && best && best <= 10) _bumpFound();
+      if(matched > 0 && best && best <= 10){ _bumpFound(); _addScanTopChip(d.keyword, best); }
     });
 
     eventSource.addEventListener('complete', (e) => {
