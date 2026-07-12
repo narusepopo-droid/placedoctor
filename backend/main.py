@@ -340,6 +340,29 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .kw-trend .same{color:var(--gray-400);}
 .kw-trend .kw-date{font-size:.65rem;color:var(--gray-400);margin-right:2px;}
 .kw-first{font-size:.72rem;color:var(--gray-400);margin-left:4px;}
+/* 진단 리포트 카드 (결과 상단 핵심 요약·액션) */
+.report-card{background:linear-gradient(160deg,#f0fdf4,#ffffff 55%);border:1px solid #bbf7d0;}
+.report-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.report-badge{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:800;color:#15803d;background:#dcfce7;padding:5px 12px;border-radius:20px;}
+.report-badge .rpt-icon{width:15px;height:15px;}
+.report-headline{font-size:1.05rem;font-weight:700;color:var(--gray-800);line-height:1.5;letter-spacing:-.3px;margin-bottom:14px;}
+.report-headline b{color:#16a34a;}
+.report-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+.report-stat{background:#fff;border:1px solid var(--gray-200);border-radius:12px;padding:12px 6px;text-align:center;}
+.report-stat-num{font-size:1.3rem;font-weight:800;color:var(--gray-900);line-height:1.1;}
+.report-stat-num.good{color:#16a34a;}
+.report-stat-lbl{font-size:.68rem;color:var(--gray-500);margin-top:4px;font-weight:600;}
+.report-action{background:#fff;border:1px solid #fed7aa;border-left:4px solid #f97316;border-radius:0 12px 12px 0;padding:13px 15px;margin-bottom:10px;}
+.report-action-t{font-size:.78rem;font-weight:800;color:#c2410c;margin-bottom:5px;display:flex;align-items:center;gap:5px;}
+.report-action-t .rpt-icon{width:15px;height:15px;}
+.report-action-b{font-size:.9rem;color:var(--gray-800);line-height:1.55;}
+.report-action-b b{color:#ea580c;}
+.report-threat{font-size:.85rem;color:var(--gray-600);line-height:1.5;padding:4px 2px 2px;}
+.report-threat b{color:#dc2626;}
+.report-cta{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:14px;padding:14px;background:linear-gradient(135deg,#16a34a,#15803d);border-radius:12px;text-decoration:none;transition:transform .15s;}
+.report-cta:active{transform:scale(.98);}
+.report-cta-main{font-size:.95rem;font-weight:800;color:#fff;}
+.report-cta-sub{font-size:.8rem;color:#dcfce7;font-weight:600;}
 /* S단계: 날짜별 순위 흐름 */
 .kw-trend-flow{display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:.72rem;}
 .kw-trend-flow.up .trend-rank:last-child{color:#16a34a;font-weight:700;}
@@ -1051,6 +1074,21 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
     <!-- TAB: 플레이스 분석 -->
     <div id="tab-place" class="tab-content active">
+      <!-- 진단 리포트 (핵심 요약·액션) -->
+      <div class="card report-card" id="reportCard" style="display:none;">
+        <div class="report-head">
+          <span class="report-badge"><i data-lucide="clipboard-list" class="rpt-icon"></i> 순위 진단 리포트</span>
+        </div>
+        <div class="report-headline" id="reportHeadline"></div>
+        <div class="report-stats" id="reportStats"></div>
+        <div class="report-action" id="reportAction" style="display:none;"></div>
+        <div class="report-threat" id="reportThreat" style="display:none;"></div>
+        <a class="report-cta" id="reportCta" href="https://pf.kakao.com/_qsxlXX/chat" target="_blank" rel="noopener">
+          <span class="report-cta-main">상위노출, 직접 하기 막막하신가요?</span>
+          <span class="report-cta-sub">플레이스 전문가에게 무료로 물어보기 →</span>
+        </a>
+      </div>
+
       <!-- 4-AXIS -->
       <div style="font-size:.82rem;font-weight:700;color:var(--gray-600);padding:12px 0 0;">진단 상세</div>
       <div class="axis-grid" id="axisGrid"></div>
@@ -2717,6 +2755,9 @@ function renderResult(d){
     trendEl.style.display = 'none';
   }
 
+  // 진단 리포트 (핵심 요약·액션 — 점수 바로 아래 최상단)
+  renderActionReport(d, sc);
+
   // 4축 카드
   renderAxisCards(d, sc);
 
@@ -3405,6 +3446,91 @@ function renderBlogResultsWithComparison(blogResults, prevBlogMap, kwHistory){
 }
 
 // ── 닥터 코멘트 ───────────────────────────────────────────────────────────────
+// ── 진단 리포트 (핵심 요약·액션) ──────────────────────────────────────────────
+function weakestAxis(sc){
+  const pairs=[['seo',sc.seo??0],['content',sc.content??0]];
+  if(sc.activity!=null) pairs.push(['activity',sc.activity]);
+  return pairs.sort((a,b)=>a[1]-b[1])[0][0];
+}
+function renderActionReport(d, sc){
+  const card=document.getElementById('reportCard');
+  const allKws=(d.place_results||[]);
+  if(!allKws.length){ card.style.display='none'; return; }
+  card.style.display='block';
+
+  const ranked=allKws.filter(k=>k.rank);
+  const firstPage=ranked.filter(k=>k.rank<=10);
+  const best=ranked.slice().sort((a,b)=>a.rank-b.rank)[0];
+  // 가장 아까운 키워드: 11~15위 우선, 없으면 6~10위 최상위
+  const oppKw=ranked.filter(k=>k.rank>=11&&k.rank<=15).sort((a,b)=>a.rank-b.rank)[0]
+           || ranked.filter(k=>k.rank>5&&k.rank<=10).sort((a,b)=>a.rank-b.rank)[0];
+
+  // 1) 헤드라인
+  let hl;
+  if(!ranked.length){
+    hl=`아직 <b>주요 키워드에서 노출이 안 되고</b> 있어요. 지금이 시작하기 딱 좋은 시점이에요.`;
+  } else if(best.rank===1){
+    hl=`<b>'${esc(best.keyword)}' 1위</b> — 상위 노출이 아주 잘 되고 있어요!`;
+  } else if(firstPage.length>0){
+    hl=`검색 키워드 중 <b>${firstPage.length}개가 첫 화면(1~10위)</b>에 노출 중이에요.`;
+    if(oppKw && oppKw.rank>10) hl+=` '${esc(oppKw.keyword)}' ${oppKw.rank}위만 조금 올리면 하나 더 늘어요.`;
+  } else {
+    const gap=Math.max(1,best.rank-10);
+    hl=`<b>'${esc(best.keyword)}' ${best.rank}위</b> — 첫 화면(10위)까지 <b>${gap}계단</b> 남았어요.`;
+  }
+  document.getElementById('reportHeadline').innerHTML=hl;
+
+  // 2) 핵심 지표 3개
+  document.getElementById('reportStats').innerHTML=`
+    <div class="report-stat"><div class="report-stat-num">${allKws.length}</div><div class="report-stat-lbl">분석 키워드</div></div>
+    <div class="report-stat"><div class="report-stat-num ${firstPage.length?'good':''}">${firstPage.length}</div><div class="report-stat-lbl">첫 화면 노출</div></div>
+    <div class="report-stat"><div class="report-stat-num ${best&&best.rank<=5?'good':''}">${best?best.rank+'위':'-'}</div><div class="report-stat-lbl">최고 순위</div></div>`;
+
+  // 3) 액션 — 가장 아까운 기회 + 약점축 기반 구체 조치
+  const actEl=document.getElementById('reportAction');
+  const weakKey=weakestAxis(sc);
+  const actFix={
+    seo:'매장 정보·사진·대표키워드를 꼼꼼히 채우면 노출이 올라가요.',
+    content:'리뷰와 별점을 꾸준히 관리하면 격차가 빠르게 좁혀져요.',
+    activity:'최근 리뷰를 주기적으로 쌓아 신선도를 높이세요.',
+  }[weakKey]||'기본 정보와 리뷰부터 탄탄히 채워보세요.';
+  if(oppKw){
+    const gap=Math.max(1,oppKw.rank-10);
+    actEl.innerHTML=`
+      <div class="report-action-t"><i data-lucide="target" class="rpt-icon"></i>지금 가장 아까운 키워드</div>
+      <div class="report-action-b"><b>'${esc(oppKw.keyword)}' ${oppKw.rank}위</b> — ${oppKw.rank>10?`${gap}계단만 올리면 첫 화면이에요. `:''}${actFix}</div>`;
+    actEl.style.display='block';
+  } else if(!ranked.length){
+    actEl.innerHTML=`
+      <div class="report-action-t"><i data-lucide="target" class="rpt-icon"></i>먼저 할 일</div>
+      <div class="report-action-b">핵심 키워드부터 노출시키는 게 우선이에요. ${actFix}</div>`;
+    actEl.style.display='block';
+  } else {
+    actEl.style.display='none';
+  }
+
+  // 4) 위기감 — 경쟁사
+  const threatEl=document.getElementById('reportThreat');
+  const comp=d.competitor||{};
+  const cards=comp.cards||[];
+  if(cards.length){
+    const closest=cards.slice().filter(c=>c.gap!=null).sort((a,b)=>a.gap-b.gap)[0];
+    let t=`상위 키워드 <b>${cards.length}곳</b>에서 경쟁사가 앞서 있어요.`;
+    if(closest) t+=` 가장 근소한 건 '${esc(closest.keyword)}' ${closest.gap}계단 차이 — 곧 뒤집을 수 있어요.`;
+    threatEl.innerHTML=t; threatEl.style.display='block';
+  } else if(comp.status==='all_first'){
+    threatEl.innerHTML=`주요 키워드에서 <b>모두 1위</b>예요. 이제는 <b>방어</b>가 중요해요.`;
+    threatEl.style.display='block';
+  } else {
+    threatEl.style.display='none';
+  }
+
+  // CTA: 모바일=채팅, PC=채널홈
+  const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const cta=document.getElementById('reportCta');
+  if(cta) cta.href=isMobile?'https://pf.kakao.com/_qsxlXX/chat':'https://pf.kakao.com/_qsxlXX';
+}
+
 function renderComment(d, sc){
   const lines=[];
   const seo=sc.seo??0, con=sc.content??0;
