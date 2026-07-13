@@ -830,27 +830,19 @@ async def _fetch_place_ranking(page, keyword, safe_mode=True):
     businesses_total = None
     p_url = f"https://search.naver.com/search.naver?query={encoded_kw}&where=place&sm=tab_jum"
 
-    # 1차: map.naver.com iframe 방식 (전체 결과 수집 가능)
+    # 1차: pcmap.place.naver.com 직접 접근 (전체 결과 수집)
     try:
-        map_url = f"https://map.naver.com/p/search/{encoded_kw}"
-        await page.goto(map_url, wait_until="domcontentloaded", timeout=20000)
-        await page.wait_for_timeout(4000)
+        pcmap_url = f"https://pcmap.place.naver.com/restaurant/list?query={encoded_kw}"
+        await page.goto(pcmap_url, wait_until="domcontentloaded", timeout=20000)
+        await page.wait_for_timeout(3000)
 
-        # searchIframe (pcmap.place.naver.com) 찾기
-        search_frame = None
-        for frame in page.frames:
-            if 'pcmap.place.naver.com' in frame.url:
-                search_frame = frame
-                break
+        # 스크롤로 더 많은 결과 로드
+        for _ in range(12):
+            await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            await page.wait_for_timeout(400)
 
-        if search_frame:
-            # iframe 내부 스크롤 (더 많은 결과 로드)
-            for _ in range(12):
-                await search_frame.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                await page.wait_for_timeout(400)
-
-            # iframe 내부에서 place_id 수집 (Apollo State + href)
-            iframe_data = await search_frame.evaluate(r'''() => {
+        # Apollo State에서 place_id 수집
+        pcmap_data = await page.evaluate(r'''() => {
                 const ids = [];
                 const seen = new Set();
                 let total = null;
@@ -899,13 +891,13 @@ async def _fetch_place_ranking(page, keyword, safe_mode=True):
                 return { ids: ids, total: total };
             }''')
 
-            ranked_ids = iframe_data.get('ids', [])
-            businesses_total = iframe_data.get('total')
-            if ranked_ids:
-                logger.debug(f"  [{keyword}] map.naver iframe: {len(ranked_ids)}개, total={businesses_total}")
+        ranked_ids = pcmap_data.get('ids', [])
+        businesses_total = pcmap_data.get('total')
+        if ranked_ids:
+            logger.debug(f"  [{keyword}] pcmap.place: {len(ranked_ids)}개, total={businesses_total}")
 
-    except Exception as map_err:
-        logger.debug(f"  [{keyword}] map.naver 폴백 실패: {map_err}")
+    except Exception as pcmap_err:
+        logger.debug(f"  [{keyword}] pcmap.place 실패: {pcmap_err}")
 
     # 2차: search.naver.com 폴백 (map.naver.com 실패 또는 결과 적을 때)
     if len(ranked_ids) < 5:
