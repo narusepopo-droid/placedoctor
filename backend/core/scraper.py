@@ -841,37 +841,42 @@ async def _fetch_place_ranking(page, keyword, safe_mode=True):
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             await page.wait_for_timeout(400)
 
-        # Apollo State에서 place_id 수집
+        # Apollo State에서 place_id 수집 (ROOT_QUERY.placeList.businesses.items 순서 사용)
         pcmap_data = await page.evaluate(r'''() => {
                 const ids = [];
                 const seen = new Set();
                 let total = null;
 
-                // Apollo State에서 추출 (순서 보장)
                 try {
                     const state = window.__APOLLO_STATE__;
-                    if (state) {
-                        // businesses.total 수집
-                        for (const v of Object.values(state)) {
-                            if (v && typeof v === 'object' && typeof v.total === 'number' && v.total > 10) {
-                                total = v.total;
+                    if (state && state.ROOT_QUERY) {
+                        // ROOT_QUERY에서 placeList 키 찾기 (실제 검색 순위 순서)
+                        for (const k of Object.keys(state.ROOT_QUERY)) {
+                            if (k.includes('placeList')) {
+                                const val = state.ROOT_QUERY[k];
+                                if (val && val.businesses) {
+                                    // businesses 참조 따라가기
+                                    let biz = val.businesses;
+                                    if (biz.__ref) biz = state[biz.__ref];
+
+                                    // total 수집
+                                    if (biz && typeof biz.total === 'number') {
+                                        total = biz.total;
+                                    }
+
+                                    // items 배열에서 순서대로 place_id 추출
+                                    if (biz && biz.items) {
+                                        for (const item of biz.items) {
+                                            const itemObj = item.__ref ? state[item.__ref] : item;
+                                            const pid = itemObj?.id;
+                                            if (pid && /^\d{8,11}$/.test(pid) && !seen.has(pid)) {
+                                                seen.add(pid);
+                                                ids.push(pid);
+                                            }
+                                        }
+                                    }
+                                }
                                 break;
-                            }
-                        }
-                        // place_id 수집 (PlaceListBusinessesItem 키 기준)
-                        const itemKeys = Object.keys(state)
-                            .filter(k => k.startsWith('PlaceListBusinessesItem:'))
-                            .sort((a, b) => {
-                                const na = parseInt(a.split(':')[1]) || 0;
-                                const nb = parseInt(b.split(':')[1]) || 0;
-                                return na - nb;
-                            });
-                        for (const k of itemKeys) {
-                            const val = state[k];
-                            const pid = val?.id || k.split(':')[1];
-                            if (pid && /^\d{8,11}$/.test(pid) && !seen.has(pid)) {
-                                seen.add(pid);
-                                ids.push(pid);
                             }
                         }
                     }
