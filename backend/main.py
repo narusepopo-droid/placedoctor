@@ -1255,20 +1255,27 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
       <!-- 블로그 분석 후 알림 받기 -->
       <div class="card" id="blogSubscribeCard" style="display:none;">
-        <div class="card-title"><i data-lucide="bell" class="rpt-icon is-info"></i>매주 순위 알림 받기</div>
+        <div class="sub-head">
+          <span class="sub-head-ico"><i data-lucide="radar" class="rpt-icon"></i></span>
+          <div>
+            <div class="sub-head-title">블로그 노출, 계속 지켜봐 드릴게요</div>
+            <div class="sub-head-sub">블로그 노출 순위가 바뀌면 카카오톡으로 알림 · 무료</div>
+          </div>
+        </div>
+        <div class="sub-track" id="blogSubTrack"></div>
+        <div class="sub-hooks" id="blogSubHooks"></div>
         <div class="subscribe-form" id="blogSubscribeForm">
-          <p class="subscribe-desc">매주 블로그 노출 순위 변화를 카카오 알림톡으로 보내드려요.</p>
           <input type="tel" id="blogSubscribePhone" class="subscribe-input" placeholder="휴대폰 번호 (예: 01012345678)" maxlength="13">
           <label class="subscribe-agree">
             <input type="checkbox" id="blogSubscribeAgree">
-            <span>개인정보 수집·이용 및 마케팅 정보 수신에 동의합니다.</span>
+            <span>플레이스랭킹 순위 리포트 알림톡 수신에 동의합니다 (정보성)</span>
           </label>
-          <button class="btn-subscribe" id="btnBlogSubscribe" onclick="submitBlogSubscribe()">무료 알림 신청하기</button>
+          <button class="btn-subscribe" id="btnBlogSubscribe" onclick="submitBlogSubscribe()">무료로 블로그 노출 추적 시작</button>
         </div>
         <div class="subscribe-done" id="blogSubscribeDone" style="display:none;">
           <div class="subscribe-done-icon">✅</div>
-          <div class="subscribe-done-text">알림 신청이 완료되었습니다!</div>
-          <div class="subscribe-done-sub">매주 순위 변화를 알림톡으로 보내드릴게요.</div>
+          <div class="subscribe-done-text">추적을 시작했어요!</div>
+          <div class="subscribe-done-sub">블로그 노출이 바뀌면 카카오톡으로 가장 먼저 알려드릴게요.</div>
         </div>
       </div>
     </div>
@@ -2885,6 +2892,9 @@ function renderBlogOnlyResult(d){
   const kwHistory = d.keyword_history || {};
   renderBlogResultsWithComparison(d.blog_results||[], prevBlogMap, kwHistory);
 
+  // 블로그 노출 추적(구독) 개인화 훅
+  renderBlogSubscribe(d.blog_results||[]);
+
   // 디자인2차: 결과 화면 라인 아이콘 렌더
   if(window.lucide) lucide.createIcons();
 }
@@ -3589,6 +3599,41 @@ function renderSubscribe(d){
   if(window.lucide) lucide.createIcons();
 }
 
+// 블로그 노출 추적(구독) 개인화 훅
+function renderBlogSubscribe(blogResults){
+  const trackEl=document.getElementById('blogSubTrack');
+  const hooksEl=document.getElementById('blogSubHooks');
+  if(!trackEl||!hooksEl) return;
+  const br=blogResults||[];
+  const kwBest=[];
+  for(const r of br){
+    const ranks=(r.hits||[]).filter(h=>h.rank!=null).map(h=>h.rank);
+    if(ranks.length) kwBest.push({keyword:r.keyword, rank:Math.min(...ranks)});
+  }
+  kwBest.sort((a,b)=>a.rank-b.rank);
+  const best=kwBest[0];
+  const oppKw=kwBest.filter(k=>k.rank>=11&&k.rank<=15)[0] || kwBest.filter(k=>k.rank>5&&k.rank<=10)[0];
+
+  // ② 빈 그래프(첫 기록 = 채우고 싶게)
+  trackEl.innerHTML=`<div class="track-label">블로그 노출 추세</div>`
+    + `<div class="track-dots"><span class="td on"></span><span class="td"></span><span class="td"></span><span class="td"></span></div>`
+    + `<div class="track-hint">오늘이 <b>1번째 기록</b>이에요 · 블로그 노출 변화를 매주 이어 그려드려요</div>`;
+
+  // ③ 미래 트리거 + ④ 손실회피
+  const hooks=[];
+  if(oppKw){
+    const gap=Math.max(1,oppKw.rank-10);
+    hooks.push(`<div class="sub-hook trig"><i data-lucide="target" class="rpt-icon"></i><span>‘<b>${esc(oppKw.keyword)}</b>’ 블로그 ${oppKw.rank}위 — 첫 화면까지 <b>${gap}계단</b>. <b>진입하는 순간</b> 알려드릴게요.</span></div>`);
+  }
+  if(best && best.rank<=10){
+    hooks.push(`<div class="sub-hook guard"><i data-lucide="shield" class="rpt-icon"></i><span>지금 ‘<b>${esc(best.keyword)}</b>’ 블로그 ${best.rank}위 노출 중 — 밀려나면 <b>바로</b> 알려드려요.</span></div>`);
+  } else if(!kwBest.length){
+    hooks.push(`<div class="sub-hook trig"><i data-lucide="target" class="rpt-icon"></i><span>우리 블로그가 <b>검색 첫 화면에 노출되는 순간</b> 알려드릴게요.</span></div>`);
+  }
+  hooksEl.innerHTML=hooks.join('');
+  if(window.lucide) lucide.createIcons();
+}
+
 function renderComment(d, sc){
   const lines=[];
   const seo=sc.seo??0, con=sc.content??0;
@@ -3773,16 +3818,18 @@ async function submitBlogSubscribe(){
     const data = await res.json();
     if(res.ok){
       document.getElementById('blogSubscribeForm').style.display = 'none';
+      const tk=document.getElementById('blogSubTrack'); if(tk) tk.style.display='none';
+      const hk=document.getElementById('blogSubHooks'); if(hk) hk.style.display='none';
       document.getElementById('blogSubscribeDone').style.display = 'block';
     } else {
       alert(data.detail || '신청에 실패했습니다.');
       btn.disabled = false;
-      btn.textContent = '무료 알림 신청하기';
+      btn.textContent = '무료로 블로그 노출 추적 시작';
     }
   } catch(e){
     alert('네트워크 오류가 발생했습니다.');
     btn.disabled = false;
-    btn.textContent = '무료 알림 신청하기';
+    btn.textContent = '무료로 블로그 노출 추적 시작';
   }
 }
 
@@ -3809,6 +3856,7 @@ function switchTab(tabId){
       const prevBlogMap = buildPrevBlogRankMap(_historyBlogData.prev_analysis);
       const kwHistory = _historyBlogData.keyword_history || {};
       renderBlogResultsWithComparison(_historyBlogData.blog_results || [], prevBlogMap, kwHistory);
+      renderBlogSubscribe(_historyBlogData.blog_results || []);
     } else if(!_blogAnalyzed && !_historyBlogData){
       // 블로그 기록 없으면 분석하기 버튼 표시
       document.getElementById('blogStartCard').style.display = 'block';
@@ -3879,6 +3927,7 @@ async function startBlogAnalysis(){
     const prevBlogMap = buildPrevBlogRankMap(result.prev_analysis);
     const kwHistory = result.keyword_history || {};
     renderBlogResultsWithComparison(result.blog_results || [], prevBlogMap, kwHistory);
+    renderBlogSubscribe(result.blog_results || []);
 
     btn.disabled = false;
     btn.textContent = '🔍 블로그 노출 분석하기';
