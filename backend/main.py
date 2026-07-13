@@ -619,6 +619,9 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .sub-hook.trig .rpt-icon{color:#f97316;}
 .sub-hook.guard .rpt-icon{color:#ef4444;}
 .sub-hook b{color:var(--gray-900);}
+/* 공유 토스트 (PC 카톡 폴백 안내) */
+.share-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:rgba(17,24,39,.95);color:#fff;font-size:.85rem;font-weight:600;line-height:1.5;padding:12px 18px;border-radius:10px;z-index:9999;max-width:88%;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.28);animation:toastIn .25s ease-out;}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,12px);}to{opacity:1;transform:translate(-50%,0);}}
 
 /* BUTTONS */
 .btn-area{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
@@ -3719,6 +3722,8 @@ function handleShare(){
   const title = '우리 가게 네이버 플레이스 순위는 몇 위일까?';
   const desc = '1분이면 무료로 내 가게 순위·경쟁사 비교까지 확인할 수 있어요';
 
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
   // 1순위: 카카오톡 직접 공유 (나에게 보내기 / 친구 선택 + OG 카드)
   if(pid && window.Kakao && Kakao.isInitialized && Kakao.isInitialized()){
     try{
@@ -3732,12 +3737,16 @@ function handleShare(){
         },
         buttons: [{ title: '내 가게 순위 확인하기', link: { mobileWebUrl: url, webUrl: url } }]
       });
+      // PC 안전장치: 카톡 계정 미연결로 공유창이 막힐 수 있어 링크도 복사 + 안내
+      if(!isMobile){
+        navigator.clipboard.writeText(url).catch(()=>{});
+        _shareToast('카카오톡 공유창을 열었어요. 안 뜨거나 실패하면, 방금 복사된 링크를 붙여넣어 공유하세요.');
+      }
       return;
     }catch(e){ /* SDK 실패 시 아래 폴백 */ }
   }
 
   // 2순위: OS 공유 시트 (모바일, 카톡도 선택 가능)
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if(isMobile && navigator.share){
     navigator.share({title: title, text: desc, url: url}).catch(()=>{});
     return;
@@ -3749,6 +3758,14 @@ function handleShare(){
   }).catch(()=>{
     prompt('아래 링크를 복사하세요:', shareText);
   });
+}
+// 공유용 토스트 (비차단 안내)
+function _shareToast(msg){
+  const t=document.createElement('div');
+  t.className='share-toast';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0'; setTimeout(()=>t.remove(),320); }, 4500);
 }
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window._pwaPrompt=e;});
 
