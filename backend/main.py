@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from .database import engine, get_db
 from .models import Base
 from . import crud, schemas
-from .core.scraper import diagnose_store, diagnose_store_stream, analyze_blog_ranking
+from .core.scraper import diagnose_store, diagnose_store_stream, analyze_blog_ranking, fetch_top_places
 from .core.scoring import apply_ad_flags
 
 # 공유용 OG 카드 생성 (Pillow). 미설치·폰트 문제로 사이트 전체가 죽지 않도록 방어 임포트.
@@ -4222,6 +4222,48 @@ async def rank_detail(slug: str, db: Session = Depends(get_db)):
             f'내 가게가 여기 없거나 순위를 올리고 싶다면 아래에서 무료로 진단해 보세요.</p>'
             + rel_html)
     return HTMLResponse(_seo_head(title, desc, f"https://placeranking.com/rank/{quote(kw.replace(' ','-'))}", jsonld) + body + _SEO_FOOT)
+
+
+# ── 키워드 도구 API ──────────────────────────────────────────────────────────
+
+@app.get("/keyword-tool/top-places", tags=["키워드도구"])
+async def keyword_tool_top_places(keyword: str, limit: int = 10):
+    """
+    키워드 검색 시 상위 1~10위 매장 정보를 반환합니다.
+
+    - **keyword**: 검색할 키워드 (예: "강남역 맛집", "홍대 카페")
+    - **limit**: 반환할 매장 수 (기본 10, 최대 10)
+
+    Returns:
+        - keyword: 검색한 키워드
+        - businesses_total: 해당 키워드로 등록된 총 업체 수 (등급 산출용)
+        - places: 상위 매장 리스트
+            - rank: 순위 (1~10)
+            - place_id: 네이버 플레이스 ID
+            - name: 매장명
+            - image: 대표 이미지 URL
+            - place_url: 플레이스 URL
+            - category: 업종
+            - address: 주소
+    """
+    if not keyword or len(keyword.strip()) < 2:
+        raise HTTPException(status_code=400, detail="키워드를 2자 이상 입력하세요")
+
+    keyword = keyword.strip()
+    limit = min(max(1, limit), 10)
+
+    try:
+        import concurrent.futures
+        future = asyncio.run_coroutine_threadsafe(
+            fetch_top_places(keyword, limit),
+            _proactor_loop
+        )
+        result = future.result(timeout=30)
+        return result
+    except concurrent.futures.TimeoutError:
+        raise HTTPException(status_code=504, detail="검색 시간 초과")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"검색 실패: {str(e)}")
 
 
 @app.get("/search-place", tags=["검색"])

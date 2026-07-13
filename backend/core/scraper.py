@@ -2135,3 +2135,180 @@ async def analyze_blog_stream(
 
     finally:
         await close_browser(playwright, browser)
+
+
+# ── 키워드 도구: 상위 매장 정보 수집 ──────────────────────────────────────────
+
+_TOP_PLACES_JS = '''() => {
+    const results = [];
+    const seenIds = new Set();
+    const pats = [
+        /(?:place|restaurant|accommodation|hairshop|clinic|nail|gym|cafe|map|pcmap|store|outlink|entry\\/place|local\\/naver_place|pinId|beauty|spa|wellness)\\/(\\d{8,11})/i,
+        /[?&](?:id|pid|placeId|bizId)=(\\d{8,11})/i
+    ];
+    const adRe = /\\/\\/(?:ader|ad)\\.(?:search\\.)?naver\\.com/i;
+    // 주소 지역 패턴 (시도/시군구)
+    const addrPat = /^(서울|경기|인천|부산|대구|대전|광주|울산|세종|강원|충북|충남|전북|전남|경북|경남|제주)/;
+
+    for (const li of document.querySelectorAll('li')) {
+        if (results.length >= 10) break;
+
+        let pid = null, isAd = false;
+        for (const a of li.querySelectorAll('a[href]')) {
+            const h = a.getAttribute('href') || '';
+            if (adRe.test(h)) { isAd = true; break; }
+            if (!pid) {
+                let d = ''; try { d = decodeURIComponent(h); } catch(e) { d = h; }
+                for (const p of pats) { const m = d.match(p); if (m) { pid = m[1]; break; } }
+            }
+        }
+        if (!pid || isAd) continue;
+        if (seenIds.has(pid)) continue;
+
+        // 중첩 li 체크 (부모 li에 이미 등록된 경우 skip)
+        let parentReg = false;
+        let anc = li.parentElement;
+        while (anc) {
+            if (anc.tagName === 'LI' && seenIds.has(anc.dataset._pid)) { parentReg = true; break; }
+            anc = anc.parentElement;
+        }
+        if (parentReg) continue;
+
+        seenIds.add(pid);
+        li.dataset._pid = pid;
+
+        // 매장명 추출 (여러 셀렉터 시도)
+        let name = '';
+        const nameSelectors = [
+            '.place_bluelink', '.CHC5F', '.TYaxT', '.YwYLL',
+            'a[href*="place.naver"] span', 'a[href*="map.naver"] span',
+            '.title_link', '.link_name', '.name'
+        ];
+        for (const sel of nameSelectors) {
+            const el = li.querySelector(sel);
+            if (el) {
+                const t = (el.innerText || '').trim().split('\\n')[0].trim();
+                if (t && t.length >= 2 && t.length <= 50) { name = t; break; }
+            }
+        }
+        // 폴백: 첫 번째 줄 텍스트
+        if (!name) {
+            const lines = (li.innerText || '').split('\\n').map(l => l.trim()).filter(l => l.length >= 2 && l.length <= 50);
+            if (lines.length > 0) name = lines[0];
+        }
+
+        // 대표 이미지 추출
+        let image = '';
+        const imgEl = li.querySelector('img[src*="pstatic.net"], img[src*="naver"], img[data-lazysrc]');
+        if (imgEl) {
+            image = imgEl.getAttribute('src') || imgEl.getAttribute('data-lazysrc') || '';
+            // 썸네일 → 큰 이미지로 변환
+            if (image.includes('type=w278')) {
+                image = image.replace(/type=w278[^&]*/, 'type=w674');
+            } else if (image.includes('type=f')) {
+                image = image.replace(/type=f[^&]*/, 'type=w674');
+            }
+        }
+
+        // 플레이스 URL
+        const placeUrl = 'https://m.place.naver.com/place/' + pid;
+
+        // 카테고리 추출
+        let category = '';
+        const catSelectors = ['.KCMnt', '.YzBgS', '.category', '.sub_txt'];
+        for (const sel of catSelectors) {
+            const el = li.querySelector(sel);
+            if (el) {
+                const t = (el.innerText || '').trim().split('\\n')[0].trim();
+                if (t && t.length <= 30) { category = t; break; }
+            }
+        }
+
+        // 주소 추출 — 텍스트에서 "서울/경기/..."로 시작하는 줄 찾기
+        let address = '';
+        const liText = li.innerText || '';
+        const lines = liText.split('\\n').map(l => l.trim()).filter(l => l);
+        for (const line of lines) {
+            // "서울 강남구 역삼동" 형태 (시도로 시작, 짧은 주소)
+            if (addrPat.test(line) && line.length >= 5 && line.length <= 40
+                && (line.includes('구') || line.includes('시 ') || line.includes('군'))
+                && !/맛집|오픈|리뷰|별점|영업/.test(line)) {
+                address = line;
+                break;
+            }
+        }
+
+        // 리뷰 수 추출 (선택적)
+        let reviewCount = null;
+        const reviewMatch = liText.match(/리뷰\\s*([\\d,]+)/);
+        if (reviewMatch) {
+            reviewCount = parseInt(reviewMatch[1].replace(/,/g, ''));
+        }
+
+        // 별점 추출 (선택적)
+        let rating = null;
+        const ratingMatch = liText.match(/별점\\s*([\\d.]+)/);
+        if (ratingMatch) {
+            rating = parseFloat(ratingMatch[1]);
+        }
+
+        results.push({
+            rank: results.length + 1,
+            place_id: pid,
+            name: name,
+            image: image,
+            place_url: placeUrl,
+            category: category,
+            address: address,
+            review_count: reviewCount,
+            rating: rating
+        });
+    }
+    return results;
+}'''
+
+
+async def fetch_top_places(keyword: str, limit: int = 10):
+    """
+    키워드 검색 시 상위 1~10위 매장 정보를 수집합니다.
+
+    Returns:
+        dict: {
+            keyword: str,
+            businesses_total: int | None,
+            places: [
+                {rank, place_id, name, image, place_url, category, address}, ...
+            ]
+        }
+    """
+    playwright, browser, context = await create_browser()
+    try:
+        page = await create_stealth_page(context)
+
+        encoded_kw = urllib.parse.quote(keyword)
+        p_url = f"https://search.naver.com/search.naver?query={encoded_kw}&where=place&sm=tab_jum"
+        await page.goto(p_url, wait_until="domcontentloaded", timeout=25000)
+        await page.wait_for_timeout(2000)
+
+        # 스크롤해서 충분히 로드
+        for _ in range(8):
+            await page.evaluate(_SCROLL_JS)
+            await page.wait_for_timeout(400)
+
+        # 등록업체 총수 수집
+        businesses_total = await page.evaluate(_BUSINESSES_TOTAL_JS)
+
+        # 상위 매장 정보 수집
+        places = await page.evaluate(_TOP_PLACES_JS)
+
+        # limit 적용
+        places = places[:limit]
+
+        return {
+            "keyword": keyword,
+            "businesses_total": businesses_total,
+            "places": places
+        }
+
+    finally:
+        await close_browser(playwright, browser)
