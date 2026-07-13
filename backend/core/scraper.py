@@ -936,25 +936,83 @@ async def check_place_rank(page, keyword, place_id, safe_mode=True):
     first_id   = p_ids[0] if p_ids else None
     first_name = names.get(first_id) if first_id else None
 
-    # 2페이지 폴백 (1페이지에 없을 때)
+    # 2~3페이지 폴백 (1페이지에 없을 때 페이지네이션 클릭으로 탐색)
     if place_id and place_id not in p_ids:
-        try:
-            _p2_url = p_url + "&start=16"
-            await page.goto(_p2_url, wait_until="domcontentloaded", timeout=12000)
-            await page.wait_for_timeout(800)
-            for _ in range(10):
-                await page.evaluate(_SCROLL_JS)
-                await page.wait_for_timeout(350)
-            _p2_ids = await page.evaluate(_PLACE_RANK_JS)
-            _p2_ids = _p2_ids.get('ranked_ids', [])
-            logger.debug(f"  [{keyword}] 2페이지 {len(_p2_ids)}개, 감지={'O' if place_id in _p2_ids else 'X'}")
-            if _p2_ids and place_id in _p2_ids:
-                r2 = _p2_ids.index(place_id) + 16
-                if r2 <= 30:
-                    logger.info(f"  [{keyword}] 2페이지 {r2}위 검출")
-                    return r2, bt, first_id, first_name
-        except Exception as fe:
-            logger.warning(f"  [{keyword}] 2페이지 폴백 오류: {fe}")
+        all_ids = list(p_ids)  # 1페이지 결과 누적
+        for pg_num in range(2, 4):  # 2, 3페이지까지 확인 (30위까지 커버)
+            try:
+                # 현재 1위 매장 ID 기록 (페이지 전환 감지용)
+                first_before = all_ids[-1] if all_ids else None
+
+                # 페이지 번호 버튼 클릭 (플레이스 영역의 페이지네이션)
+                clicked = await page.evaluate(f'''() => {{
+                    // 플레이스 검색 결과 영역 찾기
+                    const placeArea = document.querySelector('.place_section, .api_subject_bx, [class*="place"]');
+                    if (!placeArea) return false;
+
+                    // 해당 영역 내의 페이지 번호 링크 찾기
+                    for (const a of placeArea.querySelectorAll('a.link, a[class*="page"]')) {{
+                        if (a.innerText.trim() === '{pg_num}') {{
+                            a.click();
+                            return true;
+                        }}
+                    }}
+                    // 폴백: 전체 페이지에서 찾기
+                    for (const a of document.querySelectorAll('a.link')) {{
+                        if (a.innerText.trim() === '{pg_num}') {{
+                            a.click();
+                            return true;
+                        }}
+                    }}
+                    return false;
+                }}''')
+
+                if not clicked:
+                    logger.debug(f"  [{keyword}] {pg_num}페이지 버튼 없음")
+                    break
+
+                # 페이지 전환 대기 (콘텐츠가 바뀔 때까지)
+                for wait_i in range(15):
+                    await page.wait_for_timeout(400)
+                    _tmp = await page.evaluate(_PLACE_RANK_JS)
+                    _tmp_ids = _tmp.get('ranked_ids', [])
+                    # 새로운 매장이 나타나면 전환 완료
+                    if _tmp_ids and any(x not in all_ids for x in _tmp_ids):
+                        break
+                else:
+                    logger.debug(f"  [{keyword}] {pg_num}페이지 콘텐츠 변경 없음")
+                    break
+
+                # 스크롤로 추가 로드
+                for _ in range(8):
+                    await page.evaluate(_SCROLL_JS)
+                    await page.wait_for_timeout(300)
+
+                _pg_raw = await page.evaluate(_PLACE_RANK_JS)
+                _pg_ids = _pg_raw.get('ranked_ids', [])
+
+                # 신규 매장만 추가 (중복 제거)
+                new_ids = [x for x in _pg_ids if x not in all_ids]
+                if not new_ids:
+                    logger.debug(f"  [{keyword}] {pg_num}페이지 신규 없음")
+                    break
+
+                all_ids.extend(new_ids)
+                logger.debug(f"  [{keyword}] {pg_num}페이지 +{len(new_ids)}개, 누적 {len(all_ids)}개")
+
+                # place_id 발견 시 순위 계산
+                if place_id in _pg_ids:
+                    # 이 페이지 내 위치 + 이전 페이지 누적
+                    page_offset = len(all_ids) - len(new_ids)
+                    rank_in_page = _pg_ids.index(place_id) + 1
+                    total_rank = page_offset + rank_in_page
+                    if total_rank <= 30:
+                        logger.info(f"  [{keyword}] {pg_num}페이지 {total_rank}위 검출")
+                        return total_rank, bt, first_id, first_name
+
+            except Exception as fe:
+                logger.warning(f"  [{keyword}] {pg_num}페이지 폴백 오류: {fe}")
+                break
 
     logger.debug(f"  [{keyword}] p_ids={len(p_ids)}개, 감지={'O' if place_id in p_ids else 'X'}")
     if place_id in p_ids:

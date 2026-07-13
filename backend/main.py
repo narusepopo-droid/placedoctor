@@ -2287,11 +2287,11 @@ function _rankCls(rank){
   if(rank===1) return 'r-1'; if(rank<=3) return 'r-2-3';
   if(rank<=5) return 'r-4-5'; if(rank<=10) return 'r-6-10'; return 'r-11';
 }
-// 검출 시도 키워드를 그리드에 전부 표기 (최신이 앞) — rank=null이면 순위 밖
+// 검출 시도 키워드를 그리드에 전부 표기 (최신이 앞) — rank=null이면 30위 밖
 function _addScanRow(kw, rank){
   const feed=document.getElementById('scanFeed'); if(!feed) return;
   const found=(rank!==null&&rank!==undefined);
-  const cls=found?_rankCls(rank):'r-out', badge=found?(rank+'위'):'순위 밖';
+  const cls=found?_rankCls(rank):'r-out', badge=found?(rank+'위'):'30위 밖';
   const row=document.createElement('div');
   row.className='scan-row '+cls;
   row.innerHTML=`<span class="sr-kw">${esc(kw)}</span><span class="sr-badge">${badge}</span>`;
@@ -3019,7 +3019,7 @@ function renderCompetitor(d){
   const html=cards.map(c=>{
     const gradeLabel = c.grade==='S' ? 'S급 키워드' : c.grade==='A' ? 'A급 키워드' : '경쟁 키워드';
     const gradeBg    = c.grade==='S' ? 'background:#22c55e' : c.grade==='A' ? 'background:#3b82f6' : 'background:#0ea5a4';
-    const myRankTxt  = c.my_rank ? `${c.my_rank}위` : '순위권 밖';
+    const myRankTxt  = c.my_rank ? `${c.my_rank}위` : '30위 밖';
     const compName   = c.competitor_name || '1위 매장';
     const gap        = c.gap;
 
