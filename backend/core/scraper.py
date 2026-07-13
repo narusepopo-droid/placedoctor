@@ -818,70 +818,143 @@ _SCROLL_JS = '''() => {
 
 async def _fetch_place_ranking(page, keyword, safe_mode=True):
     """
-    네이버 플레이스 검색 결과에서 ranked_ids 리스트를 반환합니다 (1페이지 기준).
-    check_place_rank / find_competitor 양쪽에서 공유하는 핵심 로직.
+    네이버 플레이스 검색 결과에서 ranked_ids 리스트를 반환합니다.
+    map.naver.com iframe 방식 우선, search.naver.com 폴백.
     """
     encoded_kw = urllib.parse.quote(keyword)
     if safe_mode:
         await asyncio.sleep(random.uniform(0.05, 0.15))
 
-    p_url = f"https://search.naver.com/search.naver?query={encoded_kw}&where=place&sm=tab_jum"
-    await page.goto(p_url, wait_until="domcontentloaded", timeout=12000)
-    await page.wait_for_timeout(900)
-
-    try:
-        await page.wait_for_function(
-            """() => {
-                let c = 0;
-                for (const li of document.querySelectorAll('li')) {
-                    for (const a of li.querySelectorAll('a[href]')) {
-                        const h = a.getAttribute('href') || '';
-                        if (h.includes('map.naver') && /\\d{8,11}/.test(h)) { c++; break; }
-                    }
-                    if (c >= 5) return true;
-                }
-                return false;
-            }""",
-            timeout=5000
-        )
-    except Exception:
-        pass
-
-    # 플마 동일: 12회 스크롤 (순위 6+ 안정 로드, 모바일 폴백 최소화)
-    for _ in range(12):
-        await page.evaluate(_SCROLL_JS)
-        await page.wait_for_timeout(350)
-
-    raw = await page.evaluate(_PLACE_RANK_JS)
-    ranked_ids = raw.get('ranked_ids', [])
-    names = raw.get('names', {})  # 보통 {} (검색카드 이름수집은 불안정해 미사용 — 경쟁사 이름은 _fetch_place_name 폴백)
-
-    # 등록업체 총수 수집 — 메인 페이지 → iframe 프레임 순으로 시도
+    ranked_ids = []
+    names = {}
     businesses_total = None
+    p_url = f"https://search.naver.com/search.naver?query={encoded_kw}&where=place&sm=tab_jum"
+
+    # 1차: map.naver.com iframe 방식 (전체 결과 수집 가능)
     try:
-        businesses_total = await page.evaluate(_BUSINESSES_TOTAL_JS)
-        if businesses_total:
-            logger.debug(f"  [{keyword}] businesses.total={businesses_total}")
-    except Exception:
-        pass
+        map_url = f"https://map.naver.com/p/search/{encoded_kw}"
+        await page.goto(map_url, wait_until="domcontentloaded", timeout=20000)
+        await page.wait_for_timeout(4000)
+
+        # searchIframe (pcmap.place.naver.com) 찾기
+        search_frame = None
+        for frame in page.frames:
+            if 'pcmap.place.naver.com' in frame.url:
+                search_frame = frame
+                break
+
+        if search_frame:
+            # iframe 내부 스크롤 (더 많은 결과 로드)
+            for _ in range(12):
+                await search_frame.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                await page.wait_for_timeout(400)
+
+            # iframe 내부에서 place_id 수집 (Apollo State + href)
+            iframe_data = await search_frame.evaluate(r'''() => {
+                const ids = [];
+                const seen = new Set();
+                let total = null;
+
+                // Apollo State에서 추출 (순서 보장)
+                try {
+                    const state = window.__APOLLO_STATE__;
+                    if (state) {
+                        // businesses.total 수집
+                        for (const v of Object.values(state)) {
+                            if (v && typeof v === 'object' && typeof v.total === 'number' && v.total > 10) {
+                                total = v.total;
+                                break;
+                            }
+                        }
+                        // place_id 수집 (PlaceListBusinessesItem 키 기준)
+                        const itemKeys = Object.keys(state)
+                            .filter(k => k.startsWith('PlaceListBusinessesItem:'))
+                            .sort((a, b) => {
+                                const na = parseInt(a.split(':')[1]) || 0;
+                                const nb = parseInt(b.split(':')[1]) || 0;
+                                return na - nb;
+                            });
+                        for (const k of itemKeys) {
+                            const val = state[k];
+                            const pid = val?.id || k.split(':')[1];
+                            if (pid && /^\d{8,11}$/.test(pid) && !seen.has(pid)) {
+                                seen.add(pid);
+                                ids.push(pid);
+                            }
+                        }
+                    }
+                } catch(e) {}
+
+                // href 폴백
+                if (ids.length < 10) {
+                    for (const a of document.querySelectorAll('a[href]')) {
+                        const m = a.href.match(/place\/(\d{8,11})/);
+                        if (m && !seen.has(m[1])) {
+                            seen.add(m[1]);
+                            ids.push(m[1]);
+                        }
+                    }
+                }
+
+                return { ids: ids, total: total };
+            }''')
+
+            ranked_ids = iframe_data.get('ids', [])
+            businesses_total = iframe_data.get('total')
+            if ranked_ids:
+                logger.debug(f"  [{keyword}] map.naver iframe: {len(ranked_ids)}개, total={businesses_total}")
+
+    except Exception as map_err:
+        logger.debug(f"  [{keyword}] map.naver 폴백 실패: {map_err}")
+
+    # 2차: search.naver.com 폴백 (map.naver.com 실패 또는 결과 적을 때)
+    if len(ranked_ids) < 5:
+        try:
+            await page.goto(p_url, wait_until="domcontentloaded", timeout=12000)
+            await page.wait_for_timeout(900)
+
+            try:
+                await page.wait_for_function(
+                    """() => {
+                        let c = 0;
+                        for (const li of document.querySelectorAll('li')) {
+                            for (const a of li.querySelectorAll('a[href]')) {
+                                const h = a.getAttribute('href') || '';
+                                if (h.includes('map.naver') && /\\d{8,11}/.test(h)) { c++; break; }
+                            }
+                            if (c >= 5) return true;
+                        }
+                        return false;
+                    }""",
+                    timeout=5000
+                )
+            except Exception:
+                pass
+
+            for _ in range(12):
+                await page.evaluate(_SCROLL_JS)
+                await page.wait_for_timeout(350)
+
+            raw = await page.evaluate(_PLACE_RANK_JS)
+            search_ids = raw.get('ranked_ids', [])
+
+            # map.naver 결과와 병합 (중복 제거, map.naver 우선)
+            existing = set(ranked_ids)
+            for pid in search_ids:
+                if pid not in existing:
+                    ranked_ids.append(pid)
+                    existing.add(pid)
+
+            logger.debug(f"  [{keyword}] search.naver 보완: 총 {len(ranked_ids)}개")
+        except Exception as search_err:
+            logger.debug(f"  [{keyword}] search.naver 폴백 실패: {search_err}")
+
+    # businesses_total이 아직 None이면 search.naver 페이지에서 수집 시도
     if not businesses_total:
         try:
-            for frame in page.frames:
-                if businesses_total:
-                    break
-                try:
-                    bt = await asyncio.wait_for(frame.evaluate(_BUSINESSES_TOTAL_JS), timeout=1.5)
-                    if bt:
-                        businesses_total = bt
-                        logger.debug(f"  [{keyword}] frame businesses.total={bt}")
-                except Exception:
-                    pass
+            businesses_total = await page.evaluate(_BUSINESSES_TOTAL_JS)
         except Exception:
             pass
-
-    # Q단계: map.naver businesses_total 폴백 제거 (키워드당 goto+2.5초 ≈ 6초, 거의 매번 발동했지만
-    # 결과도 자주 None이고 점수에는 전혀 안 씀 = 등급 뱃지 전용). search.naver 1차 시도만 유지.
-    # businesses_total None이면 그 키워드는 등급 뱃지 없음(graceful) — 점수·순위·경쟁사 선정 영향 없음.
 
     # 데스크탑 결과 없을 때만 모바일 재시도
     if not ranked_ids:
