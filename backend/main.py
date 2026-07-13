@@ -92,6 +92,8 @@ _HTML = """<!DOCTYPE html>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"></script>
+<script>try{ if(window.Kakao && !Kakao.isInitialized()) Kakao.init('feef26a73850e916e03403ad1b9398e9'); }catch(e){}</script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -1218,7 +1220,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
         <div class="btn-area">
           <div class="btn-row">
             <button class="btn-secondary" onclick="handlePwa()"><i data-lucide="smartphone" class="rpt-icon"></i>홈 화면 추가</button>
-            <button class="btn-secondary" onclick="handleShare()">💬 카톡 공유</button>
+            <button class="btn-secondary" onclick="handleShare()">💬 카카오톡으로 공유</button>
           </div>
         </div>
       </div>
@@ -3711,26 +3713,42 @@ function handlePwa(){
 }
 function handleShare(){
   const d = _lastResultData || {};
-  const storeName = d.store_name || '매장';
-  const score = Math.round(d.scores?.total || 0);
   const pid = d.place_id;
-  // 매장별 전용 리포트 URL → 카카오톡이 매장 맞춤 큰 미리보기 카드로 표시
   const url = pid ? ('https://placeranking.com/report/' + encodeURIComponent(pid)) : 'https://placeranking.com';
   // 받는 사람이 '내 가게는 몇 위지?' 궁금해서 눌러보게 하는 훅 (매장·점수는 카드 이미지가 보여줌)
   const title = '우리 가게 네이버 플레이스 순위는 몇 위일까?';
-  const text = '1분이면 무료로 확인 👀';
-  const shareText = title + ' ' + text + ' ' + url;
+  const desc = '1분이면 무료로 내 가게 순위·경쟁사 비교까지 확인할 수 있어요';
 
+  // 1순위: 카카오톡 직접 공유 (나에게 보내기 / 친구 선택 + OG 카드)
+  if(pid && window.Kakao && Kakao.isInitialized && Kakao.isInitialized()){
+    try{
+      Kakao.Share.sendDefault({
+        objectType: 'feed',
+        content: {
+          title: title,
+          description: desc,
+          imageUrl: 'https://placeranking.com/og/' + encodeURIComponent(pid) + '.png?v=2',
+          link: { mobileWebUrl: url, webUrl: url }
+        },
+        buttons: [{ title: '내 가게 순위 확인하기', link: { mobileWebUrl: url, webUrl: url } }]
+      });
+      return;
+    }catch(e){ /* SDK 실패 시 아래 폴백 */ }
+  }
+
+  // 2순위: OS 공유 시트 (모바일, 카톡도 선택 가능)
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if(isMobile && navigator.share){
-    navigator.share({title: title, text: text, url: url}).catch(()=>{});
-  } else {
-    navigator.clipboard.writeText(shareText).then(()=>{
-      alert('공유 링크가 복사되었습니다!');
-    }).catch(()=>{
-      prompt('아래 링크를 복사하세요:', shareText);
-    });
+    navigator.share({title: title, text: desc, url: url}).catch(()=>{});
+    return;
   }
+  // 3순위: 링크 복사
+  const shareText = title + ' ' + url;
+  navigator.clipboard.writeText(shareText).then(()=>{
+    alert('공유 링크가 복사되었습니다!');
+  }).catch(()=>{
+    prompt('아래 링크를 복사하세요:', shareText);
+  });
 }
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window._pwaPrompt=e;});
 
