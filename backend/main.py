@@ -594,6 +594,29 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .subscribe-done-icon{font-size:2.5rem;margin-bottom:10px;}
 .subscribe-done-text{font-size:1rem;font-weight:700;color:var(--green-d);margin-bottom:4px;}
 .subscribe-done-sub{font-size:.85rem;color:var(--gray-500);}
+/* 내 순위 추적(구독) 개편 */
+.sub-head{display:flex;align-items:center;gap:11px;margin-bottom:14px;}
+.sub-head-ico{display:inline-flex;width:40px;height:40px;align-items:center;justify-content:center;background:var(--green-bg);border-radius:11px;flex-shrink:0;}
+.sub-head-ico .rpt-icon{width:22px;height:22px;color:var(--green);}
+.sub-head-title{font-size:1.02rem;font-weight:800;color:var(--gray-800);letter-spacing:-.3px;}
+.sub-head-sub{font-size:.8rem;color:var(--gray-500);margin-top:2px;}
+.sub-track{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 16px;margin-bottom:10px;text-align:center;}
+.track-label{font-size:.75rem;font-weight:700;color:#15803d;margin-bottom:8px;}
+.track-seq{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:7px;margin-bottom:8px;}
+.track-seq .ts{font-size:.9rem;font-weight:700;color:var(--gray-500);}
+.track-seq .ts.now{color:#16a34a;font-weight:800;font-size:1rem;}
+.track-seq .ts-arw{color:#9ca3af;font-style:normal;font-size:.8rem;}
+.track-dots{display:flex;justify-content:center;gap:10px;margin-bottom:8px;}
+.track-dots .td{width:11px;height:11px;border-radius:50%;background:#d1fae5;border:1.5px solid #a7f3d0;}
+.track-dots .td.on{background:#16a34a;border-color:#16a34a;box-shadow:0 0 0 4px rgba(22,163,74,.14);}
+.track-hint{font-size:.8rem;color:var(--gray-600);}
+.track-hint b{color:#15803d;}
+.sub-hooks{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.sub-hook{display:flex;align-items:flex-start;gap:9px;font-size:.88rem;color:var(--gray-700);line-height:1.5;background:#fff;border:1px solid var(--gray-100);border-radius:10px;padding:11px 13px;}
+.sub-hook .rpt-icon{width:17px;height:17px;flex-shrink:0;margin-top:2px;}
+.sub-hook.trig .rpt-icon{color:#f97316;}
+.sub-hook.guard .rpt-icon{color:#ef4444;}
+.sub-hook b{color:var(--gray-900);}
 
 /* BUTTONS */
 .btn-area{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
@@ -1162,22 +1185,31 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
         <div class="comment-box" id="commentBox"></div>
       </div>
 
-      <!-- 알림 신청 -->
+      <!-- 내 순위 추적 (구독) -->
       <div class="card" id="subscribeCard">
-        <div class="card-title"><i data-lucide="bell" class="rpt-icon is-info"></i>매주 순위 알림 받기</div>
+        <div class="sub-head">
+          <span class="sub-head-ico"><i data-lucide="radar" class="rpt-icon"></i></span>
+          <div>
+            <div class="sub-head-title">내 순위, 계속 지켜봐 드릴게요</div>
+            <div class="sub-head-sub">순위가 바뀌면 카카오톡으로 알림 · 무료</div>
+          </div>
+        </div>
+        <!-- ② 추세(첫 기록이면 빈 그래프=채우고 싶게) -->
+        <div class="sub-track" id="subTrack"></div>
+        <!-- ③ 개인화 미래 트리거 + ④ 손실회피 -->
+        <div class="sub-hooks" id="subHooks"></div>
         <div class="subscribe-form" id="subscribeForm">
-          <p class="subscribe-desc">매주 키워드 순위 변화를 카카오 알림톡으로 보내드려요.</p>
           <input type="tel" id="subscribePhone" class="subscribe-input" placeholder="휴대폰 번호 (예: 01012345678)" maxlength="13">
           <label class="subscribe-agree">
             <input type="checkbox" id="subscribeAgree">
             <span>플레이스랭킹 순위 리포트 알림톡 수신에 동의합니다 (정보성)</span>
           </label>
-          <button class="btn-subscribe" id="btnSubscribe" onclick="submitSubscribe()">무료 알림 신청하기</button>
+          <button class="btn-subscribe" id="btnSubscribe" onclick="submitSubscribe()">무료로 내 순위 추적 시작</button>
         </div>
         <div class="subscribe-done" id="subscribeDone" style="display:none;">
           <div class="subscribe-done-icon">✅</div>
-          <div class="subscribe-done-text">알림 신청이 완료되었습니다!</div>
-          <div class="subscribe-done-sub">매주 순위 변화를 알림톡으로 보내드릴게요.</div>
+          <div class="subscribe-done-text">추적을 시작했어요!</div>
+          <div class="subscribe-done-sub">순위가 바뀌면 카카오톡으로 가장 먼저 알려드릴게요.</div>
         </div>
       </div>
 
@@ -2759,6 +2791,9 @@ function renderResult(d){
   // 닥터 코멘트
   renderComment(d, sc);
 
+  // 내 순위 추적(구독) — 개인화 훅
+  renderSubscribe(d);
+
   // 디자인2차: 동적 렌더링 완료 후 Lucide 라인 아이콘 그리기
   if(window.lucide) lucide.createIcons();
 }
@@ -3509,6 +3544,51 @@ function renderActionReport(d, sc){
   }
 }
 
+// ── 내 순위 추적(구독) 개인화 훅 ──────────────────────────────────────────────
+function renderSubscribe(d){
+  const trackEl=document.getElementById('subTrack');
+  const hooksEl=document.getElementById('subHooks');
+  if(!trackEl||!hooksEl) return;
+
+  const allKws=d.place_results||[];
+  const ranked=allKws.filter(k=>k.rank);
+  const best=ranked.slice().sort((a,b)=>a.rank-b.rank)[0];
+  const oppKw=ranked.filter(k=>k.rank>=11&&k.rank<=15).sort((a,b)=>a.rank-b.rank)[0]
+           || ranked.filter(k=>k.rank>5&&k.rank<=10).sort((a,b)=>a.rank-b.rank)[0];
+  const kwHist=d.keyword_history||{};
+
+  // ② 추세 / 첫 기록(빈 그래프 = 채우고 싶게)
+  let past=[];
+  if(best && kwHist[best.keyword]){
+    const byDate={}; for(const h of kwHist[best.keyword]) byDate[h.date]=h;
+    past=Object.values(byDate).filter(h=>h.rank!=null);
+  }
+  if(best && past.length>=1){
+    const seq=past.slice(-3).map(h=>h.rank+'위').concat('지금 '+best.rank+'위');
+    trackEl.innerHTML=`<div class="track-label">‘${esc(best.keyword)}’ 순위 흐름</div>`
+      + `<div class="track-seq">${seq.map((s,i)=>`<span class="ts${i===seq.length-1?' now':''}">${s}</span>`).join('<i class="ts-arw">→</i>')}</div>`
+      + `<div class="track-hint">이 흐름, 추적을 켜두면 <b>매주 자동으로</b> 이어 그려드려요</div>`;
+  } else {
+    trackEl.innerHTML=`<div class="track-label">순위 추세</div>`
+      + `<div class="track-dots"><span class="td on"></span><span class="td"></span><span class="td"></span><span class="td"></span></div>`
+      + `<div class="track-hint">오늘이 <b>1번째 기록</b>이에요 · 매주 자동으로 이어 그려드려요</div>`;
+  }
+
+  // ③ 개인화 미래 트리거 + ④ 손실회피
+  const hooks=[];
+  if(oppKw){
+    const gap=Math.max(1,oppKw.rank-10);
+    hooks.push(`<div class="sub-hook trig"><i data-lucide="target" class="rpt-icon"></i><span>‘<b>${esc(oppKw.keyword)}</b>’ ${oppKw.rank}위 — 첫 화면까지 <b>${gap}계단</b>. <b>진입하는 순간</b> 알려드릴게요.</span></div>`);
+  }
+  if(best && best.rank<=10){
+    hooks.push(`<div class="sub-hook guard"><i data-lucide="shield" class="rpt-icon"></i><span>지금 ‘<b>${esc(best.keyword)}</b>’ ${best.rank}위 — 경쟁사가 추월하면 <b>바로</b> 알려드려요.</span></div>`);
+  } else if(!ranked.length){
+    hooks.push(`<div class="sub-hook trig"><i data-lucide="target" class="rpt-icon"></i><span>핵심 키워드가 <b>첫 화면에 드는 순간</b> 알려드릴게요.</span></div>`);
+  }
+  hooksEl.innerHTML=hooks.join('');
+  if(window.lucide) lucide.createIcons();
+}
+
 function renderComment(d, sc){
   const lines=[];
   const seo=sc.seo??0, con=sc.content??0;
@@ -3644,16 +3724,18 @@ async function submitSubscribe(){
     const data = await res.json();
     if(res.ok){
       document.getElementById('subscribeForm').style.display = 'none';
+      const tk=document.getElementById('subTrack'); if(tk) tk.style.display='none';
+      const hk=document.getElementById('subHooks'); if(hk) hk.style.display='none';
       document.getElementById('subscribeDone').style.display = 'block';
     } else {
       alert(data.detail || '신청에 실패했습니다.');
       btn.disabled = false;
-      btn.textContent = '무료 알림 신청하기';
+      btn.textContent = '무료로 내 순위 추적 시작';
     }
   } catch(e){
     alert('네트워크 오류가 발생했습니다.');
     btn.disabled = false;
-    btn.textContent = '무료 알림 신청하기';
+    btn.textContent = '무료로 내 순위 추적 시작';
   }
 }
 
