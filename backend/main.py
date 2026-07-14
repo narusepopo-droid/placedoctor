@@ -892,7 +892,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
     <div class="landing" id="landing">
       <section class="hero hero-compact">
         <h1>내 매장, 네이버에서<br><span class="accent">몇 위</span>인지 확인하세요</h1>
-        <p class="hero-sub-compact">플레이스 순위 · 블로그 노출 · 경쟁사 비교</p>
+        <p class="hero-sub-compact">가입 없이 · 매장명만 입력 · 1분 무료 분석</p>
       </section>
     </div>
 
