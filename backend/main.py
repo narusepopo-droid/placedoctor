@@ -961,10 +961,16 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       <div class="recent-stores-list" id="recentStoresList"></div>
     </div>
 
-    <!-- 카카오톡 문의 -->
-    <section class="kakao-cta-compact">
-      <a id="kakaoCtaBtn" href="https://pf.kakao.com/_qsxlXX/chat" target="_blank" class="kakao-btn">
-        💬 카카오톡 무료 문의
+    <!-- SEO 콘텐츠: CTA -->
+    <section class="seo-cta-section">
+      <p class="cta-label">순위 개선이 필요하다면?</p>
+      <h2>진단 결과를 바탕으로<br>무엇을 개선해야 할지 물어보세요</h2>
+      <p class="cta-desc">
+        리뷰 관리, 키워드 최적화, 상위노출 전략 등<br>
+        매장 상황에 맞는 방법을 안내해드립니다.
+      </p>
+      <a id="kakaoCtaBtn" href="https://pf.kakao.com/_qsxlXX/chat" target="_blank" class="cta-btn">
+        💬 카카오톡으로 무료 문의하기
       </a>
       <script>
       (function(){
