@@ -992,35 +992,11 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       </script>
     </section>
 
-    <!-- SEO 콘텐츠 -->
-    <section class="seo-content">
-      <h2>플레이스 순위 조회, 왜 필요할까요?</h2>
-      <p><strong>네이버 플레이스 순위</strong>는 고객이 '강남 맛집', '홍대 카페'처럼 검색했을 때 내 매장이 몇 번째로 보이는지를 말합니다. <strong>플레이스 상위노출</strong>이 되면 더 많은 고객이 매장을 발견하고 방문합니다.</p>
-      <p>플레이스랭킹은 <strong>플레이스 순위 조회</strong> 도구입니다. 매장명만 입력하면 <strong>플레이스 키워드 순위</strong>를 자동 분석합니다. <strong>네이버 플레이스 노출</strong> 현황, <strong>플레이스 분석</strong> 결과, 경쟁 매장과의 비교까지 무료로 확인하세요.</p>
-      <h3>플레이스랭킹 주요 기능</h3>
-      <ul>
-        <li><strong>플레이스 순위 확인</strong> — 30개 키워드별 순위 자동 검색</li>
-        <li><strong>플레이스 상위노출 분석</strong> — 상위 노출 키워드와 개선 필요 키워드 분류</li>
-        <li><strong>네이버 지도 순위</strong> — 네이버 지도 검색 결과 순위 확인</li>
-        <li><strong>스마트플레이스 순위</strong> — 스마트플레이스 등록 매장의 검색 순위 진단</li>
-        <li><strong>플레이스 무료 분석</strong> — 가입 없이 무료로 바로 분석 시작</li>
-      </ul>
-      <h2>블로그 순위 조회로 체험단 효과 확인</h2>
-      <p><strong>블로그 순위</strong>는 '강남 맛집', '홍대 카페' 같은 키워드로 검색했을 때 내 매장 관련 <strong>블로그 포스팅</strong>이 몇 번째에 노출되는지를 말합니다. <strong>블로그 상위노출</strong>이 되면 고객이 매장을 검색할 때 긍정적인 후기를 먼저 보게 됩니다.</p>
-      <p>플레이스랭킹의 <strong>블로그 순위 조회</strong> 기능으로 <strong>블로그 체험단 효과</strong>를 데이터로 확인하세요. <strong>블로그 키워드 순위</strong>, <strong>블로그 노출 순위</strong>를 분석해 <strong>블로그 마케팅</strong> 성과를 측정할 수 있습니다.</p>
-      <h3>블로그 분석 기능</h3>
-      <ul>
-        <li><strong>블로그 순위 확인</strong> — 키워드별 블로그 노출 순위 검색</li>
-        <li><strong>블로그 상위노출 분석</strong> — 어떤 키워드에서 블로그가 잘 노출되는지 파악</li>
-        <li><strong>체험단 효과 분석</strong> — 블로그 체험단, 기자단 효과를 순위로 검증</li>
-        <li><strong>블로그 마케팅 성과</strong> — 블로그 광고 효과를 데이터로 확인</li>
-        <li><strong>블로그 노출 추적</strong> — 시간에 따른 블로그 순위 변화 모니터링</li>
-      </ul>
-    </section>
-
     <!-- 하단 링크 -->
     <div class="footer-links">
       <a href="/about">플레이스 순위란?</a>
+      <span class="link-sep">|</span>
+      <a href="/guide">상위노출 가이드</a>
     </div>
   </div>
 
@@ -4201,6 +4177,7 @@ async def sitemap(db: Session = Depends(get_db)):
     from urllib.parse import quote
     urls = ['<url><loc>https://placeranking.com/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>',
             '<url><loc>https://placeranking.com/about</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>',
+            '<url><loc>https://placeranking.com/guide</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>',
             '<url><loc>https://placeranking.com/rank</loc><changefreq>daily</changefreq><priority>0.9</priority></url>']
     try:
         for item in crud.get_keyword_rankings(db):
@@ -4393,6 +4370,125 @@ document.querySelectorAll('.faq-q').forEach(btn => {{
   }});
 }});
 </script>
+</body>
+</html>'''
+    return HTMLResponse(html)
+
+
+# ── /guide 페이지 (SEO 콘텐츠 분리) ─────────────────────────────────────────────
+@app.get("/guide", response_class=HTMLResponse, include_in_schema=False)
+async def guide_page():
+    """플레이스 상위노출 가이드 - SEO 키워드 페이지"""
+    title = "플레이스 상위노출 가이드 | 네이버 플레이스 순위 올리는 방법 | 플레이스랭킹"
+    desc = "네이버 플레이스 상위노출 방법, 플레이스 순위 올리기 가이드. 플레이스 순위 조회, 블로그 상위노출 분석, 체험단 효과 측정까지. 무료 플레이스 분석 도구로 시작하세요."
+
+    html = f'''<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title}</title>
+<meta name="description" content="{desc}">
+<meta name="keywords" content="플레이스상위노출, 플레이스순위올리기, 네이버플레이스상위노출, 플레이스순위조회, 블로그상위노출, 블로그순위조회, 체험단효과, 블로그마케팅, 플레이스마케팅, 네이버지도순위, 스마트플레이스순위">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{desc}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://placeranking.com/guide">
+<link rel="canonical" href="https://placeranking.com/guide">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<style>
+:root{{--green:#00C896;--gray-50:#f8fafc;--gray-100:#f1f5f9;--gray-200:#e2e8f0;--gray-500:#64748b;--gray-600:#475569;--gray-700:#334155;--gray-800:#1e293b;--gray-900:#0f172a;}}
+*{{margin:0;padding:0;box-sizing:border-box;}}
+body{{font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:var(--gray-800);line-height:1.8;}}
+.container{{max-width:720px;margin:0 auto;padding:32px 20px 64px;}}
+.header{{display:flex;align-items:center;gap:12px;margin-bottom:40px;}}
+.header a{{text-decoration:none;display:flex;align-items:center;gap:8px;}}
+.header svg{{width:28px;height:28px;}}
+.header span{{font-size:1.1rem;font-weight:700;color:var(--gray-800);}}
+h1{{font-size:1.6rem;font-weight:800;color:var(--gray-900);margin-bottom:16px;letter-spacing:-.5px;line-height:1.4;}}
+h2{{font-size:1.2rem;font-weight:700;color:var(--gray-800);margin:36px 0 14px;padding-top:20px;border-top:1px solid var(--gray-100);}}
+h2:first-of-type{{border-top:none;padding-top:0;margin-top:24px;}}
+h3{{font-size:1rem;font-weight:600;color:var(--gray-700);margin:24px 0 10px;}}
+p{{margin-bottom:14px;color:var(--gray-700);}}
+ul{{margin:0 0 16px;padding-left:20px;}}
+li{{margin-bottom:8px;color:var(--gray-600);}}
+strong{{color:var(--gray-800);}}
+.cta-box{{background:linear-gradient(135deg,#f0fdf8,#dcfce7);border:1px solid #bbf7d0;border-radius:16px;padding:28px 24px;text-align:center;margin:40px 0 24px;}}
+.cta-box h3{{font-size:1.15rem;font-weight:700;color:var(--gray-900);margin:0 0 8px;}}
+.cta-box p{{color:var(--gray-600);margin-bottom:18px;}}
+.cta-btn{{display:inline-block;padding:13px 28px;background:linear-gradient(135deg,#00C896,#00d4a4);color:#fff;border-radius:10px;font-size:1rem;font-weight:700;text-decoration:none;transition:transform .2s,box-shadow .2s;box-shadow:0 4px 16px rgba(0,200,150,.3);}}
+.cta-btn:hover{{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,200,150,.4);}}
+.back-link{{display:inline-block;margin-top:16px;color:var(--gray-500);text-decoration:none;font-size:.9rem;}}
+.back-link:hover{{color:var(--green);}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <a href="/">
+      <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00C896"/><stop offset="100%" stop-color="#00d4a4"/></linearGradient></defs>
+        <circle cx="18" cy="14" r="10" fill="url(#lg)"/>
+        <circle cx="18" cy="14" r="5" fill="white"/>
+        <circle cx="18" cy="14" r="2.5" fill="#00C896"/>
+        <path d="M18 24 L13 32 L18 29 L23 32 Z" fill="url(#lg)"/>
+      </svg>
+      <span>플레이스랭킹</span>
+    </a>
+  </div>
+
+  <h1>플레이스 상위노출 · 블로그 순위 올리기 완벽 가이드</h1>
+
+  <h2>플레이스 순위 조회, 왜 필요할까요?</h2>
+  <p><strong>네이버 플레이스 순위</strong>는 고객이 '강남 맛집', '홍대 카페'처럼 검색했을 때 내 매장이 몇 번째로 보이는지를 말합니다. <strong>플레이스 상위노출</strong>이 되면 더 많은 고객이 매장을 발견하고 방문합니다.</p>
+  <p>플레이스랭킹은 <strong>플레이스 순위 조회</strong> 도구입니다. 매장명만 입력하면 <strong>플레이스 키워드 순위</strong>를 자동 분석합니다. <strong>네이버 플레이스 노출</strong> 현황, <strong>플레이스 분석</strong> 결과, 경쟁 매장과의 비교까지 무료로 확인하세요.</p>
+
+  <h3>플레이스랭킹 주요 기능</h3>
+  <ul>
+    <li><strong>플레이스 순위 확인</strong> — 30개 키워드별 순위 자동 검색</li>
+    <li><strong>플레이스 상위노출 분석</strong> — 상위 노출 키워드와 개선 필요 키워드 분류</li>
+    <li><strong>네이버 지도 순위</strong> — 네이버 지도 검색 결과 순위 확인</li>
+    <li><strong>스마트플레이스 순위</strong> — 스마트플레이스 등록 매장의 검색 순위 진단</li>
+    <li><strong>플레이스 무료 분석</strong> — 가입 없이 무료로 바로 분석 시작</li>
+  </ul>
+
+  <h2>블로그 순위 조회로 체험단 효과 확인</h2>
+  <p><strong>블로그 순위</strong>는 '강남 맛집', '홍대 카페' 같은 키워드로 검색했을 때 내 매장 관련 <strong>블로그 포스팅</strong>이 몇 번째에 노출되는지를 말합니다. <strong>블로그 상위노출</strong>이 되면 고객이 매장을 검색할 때 긍정적인 후기를 먼저 보게 됩니다.</p>
+  <p>플레이스랭킹의 <strong>블로그 순위 조회</strong> 기능으로 <strong>블로그 체험단 효과</strong>를 데이터로 확인하세요. <strong>블로그 키워드 순위</strong>, <strong>블로그 노출 순위</strong>를 분석해 <strong>블로그 마케팅</strong> 성과를 측정할 수 있습니다.</p>
+
+  <h3>블로그 분석 기능</h3>
+  <ul>
+    <li><strong>블로그 순위 확인</strong> — 키워드별 블로그 노출 순위 검색</li>
+    <li><strong>블로그 상위노출 분석</strong> — 어떤 키워드에서 블로그가 잘 노출되는지 파악</li>
+    <li><strong>체험단 효과 분석</strong> — 블로그 체험단, 기자단 효과를 순위로 검증</li>
+    <li><strong>블로그 마케팅 성과</strong> — 블로그 광고 효과를 데이터로 확인</li>
+    <li><strong>블로그 노출 추적</strong> — 시간에 따른 블로그 순위 변화 모니터링</li>
+  </ul>
+
+  <h2>플레이스 순위 올리는 방법</h2>
+  <p><strong>플레이스 상위노출</strong>을 위해서는 여러 요소를 관리해야 합니다. <strong>플레이스 순위 올리기</strong>의 핵심 전략을 알아보세요.</p>
+  <ul>
+    <li><strong>키워드 최적화</strong> — 매장 소개, 메뉴, 태그에 검색 키워드 반영</li>
+    <li><strong>리뷰 관리</strong> — 방문자 리뷰 수와 별점 관리</li>
+    <li><strong>최근 활동</strong> — 사진 업데이트, 소식 발행, 예약 기능 활용</li>
+    <li><strong>블로그 마케팅</strong> — 체험단, 기자단으로 블로그 노출 확보</li>
+    <li><strong>정보 완성도</strong> — 운영시간, 메뉴, 사진 등 정보 100% 입력</li>
+  </ul>
+
+  <h2>네이버 지도 순위와 플레이스 순위의 관계</h2>
+  <p><strong>네이버 지도 순위</strong>와 <strong>네이버 플레이스 순위</strong>는 같은 알고리즘을 사용합니다. 네이버 검색에서 '지역+업종' 키워드로 검색하면 지도와 함께 <strong>플레이스 상위노출</strong> 매장이 표시됩니다. <strong>스마트플레이스 순위</strong>를 높이면 네이버 지도에서도 상위에 노출됩니다.</p>
+
+  <div class="cta-box">
+    <h3>내 매장 순위, 지금 무료로 확인하세요</h3>
+    <p>플레이스 순위 · 블로그 순위 · 경쟁사 비교까지</p>
+    <a href="/" class="cta-btn">무료 분석 시작하기</a>
+  </div>
+
+  <div style="text-align:center;">
+    <a href="/" class="back-link">← 메인으로 돌아가기</a>
+  </div>
+</div>
 </body>
 </html>'''
     return HTMLResponse(html)
