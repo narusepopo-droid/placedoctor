@@ -245,6 +245,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .hero-compact h1{font-size:1.5rem;font-weight:700;line-height:1.4;letter-spacing:-.6px;color:var(--gray-900);margin-bottom:8px;}
 .hero-compact h1 .accent{background:var(--primary-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .hero-sub-compact{font-size:.9rem;color:var(--gray-500);margin:0;}
+.hero-highlight{display:inline-block;font-size:.95rem;color:var(--green-d);margin:10px 0 0;font-weight:700;background:linear-gradient(135deg,#dcfce7,#bbf7d0);padding:6px 16px;border-radius:8px;letter-spacing:-.2px;}
 /* 카카오 문의 버튼 (컴팩트) */
 .kakao-cta-compact{text-align:center;margin:var(--spacing-lg) 0 var(--spacing-md);}
 .kakao-btn{display:inline-flex;align-items:center;gap:6px;padding:12px 24px;background:#FEE500;color:#3C1E1E;border-radius:var(--radius-sm);font-size:.92rem;font-weight:700;text-decoration:none;transition:all .2s;box-shadow:var(--shadow-sm);}
@@ -840,15 +841,16 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .blog-empty-text{font-size:.88rem;color:var(--gray-600);}
 
 /* ANALYSIS TYPE SELECTOR */
-.analysis-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--spacing-sm);}
-.analysis-type-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 12px;background:#fff;border:2px solid var(--gray-200);border-radius:var(--radius);cursor:pointer;transition:border-color .2s, background .2s;}
-.analysis-type-btn:hover{border-color:var(--green);background:var(--green-bg);}
-.analysis-type-btn.selected{border-color:var(--green);background:var(--green-bg);}
+.analysis-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.analysis-type-btn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:20px 16px;background:#fff;border:2px solid var(--gray-200);border-radius:16px;cursor:pointer;transition:all .25s ease;box-shadow:0 2px 8px rgba(0,0,0,.04);}
+.analysis-type-btn:hover{border-color:var(--green);background:linear-gradient(135deg,#f0fdf8,#e8faf4);transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,200,150,.15);}
+.analysis-type-btn.selected{border-color:var(--green);background:linear-gradient(135deg,#e8faf4,#dcfce7);box-shadow:0 4px 16px rgba(0,200,150,.2);}
+.analysis-type-btn.selected::after{content:'✓';position:absolute;top:8px;right:10px;font-size:.7rem;font-weight:700;color:#fff;background:var(--green);width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
 .analysis-type-btn input{display:none;}
-.type-icon{font-size:1.6rem;}
-.type-icon-luc{width:24px;height:24px;stroke-width:1.8;}
-.type-label{font-size:.92rem;font-weight:700;color:var(--gray-800);letter-spacing:-.2px;}
-.type-desc{font-size:.75rem;color:var(--gray-500);}
+.type-icon-luc{width:32px;height:32px;stroke-width:1.6;color:var(--green);}
+.analysis-type-btn.selected .type-icon-luc{color:var(--green-d);}
+.type-label{font-size:1.05rem;font-weight:800;color:var(--gray-800);letter-spacing:-.3px;}
+.type-desc{font-size:.78rem;color:var(--gray-500);font-weight:500;}
 
 /* RANK CHANGE INDICATOR */
 .rank-change{font-size:.68rem;font-weight:600;margin-left:4px;}
@@ -892,7 +894,8 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
     <div class="landing" id="landing">
       <section class="hero hero-compact">
         <h1>내 매장, 네이버에서<br><span class="accent">몇 위</span>인지 확인하세요</h1>
-        <p class="hero-sub-compact">플레이스 순위 · 블로그 노출 · 경쟁사 비교<br>가입 없이 · 매장명으로 1분 무료 분석</p>
+        <p class="hero-sub-compact">플레이스 순위 · 블로그 노출 · 경쟁사 비교</p>
+        <p class="hero-highlight">가입 없이 · 매장명으로 3초만에 분석 시작</p>
       </section>
     </div>
 
