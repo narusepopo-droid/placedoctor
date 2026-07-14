@@ -1661,10 +1661,9 @@ async def fetch_store_info_only(place_url: str) -> dict:
 
 # ── 통합 진단 래퍼 ────────────────────────────────────────────────────────────
 
-async def diagnose_store(store_name: str, place_url: str = None, keywords: list = None,
-                         ad_flags: dict = None) -> dict:
+async def diagnose_store(store_name: str, place_url: str = None, keywords: list = None) -> dict:
     """
-    매장 정보를 받아 플레이스 순위 + 경쟁사 비교 + 4축 점수를 한 덩어리로 반환합니다.
+    매장 정보를 받아 플레이스 순위 + 경쟁사 비교 + 3축 점수를 한 덩어리로 반환합니다.
 
     Args:
         store_name: 매장명
@@ -1677,7 +1676,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
           "visitor_reviews", "blog_reviews", "star_score", "photo_count", "latest_review_date",
           "keywords_used", "place_results",
           "competitor": { status, cards:[{keyword,grade,my_rank,competitor_name,competitor_rank,gap}], first_place_keywords },
-          "scores":     { seo, content, activity, ad, total, detail },
+          "scores":     { seo, content, activity, total, detail },
         }
     """
     N_WORKERS  = 5   # 플마 동일 (N_PLACE=5). 6 테스트=2 vCPU 포화로 동일 시간→5 유지
@@ -1808,7 +1807,7 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
             **details,
             "place_results": place_results,
         }
-        scores = calculate_scores(store_data_for_score, ad_flags=ad_flags)
+        scores = calculate_scores(store_data_for_score)
 
         return {
             "store_name":         store_name,
@@ -1827,7 +1826,6 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
             "blog_results":       blog_results,  # 블로그 분석 결과 (키워드별 우리 블로그 순위)
             "competitor":         competitor,
             "scores":             scores,
-            "ad_flags":           ad_flags or {},
             "detected_tokens":    detected_tokens,  # 미등록 토큰 [{token, source}, ...]
         }
     finally:
@@ -1838,7 +1836,6 @@ async def diagnose_store(store_name: str, place_url: str = None, keywords: list 
 async def diagnose_store_stream(
     store_name: str,
     place_url: str = "",
-    ad_flags: dict | None = None,
     keywords: list[str] | None = None,
 ):
     """
@@ -1994,7 +1991,7 @@ async def diagnose_store_stream(
             **details,
             "place_results": place_results,
         }
-        scores = calculate_scores(store_data_for_score, ad_flags=ad_flags)
+        scores = calculate_scores(store_data_for_score)
 
         _t_total = time.perf_counter() - _t0
         logger.info(f"⏱ [SSE 스트리밍] 총 소요: {_t_total:.1f}s")
@@ -2019,7 +2016,6 @@ async def diagnose_store_stream(
                 "blog_results": blog_results,
                 "competitor": competitor,
                 "scores": scores,
-                "ad_flags": ad_flags or {},
                 "detected_tokens": detected_tokens,
             }
         }

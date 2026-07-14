@@ -1,24 +1,22 @@
 """
-PlaceDoctor 4축 점수 계산 모듈
+PlaceDoctor 3축 점수 계산 모듈
 
 축 (화면 라벨):
   seo      → 검색노출(SEO)
   content  → 리뷰관리
   activity → 최근활동
-  ad       → 키워드광고
 
-내부 점수 키(seo/content/activity/ad)는 DB 컬럼·캐시와 묶여 있어 그대로 유지합니다.
-가중치 및 임계값은 상수로 관리하므로 나중에 조정 가능합니다.
+AS단계에서 광고 축 제거 — 사용자 입력 의존(체크박스)이라 실질 가치 낮음.
+3축 비율 재배분: 기존 34/30/21 비율 유지하며 100%로 스케일.
 """
 
 from datetime import datetime, date
 
 # ── 종합 가중치 ───────────────────────────────────────────────────────────────
-# 광고 축은 체크박스 입력 기반(최대 60점)이라 비중을 15%로 제한.
-SEO_WEIGHT      = 0.34
-CONTENT_WEIGHT  = 0.30
-ACTIVITY_WEIGHT = 0.21
-AD_WEIGHT       = 0.15
+# 광고 축 제거 후 3축 재배분 (기존 비율 유지)
+SEO_WEIGHT      = 0.40   # 검색노출 (기존 34% → 40%)
+CONTENT_WEIGHT  = 0.35   # 리뷰관리 (기존 30% → 35%)
+ACTIVITY_WEIGHT = 0.25   # 최근활동 (기존 21% → 25%)
 
 # ── SEO 축 상수 ───────────────────────────────────────────────────────────────
 # 키워드 순위 → 점수 (키워드 하나당)
@@ -53,14 +51,6 @@ ACTIVITY_INFO_MAX     = 15   # 정보 최신성 만점 기여
 RECENCY_FRACS = [(7, 1.0), (30, 0.8), (90, 0.55), (180, 0.30), (365, 0.10), (9999, 0.0)]
 # 처음 ~10개 중 30일 이내 리뷰 개수 (이상 → 비율) — 6+ 활발 / 3~5 보통 / 1~2 한산 / 0 거의없음
 RECENT30_FRACS = [(6, 1.0), (3, 0.7), (1, 0.45), (0, 0.25)]
-
-# ── 키워드광고(ad) 축 상수 ───────────────────────────────────────────────────
-# 자동 감지 제거 → 업주 체크박스 입력 기반. 어떤 경우도 "잘함"은 안 나옴(최적화 여지 항상 있음).
-AD_NONE_SCORE = 20   # 다 미체크
-AD_SOME_SCORE = 40   # 일부 체크
-AD_ALL_SCORE  = 60   # 다 체크 (최대)
-AD_FLAG_KEYS  = ["place", "powerlink", "local", "blog"]  # 플레이스/파워링크/지역소상공인/블로그체험단
-
 
 # ── 내부 유틸 ─────────────────────────────────────────────────────────────────
 
@@ -106,78 +96,38 @@ def _days_since(date_str):
     return None
 
 
-# ── 키워드광고 점수 (체크박스 입력) ─────────────────────────────────────────
+def calculate_total(seo: int, content: int, activity) -> int:
+    """3축 가중 평균 종합 점수.
 
-def calculate_ad_score(ad_flags: dict | None) -> tuple[int, str]:
-    """
-    체크박스 입력값을 광고축 점수·라벨로 변환합니다.
-
-    Args:
-        ad_flags: {"place": bool, "powerlink": bool, "local": bool, "blog": bool}
-
-    Returns:
-        (score, label)
-    """
-    flags = ad_flags or {}
-    checked = sum(1 for k in AD_FLAG_KEYS if flags.get(k))
-    if checked == 0:
-        return AD_NONE_SCORE, "미집행 · 기회"
-    if checked >= len(AD_FLAG_KEYS):
-        return AD_ALL_SCORE, "집행 중 · 최적화 부족"
-    return AD_SOME_SCORE, "일부 집행 · 부족"
-
-
-def calculate_total(seo: int, content: int, activity, ad: int) -> int:
-    """4축 가중 평균 종합 점수.
-
-    activity가 None이면(= 리뷰 활동 수집 실패, B단계) 최근활동 축을 빼고
-    나머지 3축(seo/content/ad)을 재정규화한다. 거짓 낮은 활동 점수가 총점을 깎지 않게.
+    activity가 None이면(= 리뷰 활동 수집 실패) 최근활동 축을 빼고
+    나머지 2축(seo/content)을 재정규화한다. 거짓 낮은 활동 점수가 총점을 깎지 않게.
     """
     if activity is None:
-        w = SEO_WEIGHT + CONTENT_WEIGHT + AD_WEIGHT
-        return round((seo * SEO_WEIGHT + content * CONTENT_WEIGHT + ad * AD_WEIGHT) / w)
+        w = SEO_WEIGHT + CONTENT_WEIGHT
+        return round((seo * SEO_WEIGHT + content * CONTENT_WEIGHT) / w)
     return round(
-        seo * SEO_WEIGHT + content * CONTENT_WEIGHT
-        + activity * ACTIVITY_WEIGHT + ad * AD_WEIGHT
+        seo * SEO_WEIGHT + content * CONTENT_WEIGHT + activity * ACTIVITY_WEIGHT
     )
-
-
-def apply_ad_flags(scores: dict, ad_flags: dict | None) -> dict:
-    """
-    이미 계산된 scores dict에 체크박스 광고 점수를 반영하고 total을 재계산합니다.
-    캐시된 결과(체크박스 입력 전 계산값)에도 적용 가능 — ad 입력은 캐시에 굳지 않습니다.
-    """
-    ad_score, ad_label = calculate_ad_score(ad_flags)
-    scores["ad"] = ad_score
-    scores["ad_label"] = ad_label
-    scores["total"] = calculate_total(
-        scores.get("seo", 0), scores.get("content", 0),
-        scores.get("activity"), ad_score,  # activity None(수집실패)이면 calculate_total이 재정규화
-    )
-    return scores
 
 
 # ── 공개 API ──────────────────────────────────────────────────────────────────
 
 def calculate_scores(store_data: dict, competitor_data: dict = None,
-                     benchmark: dict = None, ad_flags: dict = None) -> dict:
+                     benchmark: dict = None) -> dict:
     """
-    4축 진단 점수를 계산합니다.
+    3축 진단 점수를 계산합니다.
 
     Args:
         store_data:      diagnose_store() 반환값 (place_results, visitor_reviews 등 포함)
         competitor_data: find_competitor() 반환값. None이면 경쟁사 비교 없이 점수만 계산.
         benchmark:       업종 평균값 dict. 현재는 자리만 유지 — None이면 미사용.
-        ad_flags:        광고 체크박스 입력값 dict. None이면 미집행(20점) 처리.
 
     Returns:
         {
           "seo":      int,    # 0~100  검색노출(SEO)
           "content":  int,    # 0~100  리뷰관리
           "activity": int,    # 0~100  최근활동
-          "ad":       int,    # 0~100  키워드광고 (체크박스 기반)
-          "ad_label": str,
-          "total":    int,    # 0~100  4축 가중 평균
+          "total":    int,    # 0~100  3축 가중 평균
           "detail":   dict,   # 계산 근거
         }
     """
@@ -234,11 +184,8 @@ def calculate_scores(store_data: dict, competitor_data: dict = None,
         possible = ACTIVITY_RECENCY_MAX + ACTIVITY_INFO_MAX
         activity = min(100, round((recency_pt + info_fresh_pt) / possible * 100))
 
-    # ── 키워드광고(ad) = 체크박스 입력 ──────────────────────────────────────
-    ad_score, ad_label = calculate_ad_score(ad_flags)
-
     # ── 종합 점수 ────────────────────────────────────────────────────────────
-    total = calculate_total(seo, content, activity, ad_score)
+    total = calculate_total(seo, content, activity)
 
     detail = {
         "kw_score_raw": raw_kw_score,
@@ -257,8 +204,6 @@ def calculate_scores(store_data: dict, competitor_data: dict = None,
         "seo":      seo,
         "content":  content,
         "activity": activity,
-        "ad":       ad_score,
-        "ad_label": ad_label,
         "total":    total,
         "detail":   detail,
     }

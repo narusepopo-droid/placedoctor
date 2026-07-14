@@ -6,11 +6,6 @@ class DiagnoseRequest(BaseModel):
     store_name: str
     place_url: str
     force_refresh: bool = False
-    # 키워드광고 체크박스 (자동 감지 제거 → 업주 입력)
-    ad_place: bool = False       # 플레이스 광고
-    ad_powerlink: bool = False   # 파워링크
-    ad_local: bool = False       # 지역소상공인광고
-    ad_blog: bool = False        # 블로그 체험단
     # K단계: 익명 식별자
     anon_id: Optional[str] = None
     # 유입 키워드: 사용자가 입력한 검색어 (관리자 분석용)
@@ -34,7 +29,6 @@ class DiagnoseResponse(BaseModel):
     place_results: List[Any] = []
     competitor: Any = {}
     scores: Any = {}
-    ad_flags: Any = {}
     prev_analysis: Any = None  # 직전 분석 결과 (비교용)
     # J단계: 히스토리 추세 표시용
     analysis_count: int = 0  # 이 가게 N번째 분석

@@ -24,7 +24,7 @@ from .database import engine, get_db
 from .models import Base
 from . import crud, schemas
 from .core.scraper import diagnose_store, diagnose_store_stream, analyze_blog_ranking, fetch_top_places
-from .core.scoring import apply_ad_flags
+from .core.scoring import calculate_scores
 
 # 공유용 OG 카드 생성 (Pillow). 미설치·폰트 문제로 사이트 전체가 죽지 않도록 방어 임포트.
 try:
@@ -317,6 +317,19 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .gauge-sub{font-size:.9rem;fill:var(--gray-600);text-anchor:middle;}
 .grade-badge{font-size:1rem;font-weight:700;padding:6px 18px;border-radius:20px;color:#fff;}
 .gauge-summary{font-size:.88rem;color:var(--gray-600);text-align:center;max-width:260px;}
+/* AS단계: 점수/등급 의미 가이드 */
+.grade-guide{margin-top:20px;padding:16px;background:var(--gray-50);border-radius:12px;border:1px solid var(--gray-200);width:100%;max-width:340px;}
+.grade-guide-title{font-size:.78rem;font-weight:700;color:var(--gray-500);margin-bottom:12px;display:flex;align-items:center;gap:5px;}
+.grade-guide-title .rpt-icon{width:14px;height:14px;}
+.grade-guide-list{display:flex;flex-direction:column;gap:8px;}
+.grade-item{display:grid;grid-template-columns:52px 60px 1fr;gap:8px;align-items:start;font-size:.78rem;line-height:1.45;}
+.grade-label{font-weight:700;color:#fff;padding:2px 8px;border-radius:4px;text-align:center;}
+.grade-range{font-weight:600;color:var(--gray-600);}
+.grade-desc{color:var(--gray-700);}
+.grade-a .grade-label{background:#16a34a;}
+.grade-b .grade-label{background:#22c55e;}
+.grade-c .grade-label{background:#f97316;}
+.grade-d .grade-label{background:#ef4444;}
 /* 블로그 노출 요약 헤드라인 (게이지 대체) */
 .blog-headline{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0 4px;}
 .blog-headline .bh-num{font-size:3rem;font-weight:800;line-height:1;background:var(--primary-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
@@ -920,7 +933,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
           경쟁 매장과 얼마나 차이 나는지 — 지금 무료로 확인하세요.
         </p>
         <p>
-          플레이스 광고 · 블로그 체험단 · 상위노출 작업 집행 중이라면<br>
+          리뷰 관리 · 키워드 최적화 · 상위노출 작업 집행 중이라면<br>
           실제 키워드 순위 변화를 직접 확인해보세요.
         </p>
       </section>
@@ -1018,15 +1031,6 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
           </label>
         </div>
       </div>
-      <div id="adFieldsWrap" class="field">
-        <label>현재 집행 중인 광고 (해당 항목 체크)</label>
-        <div class="ad-check-grid">
-          <label class="ad-check"><input type="checkbox" id="adPlace"> 플레이스 광고</label>
-          <label class="ad-check"><input type="checkbox" id="adPowerlink"> 파워링크</label>
-          <label class="ad-check"><input type="checkbox" id="adLocal"> 지역소상공인광고</label>
-          <label class="ad-check"><input type="checkbox" id="adBlog"> 블로그 체험단</label>
-        </div>
-      </div>
       <button class="btn-diagnose" id="diagBtn" onclick="startAnalysis()">내 순위 확인하기</button>
       <div class="status-msg" id="statusMsg"></div>
     </div>
@@ -1065,7 +1069,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       <p class="cta-label">순위 개선이 필요하다면?</p>
       <h2>진단 결과를 바탕으로<br>무엇을 개선해야 할지 물어보세요</h2>
       <p class="cta-desc">
-        플레이스 광고, 블로그 체험단, 상위노출 작업 등<br>
+        리뷰 관리, 키워드 최적화, 상위노출 전략 등<br>
         매장 상황에 맞는 방법을 안내해드립니다.
       </p>
       <a id="kakaoCtaBtn" href="https://pf.kakao.com/_qsxlXX/chat" target="_blank" class="cta-btn">
@@ -1145,6 +1149,16 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
         <p class="gauge-summary" id="gaugeSummary"></p>
         <!-- J단계: 종합점수 직전 비교 -->
         <div class="score-trend" id="scoreTrend" style="display:none;"></div>
+        <!-- AS단계: 점수/등급 의미 설명 -->
+        <div class="grade-guide" id="gradeGuide" style="display:none;">
+          <div class="grade-guide-title"><i data-lucide="info" class="rpt-icon"></i> 점수가 의미하는 것</div>
+          <div class="grade-guide-list">
+            <div class="grade-item grade-a"><span class="grade-label">A등급</span><span class="grade-range">90점 이상</span><span class="grade-desc">주요 키워드에서 상위권 노출. 현재 전략 유지하며 꾸준히 관리</span></div>
+            <div class="grade-item grade-b"><span class="grade-label">B등급</span><span class="grade-range">70~89점</span><span class="grade-desc">첫 화면 노출 가능. 리뷰 관리와 활동 강화로 A등급 진입 가능</span></div>
+            <div class="grade-item grade-c"><span class="grade-label">C등급</span><span class="grade-range">50~69점</span><span class="grade-desc">노출 기회 있음. 키워드 최적화와 리뷰 확보가 급선무</span></div>
+            <div class="grade-item grade-d"><span class="grade-label">D·F등급</span><span class="grade-range">50점 미만</span><span class="grade-desc">노출 거의 없음. 기본 정보 정비부터 시작 필요</span></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1444,11 +1458,10 @@ function getTips(storeName, category, address) {
     "리뷰 답글을 꾸준히 달면 사장님 활동 점수가 높아져요",
     "저장수가 많을수록 네이버가 인기 매장으로 인식해요",
     region + " 지역 키워드 + 업종 조합이 가장 효과적이에요",
-    "플레이스 광고 없이도 자연 순위 1위가 가능해요",
     "경쟁 매장 분석으로 " + storeName + "이 놓친 키워드를 찾을 수 있어요",
     "영업시간/메뉴/가격 정보가 상세할수록 클릭 전환율이 높아요",
     "스마트플레이스 정보 최신화만으로도 순위가 오르는 경우가 있어요",
-    "플레이스 지수는 검색노출/리뷰/활동/광고 4가지로 계산돼요",
+    "플레이스 지수는 검색노출/리뷰/활동 3가지로 계산돼요",
     "분석 결과를 주 1회 확인하면 순위 변화 트렌드를 파악할 수 있어요",
     region + "에서 " + storeName + "의 경쟁 매장 현황도 곧 보여드려요"
   ];
@@ -1993,8 +2006,6 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.analysis-type-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       _analysisType = btn.dataset.type;
-      // 플레이스 분석 시에만 광고 체크박스 표시
-      document.getElementById('adFieldsWrap').style.display = _analysisType === 'place' ? 'block' : 'none';
     });
   });
 
@@ -2279,7 +2290,7 @@ const L_STEPS = [
   { label:'리뷰·별점 수집 중',   icon:'star',          desc:'방문자 리뷰, 블로그 리뷰, 별점 데이터를 모으고 있어요', ms:15000 },
   { label:'경쟁사 비교 중',      icon:'trophy',        desc:'같은 키워드 1위 매장 정보를 분석하고 있어요',         ms:15000 },
   { label:'블로그 분석 중',      icon:'file-text',     desc:'우리 매장 태그한 블로그 순위를 확인하고 있어요',       ms:70000 },
-  { label:'점수 계산 중',        icon:'check-circle-2',desc:'4축 진단 점수를 계산하고 있어요 — 거의 다 됐어요!',    ms:999999 },
+  { label:'점수 계산 중',        icon:'check-circle-2',desc:'3축 진단 점수를 계산하고 있어요 — 거의 다 됐어요!',    ms:999999 },
 ];
 const L_TIPS = [
   '방문자 리뷰 50개 이상이면 검색 노출에 유리해요',
@@ -2448,12 +2459,6 @@ async function analyzePlaceOnly(){
   const name = document.getElementById('storeName').value.trim();
   const url  = document.getElementById('placeUrl').value.trim();
   const force= _forceRefresh; _forceRefresh = false;
-  const adFlags = {
-    ad_place:     document.getElementById('adPlace').checked,
-    ad_powerlink: document.getElementById('adPowerlink').checked,
-    ad_local:     document.getElementById('adLocal').checked,
-    ad_blog:      document.getElementById('adBlog').checked,
-  };
   if(!name||!url){alert('매장명을 검색해서 매장을 선택해주세요.');return;}
 
   _lastStoreName = name;
@@ -2482,10 +2487,6 @@ async function analyzePlaceOnly(){
     place_url: url,
     force_refresh: force,
     anon_id: _anonId || '',
-    ad_place: adFlags.ad_place,
-    ad_powerlink: adFlags.ad_powerlink,
-    ad_local: adFlags.ad_local,
-    ad_blog: adFlags.ad_blog,
     source: utmSource,
     search_query: _searchQuery || name,  // 유입 키워드 (검색어 없으면 매장명)
   });
@@ -2782,6 +2783,9 @@ function renderResult(d){
     trendEl.style.display = 'none';
   }
 
+  // AS단계: 등급 가이드 표시
+  document.getElementById('gradeGuide').style.display = 'block';
+
   // 진단 리포트 (핵심 요약·액션 — 점수 바로 아래 최상단)
   renderActionReport(d, sc);
 
@@ -2879,6 +2883,7 @@ function renderBlogOnlyResult(d){
   }
   document.getElementById('gaugeSummary').innerHTML = '';
   document.getElementById('scoreTrend').style.display = 'none';
+  document.getElementById('gradeGuide').style.display = 'none';
 
   // 탭 숨기기 (블로그 결과만 표시)
   document.querySelector('.tabs').style.display = 'none';
@@ -2937,7 +2942,6 @@ function renderAxisCards(d, sc){
     buildSeoCard(d, sc.seo??0),
     buildContentCard(d, sc.content??0),
     buildActivityCard(d, sc.activity),
-    buildAdCard(d, sc),
   ];
   grid.innerHTML = axes.join('');
   // 진행바 애니메이션
@@ -3024,21 +3028,6 @@ function buildActivityCard(d, score){
     detailRow('리뷰 활동', act??'정보 없음', actScore),
     detailRow('정보 최신성', d.address?'최신':'미확인', d.address?80:30),
   ].join(''));
-}
-
-function buildAdCard(d, sc){
-  const score = sc.ad??20;
-  const f = d.ad_flags||{};
-  const adItems = [
-    {name:'플레이스 광고',     on:!!f.place},
-    {name:'파워링크',          on:!!f.powerlink},
-    {name:'지역소상공인광고',  on:!!f.local},
-    {name:'블로그 체험단',     on:!!f.blog},
-  ];
-  const rows = adItems.map(a=>`<div class="detail-row"><span class="detail-label">${a.name}</span><div class="detail-val"><span class="chip ${a.on?'chip-good':'chip-bad'}"><i data-lucide="${a.on?'check':'x'}" class="rpt-icon"></i>${a.on?'집행':'미집행'}</span></div></div>`).join('');
-  const label = sc.ad_label?`<p style="font-size:.78rem;font-weight:700;color:var(--gray-700);margin-top:8px;">${esc(sc.ad_label)}</p>`:'';
-  const note = '<p style="font-size:.72rem;color:var(--gray-600);margin-top:6px;line-height:1.5;">광고가 켜져 있어도 키워드·소재 최적화로 효율을 더 올릴 수 있어요</p>';
-  return axisCard('megaphone','키워드광고',score, rows + label + note);
 }
 
 // ── 경쟁사 비교 (P단계: S/A급 1위아닌 키워드 최대3 카드 + 통찰 멘트) ──────────────
@@ -3995,10 +3984,6 @@ function resetForm(){
   document.getElementById('input-section').style.display='block';
   document.getElementById('storeName').value='';
   document.getElementById('placeUrl').value='';
-  ['adPlace','adPowerlink','adLocal','adBlog'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.checked=false;
-  });
   // 진단 버튼 초기화
   const btn = document.getElementById('diagBtn');
   btn.disabled = false;
@@ -4729,10 +4714,6 @@ async def llms_txt():
 async def diagnose_stream_endpoint(
     store_name: str,
     place_url: str,
-    ad_place: bool = False,
-    ad_powerlink: bool = False,
-    ad_local: bool = False,
-    ad_blog: bool = False,
     anon_id: str = None,
     force_refresh: bool = False,
     source: str = None,
@@ -4755,12 +4736,6 @@ async def diagnose_stream_endpoint(
         pass
 
     place_id = _extract_place_id(place_url)
-    ad_flags = {
-        "place": ad_place,
-        "powerlink": ad_powerlink,
-        "local": ad_local,
-        "blog": ad_blog,
-    }
 
     # 직전 분석 기록 조회
     prev_analysis = None
@@ -4802,12 +4777,10 @@ async def diagnose_stream_endpoint(
                     logging.getLogger(__name__).warning(f"히스토리 저장 실패(캐시): {e}")
 
             cached["cached"] = True
-            cached["ad_flags"] = ad_flags
             cached["prev_analysis"] = prev_analysis
             cached["prev_analyzed_at"] = prev_analyzed_at
             cached["analysis_count"] = crud.get_analysis_count(db, cached_place_id, "place") if cached_place_id else analysis_count
             cached["keyword_history"] = crud.get_keyword_rank_history(db, cached_place_id, "place", limit=5) if cached_place_id else keyword_history
-            apply_ad_flags(cached.get("scores", {}), ad_flags)
 
             async def cached_generator():
                 # 캐시 히트 시에도 started → complete 흐름 유지
@@ -4831,7 +4804,7 @@ async def diagnose_stream_endpoint(
     async def run_stream_to_queue():
         """proactor 루프에서 실행, 이벤트를 큐에 넣음"""
         try:
-            async for event in diagnose_store_stream(store_name, place_url, ad_flags=ad_flags):
+            async for event in diagnose_store_stream(store_name, place_url):
                 event_queue.put(event)
             event_queue.put(None)  # 종료 신호
         except Exception as e:
@@ -4967,14 +4940,6 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
     except Exception:
         pass
 
-    # 키워드광고 체크박스 입력
-    ad_flags = {
-        "place":     req.ad_place,
-        "powerlink": req.ad_powerlink,
-        "local":     req.ad_local,
-        "blog":      req.ad_blog,
-    }
-
     # 직전 분석 기록 조회 + J단계: 히스토리 추세
     prev_analysis = None
     analysis_count = 0
@@ -5016,18 +4981,16 @@ async def diagnose_endpoint(req: schemas.DiagnoseRequest, db: Session = Depends(
                     import logging
                     logging.getLogger(__name__).warning(f"히스토리 저장 실패(캐시): {e}")
             cached["cached"] = True
-            cached["ad_flags"] = ad_flags
             cached["prev_analysis"] = prev_analysis
             cached["prev_analyzed_at"] = prev_analyzed_at
             # 방금 저장분 포함해 재집계 (N번째 분석 / 키워드 추세)
             cached["analysis_count"] = crud.get_analysis_count(db, cached_place_id, "place") if cached_place_id else analysis_count
             cached["keyword_history"] = crud.get_keyword_rank_history(db, cached_place_id, "place", limit=5) if cached_place_id else keyword_history
-            apply_ad_flags(cached.get("scores", {}), ad_flags)
             return cached
 
     try:
         future = asyncio.run_coroutine_threadsafe(
-            diagnose_store(req.store_name, req.place_url, ad_flags=ad_flags),
+            diagnose_store(req.store_name, req.place_url),
             _proactor_loop,
         )
         result = await asyncio.get_running_loop().run_in_executor(
