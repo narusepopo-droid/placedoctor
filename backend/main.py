@@ -850,7 +850,7 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .type-icon-luc{width:32px;height:32px;stroke-width:1.6;color:var(--green);}
 .analysis-type-btn.selected .type-icon-luc{color:var(--green-d);}
 .type-label{font-size:1.05rem;font-weight:800;color:var(--gray-800);letter-spacing:-.3px;}
-.type-desc{font-size:.78rem;color:var(--gray-500);font-weight:500;}
+.type-desc{font-size:.78rem;color:var(--gray-500);font-weight:500;text-align:center;line-height:1.4;}
 
 /* RANK CHANGE INDICATOR */
 .rank-change{font-size:.68rem;font-weight:600;margin-left:4px;}
@@ -921,13 +921,13 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
             <input type="radio" name="analysisType" value="place" checked>
             <i data-lucide="map-pin" class="rpt-icon is-info type-icon-luc"></i>
             <span class="type-label">플레이스</span>
-            <span class="type-desc">순위·리뷰·경쟁사</span>
+            <span class="type-desc">순위 · 리뷰 · 경쟁사 · 등급</span>
           </label>
           <label class="analysis-type-btn" data-type="blog">
             <input type="radio" name="analysisType" value="blog">
             <i data-lucide="file-text" class="rpt-icon is-info type-icon-luc"></i>
             <span class="type-label">블로그</span>
-            <span class="type-desc">블로그 노출 순위</span>
+            <span class="type-desc">노출 중인 블로그 순위 확인</span>
           </label>
         </div>
       </div>
