@@ -75,14 +75,14 @@ _HTML = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>네이버 플레이스 순위 무료 확인 | 플레이스랭킹</title>
-<meta name="description" content="내 매장 키워드 순위를 무료로 확인하세요. 경쟁 매장과 비교해 네이버 플레이스 노출 현황을 진단합니다.">
-<meta name="keywords" content="네이버 플레이스 순위, 플레이스 키워드 순위, 내 플레이스 순위 확인, 플레이스 진단, 네이버 플레이스 검색 순위">
+<title>네이버 플레이스 순위 무료 조회 | 플레이스랭킹 - 상위노출 분석</title>
+<meta name="description" content="네이버 플레이스 순위 무료 조회. 플레이스 상위노출 분석, 키워드 순위 확인, 경쟁 매장 비교까지 3초만에 시작. 플레이스랭킹으로 내 매장 노출 현황을 무료 진단하세요.">
+<meta name="keywords" content="플레이스순위, 플레이스순위조회, 플레이스랭킹, 플레이스상위노출, 플레이스분석, 플레이스무료분석, 네이버플레이스순위, 네이버플레이스노출, 네이버플레이스상위노출, 플레이스키워드순위, 플레이스순위확인, 플레이스노출분석, 내플레이스순위, 플레이스검색순위, 플레이스마케팅, 네이버지도순위, 스마트플레이스순위, 플레이스순위올리기">
 <meta name="robots" content="index, follow">
 <meta name="author" content="플레이스랭킹">
 <meta property="og:type" content="website">
-<meta property="og:title" content="네이버 플레이스 순위 무료 확인 | 플레이스랭킹">
-<meta property="og:description" content="내 매장 키워드 순위를 무료로 확인하세요. 경쟁 매장과 비교해 네이버 플레이스 노출 현황을 진단합니다.">
+<meta property="og:title" content="네이버 플레이스 순위 무료 조회 | 플레이스랭킹 - 상위노출 분석">
+<meta property="og:description" content="네이버 플레이스 순위 무료 조회. 플레이스 상위노출 분석, 키워드 순위 확인, 경쟁 매장 비교까지 3초만에 시작. 플레이스랭킹으로 내 매장 노출 현황을 무료 진단하세요.">
 <meta property="og:url" content="https://placeranking.com">
 <meta property="og:site_name" content="플레이스랭킹">
 <link rel="canonical" href="https://placeranking.com">
@@ -100,7 +100,7 @@ _HTML = """<!DOCTYPE html>
   "@type": "WebApplication",
   "name": "플레이스랭킹",
   "url": "https://placeranking.com",
-  "description": "네이버 플레이스 키워드 순위 무료 진단 도구. 플레이스 상위노출, 블로그 노출 현황, 경쟁 매장 비교를 무료로 확인하세요.",
+  "description": "네이버 플레이스 순위 무료 조회 도구. 플레이스 상위노출 분석, 플레이스 키워드 순위 확인, 경쟁 매장 비교를 3초만에 무료 진단. 플레이스랭킹으로 내 매장 네이버 플레이스 노출 현황을 분석하세요.",
   "applicationCategory": "BusinessApplication",
   "operatingSystem": "Web",
   "offers": {
@@ -250,6 +250,14 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .kakao-cta-compact{text-align:center;margin:var(--spacing-lg) 0 var(--spacing-md);}
 .kakao-btn{display:inline-flex;align-items:center;gap:6px;padding:12px 24px;background:#FEE500;color:#3C1E1E;border-radius:var(--radius-sm);font-size:.92rem;font-weight:700;text-decoration:none;transition:all .2s;box-shadow:var(--shadow-sm);}
 .kakao-btn:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+/* SEO 콘텐츠 */
+.seo-content{max-width:600px;margin:0 auto;padding:var(--spacing-lg) var(--spacing-md);border-top:1px solid var(--gray-100);color:var(--gray-600);font-size:.85rem;line-height:1.8;}
+.seo-content h2{font-size:1rem;font-weight:700;color:var(--gray-700);margin-bottom:12px;}
+.seo-content h3{font-size:.9rem;font-weight:600;color:var(--gray-600);margin:16px 0 8px;}
+.seo-content p{margin-bottom:12px;}
+.seo-content ul{margin:0;padding-left:20px;}
+.seo-content li{margin-bottom:6px;}
+.seo-content strong{color:var(--gray-700);}
 /* 하단 링크 */
 .footer-links{text-align:center;padding:var(--spacing-md) 0 var(--spacing-xl);font-size:.85rem;}
 .footer-links a{color:var(--gray-500);text-decoration:none;transition:color .2s;}
@@ -982,6 +990,21 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
         if(!isMobile) btn.href = 'https://pf.kakao.com/_qsxlXX';
       })();
       </script>
+    </section>
+
+    <!-- SEO 콘텐츠 -->
+    <section class="seo-content">
+      <h2>플레이스 순위 조회, 왜 필요할까요?</h2>
+      <p><strong>네이버 플레이스 순위</strong>는 고객이 '강남 맛집', '홍대 카페'처럼 검색했을 때 내 매장이 몇 번째로 보이는지를 말합니다. <strong>플레이스 상위노출</strong>이 되면 더 많은 고객이 매장을 발견하고 방문합니다.</p>
+      <p>플레이스랭킹은 <strong>플레이스 순위 조회</strong> 도구입니다. 매장명만 입력하면 <strong>플레이스 키워드 순위</strong>를 자동 분석합니다. <strong>네이버 플레이스 노출</strong> 현황, <strong>플레이스 분석</strong> 결과, 경쟁 매장과의 비교까지 무료로 확인하세요.</p>
+      <h3>플레이스랭킹 주요 기능</h3>
+      <ul>
+        <li><strong>플레이스 순위 확인</strong> — 30개 키워드별 순위 자동 검색</li>
+        <li><strong>플레이스 상위노출 분석</strong> — 상위 노출 키워드와 개선 필요 키워드 분류</li>
+        <li><strong>네이버 지도 순위</strong> — 네이버 지도 검색 결과 순위 확인</li>
+        <li><strong>스마트플레이스 순위</strong> — 스마트플레이스 등록 매장의 검색 순위 진단</li>
+        <li><strong>플레이스 무료 분석</strong> — 가입 없이 무료로 바로 분석 시작</li>
+      </ul>
     </section>
 
     <!-- 하단 링크 -->
@@ -4216,8 +4239,8 @@ _SEO_FOOT = ('<a class="cta" href="/">👉 내 가게 순위 무료로 확인하
 @app.get("/about", response_class=HTMLResponse, include_in_schema=False)
 async def about_page():
     """플레이스 순위란? - SEO 콘텐츠 페이지"""
-    title = "플레이스 순위란? | 네이버 플레이스 상위노출 분석 | 플레이스랭킹"
-    desc = "네이버 플레이스 순위가 무엇인지, 왜 중요한지, 플레이스랭킹으로 어떻게 분석하는지 알아보세요. 무료로 내 매장 순위를 확인할 수 있습니다."
+    title = "플레이스순위조회 | 네이버 플레이스 상위노출 분석 무료 진단 | 플레이스랭킹"
+    desc = "플레이스순위조회 무료 도구. 네이버 플레이스 순위 확인, 플레이스 상위노출 분석, 플레이스 키워드 순위 진단까지 3초만에 시작. 플레이스랭킹으로 내 매장 네이버 지도 순위를 무료로 분석하세요."
 
     html = f'''<!DOCTYPE html>
 <html lang="ko">
@@ -4289,8 +4312,11 @@ p{{margin-bottom:16px;color:var(--gray-700);}}
     </a>
   </div>
 
-  <h1>네이버 플레이스 순위, 왜 중요할까요?</h1>
-  <p class="lead">손님의 80%는 네이버 검색 상위 3개 매장에서 선택합니다. 내 매장이 몇 위인지 알면 마케팅 방향이 보입니다.</p>
+  <h1>네이버 플레이스 순위 조회 · 플레이스 상위노출 분석</h1>
+  <p class="lead">네이버 플레이스 순위가 왜 중요할까요? 고객의 80%는 네이버 검색 상위 3개 매장에서 선택합니다. 플레이스 순위 조회로 내 매장이 몇 위인지 알면 마케팅 방향이 보입니다.</p>
+
+  <h2>플레이스 순위란?</h2>
+  <p>플레이스 순위는 네이버 지도와 네이버 검색에서 특정 키워드로 검색했을 때 매장이 노출되는 순서입니다. <strong>플레이스 상위노출</strong>이 되면 더 많은 고객에게 매장이 보여지고, 방문과 예약으로 이어집니다. 플레이스랭킹은 <strong>플레이스 순위 조회</strong>를 통해 내 매장의 현재 순위를 무료로 분석해드립니다.</p>
 
   <h2>플레이스랭킹으로 알 수 있는 것</h2>
   <div class="card-grid">
