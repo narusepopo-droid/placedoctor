@@ -239,8 +239,22 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .btn-diagnose:disabled{background:var(--gray-300);cursor:not-allowed;box-shadow:none;transform:none;}
 .status-msg{text-align:center;color:var(--gray-500);font-size:.85rem;margin-top:var(--spacing-sm);min-height:20px;}
 
-/* LANDING */
-.landing{margin-bottom:var(--spacing-sm);}
+/* LANDING (AT단계: 구글 스타일 간소화) */
+.landing{margin-bottom:var(--spacing-xs);}
+.hero-compact{text-align:center;padding:var(--spacing-md) var(--spacing-md) var(--spacing-sm);}
+.hero-compact h1{font-size:1.5rem;font-weight:700;line-height:1.4;letter-spacing:-.6px;color:var(--gray-900);margin-bottom:8px;}
+.hero-compact h1 .accent{background:var(--primary-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-sub-compact{font-size:.9rem;color:var(--gray-500);margin:0;}
+/* 카카오 문의 버튼 (컴팩트) */
+.kakao-cta-compact{text-align:center;margin:var(--spacing-lg) 0 var(--spacing-md);}
+.kakao-btn{display:inline-flex;align-items:center;gap:6px;padding:12px 24px;background:#FEE500;color:#3C1E1E;border-radius:var(--radius-sm);font-size:.92rem;font-weight:700;text-decoration:none;transition:all .2s;box-shadow:var(--shadow-sm);}
+.kakao-btn:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+/* 하단 링크 */
+.footer-links{text-align:center;padding:var(--spacing-md) 0 var(--spacing-xl);font-size:.85rem;}
+.footer-links a{color:var(--gray-500);text-decoration:none;transition:color .2s;}
+.footer-links a:hover{color:var(--green);}
+.footer-links .link-sep{color:var(--gray-300);margin:0 12px;}
+/* 기존 히어로 (about 페이지용 유지) */
 .hero{text-align:center;padding:var(--spacing-xl) var(--spacing-md) var(--spacing-lg);}
 .hero-icon{font-size:3.2rem;display:block;margin-bottom:var(--spacing-md);filter:drop-shadow(0 4px 12px rgba(0,184,148,.3));}
 .hero h1{font-size:1.75rem;font-weight:700;line-height:1.4;letter-spacing:-.8px;color:var(--gray-900);margin-bottom:var(--spacing-sm);}
@@ -874,129 +888,12 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
   <!-- INPUT (L단계: 랜딩 + 검색폼) -->
   <div id="input-section">
 
-    <!-- 랜딩 -->
+    <!-- 랜딩 (AT단계: 구글 스타일 간소화) -->
     <div class="landing" id="landing">
-      <section class="hero">
-        <span class="hero-icon">🏆</span>
-        <h1>내 매장, 네이버에서<br><span class="accent">몇 위</span>인지 아세요?</h1>
-        <p class="hero-sub">플레이스 순위 · 블로그 노출 · 경쟁사까지<br>1분 만에 무료로 확인하세요.</p>
-        <button class="hero-cta" onclick="scrollToSearch()">내 순위 확인하기</button>
-        <div class="hero-note">가입 없이 · 매장명으로 3초만에 분석 시작</div>
+      <section class="hero hero-compact">
+        <h1>내 매장, 네이버에서<br><span class="accent">몇 위</span>인지 확인하세요</h1>
+        <p class="hero-sub-compact">플레이스 순위 · 블로그 노출 · 경쟁사 비교</p>
       </section>
-
-      <section class="lp-section">
-        <div class="lp-section-title">무엇을 알 수 있나요</div>
-        <div class="value-grid">
-          <div class="value-card"><i data-lucide="map-pin" class="rpt-icon is-info v-icon-luc"></i><div class="v-title">플레이스 순위</div><div class="v-desc">키워드별 내 매장 순위</div></div>
-          <div class="value-card"><i data-lucide="file-text" class="rpt-icon is-info v-icon-luc"></i><div class="v-title">블로그 노출</div><div class="v-desc">블로그 검색 노출 현황</div></div>
-          <div class="value-card"><i data-lucide="trending-up" class="rpt-icon is-info v-icon-luc"></i><div class="v-title">변화 추적</div><div class="v-desc">지난 분석 대비 순위 변화</div></div>
-          <div class="value-card"><i data-lucide="swords" class="rpt-icon is-info v-icon-luc"></i><div class="v-title">경쟁사 비교</div><div class="v-desc">1위 매장과의 격차</div></div>
-        </div>
-      </section>
-
-      <section class="lp-section">
-        <div class="lp-section-title">어떻게 작동하나요</div>
-        <div class="steps">
-          <div class="step"><div class="step-num">1</div><div class="step-body"><div class="s-title">매장명 검색</div><div class="s-desc">매장명만 입력하면 3초만에 분석 시작</div></div></div>
-          <div class="step"><div class="step-num">2</div><div class="step-body"><div class="s-title">1분 분석</div><div class="s-desc">순위·리뷰·경쟁사를 자동으로 분석해요</div></div></div>
-          <div class="step"><div class="step-num">3</div><div class="step-body"><div class="s-title">결과 확인 + 추적</div><div class="s-desc">점수와 순위를 받고, 다음 분석과 비교까지</div></div></div>
-        </div>
-      </section>
-
-      <section class="lp-section">
-        <div class="lp-section-title">이런 결과를 받아요</div>
-        <div class="preview-card">
-          <div class="preview-gauge">
-            <svg width="140" height="140" viewBox="0 0 140 140" style="transform:rotate(-90deg);">
-              <circle cx="70" cy="70" r="60" fill="none" stroke="#f3f4f6" stroke-width="12"/>
-              <circle cx="70" cy="70" r="60" fill="none" stroke="#22c55e" stroke-width="12" stroke-linecap="round" stroke-dasharray="309 377"/>
-            </svg>
-            <div class="preview-score">82<small>종합점수</small></div>
-          </div>
-          <div class="preview-trend">▲ 지난번 78점 → 이번 82점 (+4)</div>
-          <div class="preview-kw">
-            <div class="preview-kw-row"><span class="pk-name">오산 피부관리</span><span class="pk-rank">13위 → 9위 → 2위</span></div>
-            <div class="preview-kw-row"><span class="pk-name">오산 에스테틱</span><span class="pk-rank">6위 → 3위</span></div>
-          </div>
-          <div class="preview-caption">* 실제 분석 결과 예시 화면입니다</div>
-        </div>
-      </section>
-
-      <!-- SEO 콘텐츠: Why 섹션 -->
-      <section class="seo-why-section">
-        <h2>네이버 플레이스 순위, 왜 확인해야 하나요?</h2>
-        <p>
-          네이버 플레이스, 상위 3개 매장이 손님의 80%를 가져갑니다.
-        </p>
-        <p>
-          내 매장이 어떤 키워드에서 몇 위인지,<br>
-          경쟁 매장과 얼마나 차이 나는지 — 지금 무료로 확인하세요.
-        </p>
-        <p>
-          리뷰 관리 · 키워드 최적화 · 상위노출 작업 집행 중이라면<br>
-          실제 키워드 순위 변화를 직접 확인해보세요.
-        </p>
-      </section>
-
-      <!-- SEO 콘텐츠: FAQ 아코디언 -->
-      <section class="seo-faq-section">
-        <h2>플레이스 순위, 이런 게 궁금하셨죠?</h2>
-        <div class="faq-item">
-          <button class="faq-q">네이버 플레이스 상위노출은 어떻게 결정되나요?</button>
-          <div class="faq-a">
-            키워드 일치도, 리뷰 수·점수, 저장수, 최근 활동, 블로그 포스팅 노출 등
-            복합 알고리즘으로 결정됩니다. 플레이스랭킹에서 내 매장의
-            현재 점수와 부족한 항목을 무료로 확인할 수 있습니다.
-          </div>
-        </div>
-        <div class="faq-item">
-          <button class="faq-q">플레이스 광고를 집행 중인데 순위 확인이 필요한가요?</button>
-          <div class="faq-a">
-            네이버 플레이스 광고는 유료 노출이고, 자연 순위는 별개입니다.
-            광고 없이도 어떤 키워드에서 자연 노출되는지 확인하는 것이
-            진짜 마케팅 실력 파악의 시작입니다.
-          </div>
-        </div>
-        <div class="faq-item">
-          <button class="faq-q">블로그 체험단 효과, 실제로 순위에 반영되고 있나요?</button>
-          <div class="faq-a">
-            블로그 포스팅이 어떤 키워드로 몇 위에 노출되는지
-            플레이스랭킹 블로그 분석 탭에서 직접 확인할 수 있습니다.
-            체험단 효과를 데이터로 검증해보세요.
-          </div>
-        </div>
-        <div class="faq-item">
-          <button class="faq-q">경쟁 매장이 왜 나보다 순위가 높은지 알 수 있나요?</button>
-          <div class="faq-a">
-            경쟁사 비교 기능으로 1위 매장과의 키워드 격차를 확인할 수 있습니다.
-            어떤 키워드에서 밀리는지 파악하면 개선 방향이 보입니다.
-          </div>
-        </div>
-        <div class="faq-item">
-          <button class="faq-q">가게 오픈 전에도 경쟁 매장 분석이 가능한가요?</button>
-          <div class="faq-a">
-            오픈 예정이라면 경쟁 매장 분석으로 상권 내 키워드 경쟁 강도를
-            미리 파악할 수 있습니다. 플레이스 광고나 소상공인 마케팅 전략 수립에 활용하세요.
-          </div>
-        </div>
-        <div class="faq-item">
-          <button class="faq-q">지역소상공인광고와 일반 플레이스 광고 차이는 무엇인가요?</button>
-          <div class="faq-a">
-            지역소상공인광고는 네이버가 지원하는 소상공인 전용 광고 상품으로
-            노출 영역과 비용 구조가 다릅니다.
-            어떤 광고가 적합한지는 현재 키워드 순위를 먼저 파악한 후 결정하는 것이 효율적입니다.
-          </div>
-        </div>
-      </section>
-
-      <div style="text-align:center;margin:22px 0 4px">
-        <a href="/rank" style="color:var(--green);font-weight:700;text-decoration:none;font-size:.95rem">📊 지역별 · 업종별 네이버 플레이스 순위 한눈에 보기 →</a>
-      </div>
-
-      <div class="search-divider" id="searchStart">
-        <div class="sd-title">내 매장 순위, 지금 확인</div>
-        <div class="sd-sub">아래에 매장 정보를 입력하세요</div>
-      </div>
     </div>
 
     <div class="input-card" id="searchFormCard">
@@ -1064,16 +961,10 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       <div class="recent-stores-list" id="recentStoresList"></div>
     </div>
 
-    <!-- SEO 콘텐츠: CTA -->
-    <section class="seo-cta-section">
-      <p class="cta-label">순위 개선이 필요하다면?</p>
-      <h2>진단 결과를 바탕으로<br>무엇을 개선해야 할지 물어보세요</h2>
-      <p class="cta-desc">
-        리뷰 관리, 키워드 최적화, 상위노출 전략 등<br>
-        매장 상황에 맞는 방법을 안내해드립니다.
-      </p>
-      <a id="kakaoCtaBtn" href="https://pf.kakao.com/_qsxlXX/chat" target="_blank" class="cta-btn">
-        💬 카카오톡으로 무료 문의하기
+    <!-- 카카오톡 문의 -->
+    <section class="kakao-cta-compact">
+      <a id="kakaoCtaBtn" href="https://pf.kakao.com/_qsxlXX/chat" target="_blank" class="kakao-btn">
+        💬 카카오톡 무료 문의
       </a>
       <script>
       (function(){
@@ -1083,6 +974,13 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       })();
       </script>
     </section>
+
+    <!-- 하단 링크 -->
+    <div class="footer-links">
+      <a href="/about">플레이스 순위란?</a>
+      <span class="link-sep">|</span>
+      <a href="/rank">지역별 순위 보기</a>
+    </div>
   </div>
 
   <!-- LOADING (R단계: 게임형 UI) -->
@@ -4261,6 +4159,7 @@ def track_visit(
 async def sitemap(db: Session = Depends(get_db)):
     from urllib.parse import quote
     urls = ['<url><loc>https://placeranking.com/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>',
+            '<url><loc>https://placeranking.com/about</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>',
             '<url><loc>https://placeranking.com/rank</loc><changefreq>daily</changefreq><priority>0.9</priority></url>']
     try:
         for item in crud.get_keyword_rankings(db):
@@ -4304,6 +4203,147 @@ def _seo_head(title, desc, canonical, jsonld=""):
 _SEO_FOOT = ('<a class="cta" href="/">👉 내 가게 순위 무료로 확인하기</a>'
              '<p class="foot">플레이스랭킹 · 네이버 플레이스 순위 무료 진단 · '
              '<a href="/rank" style="color:#9aa5ad">전체 순위</a></p></div></body></html>')
+
+
+# ── AT단계: /about 페이지 (SEO 콘텐츠 분리) ─────────────────────────────────────
+@app.get("/about", response_class=HTMLResponse, include_in_schema=False)
+async def about_page():
+    """플레이스 순위란? - SEO 콘텐츠 페이지"""
+    title = "플레이스 순위란? | 네이버 플레이스 상위노출 분석 | 플레이스랭킹"
+    desc = "네이버 플레이스 순위가 무엇인지, 왜 중요한지, 플레이스랭킹으로 어떻게 분석하는지 알아보세요. 무료로 내 매장 순위를 확인할 수 있습니다."
+
+    html = f'''<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title}</title>
+<meta name="description" content="{desc}">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{desc}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://placeranking.com/about">
+<meta property="og:image" content="https://placeranking.com/og/default.png">
+<link rel="canonical" href="https://placeranking.com/about">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<style>
+:root{{--green:#00C896;--gray-50:#f8fafc;--gray-100:#f1f5f9;--gray-200:#e2e8f0;--gray-500:#64748b;--gray-700:#334155;--gray-800:#1e293b;--gray-900:#0f172a;}}
+*{{margin:0;padding:0;box-sizing:border-box;}}
+body{{font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:var(--gray-800);line-height:1.7;}}
+.container{{max-width:720px;margin:0 auto;padding:32px 20px 64px;}}
+.header{{display:flex;align-items:center;gap:12px;margin-bottom:40px;}}
+.header a{{text-decoration:none;display:flex;align-items:center;gap:8px;}}
+.header svg{{width:28px;height:28px;}}
+.header span{{font-size:1.1rem;font-weight:700;color:var(--gray-800);}}
+h1{{font-size:1.8rem;font-weight:800;color:var(--gray-900);margin-bottom:24px;letter-spacing:-.5px;}}
+h2{{font-size:1.25rem;font-weight:700;color:var(--gray-800);margin:40px 0 16px;padding-top:24px;border-top:1px solid var(--gray-100);}}
+h2:first-of-type{{border-top:none;padding-top:0;margin-top:32px;}}
+p{{margin-bottom:16px;color:var(--gray-700);}}
+.lead{{font-size:1.1rem;color:var(--gray-600);margin-bottom:32px;}}
+.card-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin:24px 0;}}
+.card{{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:20px;text-align:center;}}
+.card-icon{{font-size:1.8rem;margin-bottom:8px;}}
+.card-title{{font-size:.95rem;font-weight:700;color:var(--gray-800);margin-bottom:4px;}}
+.card-desc{{font-size:.82rem;color:var(--gray-500);}}
+.steps{{display:flex;flex-direction:column;gap:16px;margin:24px 0;}}
+.step{{display:flex;align-items:flex-start;gap:16px;background:var(--gray-50);border-radius:12px;padding:20px;}}
+.step-num{{flex-shrink:0;width:32px;height:32px;background:linear-gradient(135deg,#00C896,#00d4a4);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;}}
+.step-title{{font-weight:700;color:var(--gray-800);margin-bottom:4px;}}
+.step-desc{{font-size:.9rem;color:var(--gray-600);}}
+.faq{{margin:24px 0;}}
+.faq-item{{border-bottom:1px solid var(--gray-100);}}
+.faq-q{{width:100%;text-align:left;background:none;border:none;padding:16px 0;font-size:.95rem;font-weight:600;color:var(--gray-800);cursor:pointer;display:flex;justify-content:space-between;align-items:center;}}
+.faq-q::after{{content:'+';font-size:1.2rem;color:var(--gray-400);}}
+.faq-item.open .faq-q::after{{content:'−';}}
+.faq-a{{display:none;padding:0 0 16px;font-size:.9rem;color:var(--gray-600);}}
+.faq-item.open .faq-a{{display:block;}}
+.cta-box{{background:linear-gradient(135deg,#f0fdf8,#dcfce7);border:1px solid #bbf7d0;border-radius:16px;padding:32px 24px;text-align:center;margin:48px 0 24px;}}
+.cta-box h3{{font-size:1.2rem;font-weight:700;color:var(--gray-900);margin-bottom:8px;}}
+.cta-box p{{color:var(--gray-600);margin-bottom:20px;}}
+.cta-btn{{display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#00C896,#00d4a4);color:#fff;border-radius:10px;font-size:1rem;font-weight:700;text-decoration:none;transition:transform .2s,box-shadow .2s;box-shadow:0 4px 16px rgba(0,200,150,.3);}}
+.cta-btn:hover{{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,200,150,.4);}}
+.back-link{{display:inline-block;margin-top:16px;color:var(--gray-500);text-decoration:none;font-size:.9rem;}}
+.back-link:hover{{color:var(--green);}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <a href="/">
+      <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00C896"/><stop offset="100%" stop-color="#00d4a4"/></linearGradient></defs>
+        <circle cx="18" cy="14" r="10" fill="url(#lg)"/>
+        <circle cx="18" cy="14" r="5" fill="white"/>
+        <circle cx="18" cy="14" r="2.5" fill="#00C896"/>
+        <path d="M18 24 L13 32 L18 29 L23 32 Z" fill="url(#lg)"/>
+      </svg>
+      <span>플레이스랭킹</span>
+    </a>
+  </div>
+
+  <h1>네이버 플레이스 순위, 왜 중요할까요?</h1>
+  <p class="lead">손님의 80%는 네이버 검색 상위 3개 매장에서 선택합니다. 내 매장이 몇 위인지 알면 마케팅 방향이 보입니다.</p>
+
+  <h2>플레이스랭킹으로 알 수 있는 것</h2>
+  <div class="card-grid">
+    <div class="card"><div class="card-icon">📍</div><div class="card-title">플레이스 순위</div><div class="card-desc">키워드별 내 매장 순위</div></div>
+    <div class="card"><div class="card-icon">📝</div><div class="card-title">블로그 노출</div><div class="card-desc">블로그 검색 노출 현황</div></div>
+    <div class="card"><div class="card-icon">📈</div><div class="card-title">변화 추적</div><div class="card-desc">지난 분석 대비 순위 변화</div></div>
+    <div class="card"><div class="card-icon">⚔️</div><div class="card-title">경쟁사 비교</div><div class="card-desc">1위 매장과의 격차</div></div>
+  </div>
+
+  <h2>어떻게 작동하나요?</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div><div class="step-title">매장명 검색</div><div class="step-desc">매장명만 입력하면 3초만에 분석 시작</div></div></div>
+    <div class="step"><div class="step-num">2</div><div><div class="step-title">1분 자동 분석</div><div class="step-desc">순위·리뷰·경쟁사를 네이버에서 직접 수집</div></div></div>
+    <div class="step"><div class="step-num">3</div><div><div class="step-title">결과 확인 + 추적</div><div class="step-desc">점수와 순위를 받고, 다음 분석과 비교까지</div></div></div>
+  </div>
+
+  <h2>자주 묻는 질문</h2>
+  <div class="faq">
+    <div class="faq-item">
+      <button class="faq-q">네이버 플레이스 상위노출은 어떻게 결정되나요?</button>
+      <div class="faq-a">키워드 일치도, 리뷰 수·점수, 저장수, 최근 활동, 블로그 포스팅 노출 등 복합 알고리즘으로 결정됩니다. 플레이스랭킹에서 내 매장의 현재 점수와 부족한 항목을 무료로 확인할 수 있습니다.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">플레이스 광고를 집행 중인데 순위 확인이 필요한가요?</button>
+      <div class="faq-a">네이버 플레이스 광고는 유료 노출이고, 자연 순위는 별개입니다. 광고 없이도 어떤 키워드에서 자연 노출되는지 확인하는 것이 진짜 마케팅 실력 파악의 시작입니다.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">블로그 체험단 효과를 확인할 수 있나요?</button>
+      <div class="faq-a">블로그 포스팅이 어떤 키워드로 몇 위에 노출되는지 플레이스랭킹 블로그 분석 탭에서 직접 확인할 수 있습니다. 체험단 효과를 데이터로 검증해보세요.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">경쟁 매장과 비교할 수 있나요?</button>
+      <div class="faq-a">경쟁사 비교 기능으로 1위 매장과의 키워드 격차를 확인할 수 있습니다. 어떤 키워드에서 밀리는지 파악하면 개선 방향이 보입니다.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">가게 오픈 전에도 분석이 가능한가요?</button>
+      <div class="faq-a">오픈 예정이라면 경쟁 매장 분석으로 상권 내 키워드 경쟁 강도를 미리 파악할 수 있습니다. 마케팅 전략 수립에 활용하세요.</div>
+    </div>
+  </div>
+
+  <div class="cta-box">
+    <h3>내 매장 순위, 지금 확인하세요</h3>
+    <p>가입 없이 · 무료로 · 1분이면 끝</p>
+    <a href="/" class="cta-btn">내 순위 확인하기</a>
+  </div>
+
+  <div style="text-align:center;">
+    <a href="/" class="back-link">← 메인으로 돌아가기</a>
+  </div>
+</div>
+<script>
+document.querySelectorAll('.faq-q').forEach(btn => {{
+  btn.addEventListener('click', () => {{
+    btn.parentElement.classList.toggle('open');
+  }});
+}});
+</script>
+</body>
+</html>'''
+    return HTMLResponse(html)
 
 
 @app.get("/rank", response_class=HTMLResponse, include_in_schema=False)
