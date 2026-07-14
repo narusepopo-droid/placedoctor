@@ -842,15 +842,15 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 
 /* ANALYSIS TYPE SELECTOR */
 .analysis-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.analysis-type-btn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:20px 16px;background:#fff;border:2px solid var(--gray-200);border-radius:16px;cursor:pointer;transition:all .25s ease;box-shadow:0 2px 8px rgba(0,0,0,.04);}
+.analysis-type-btn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:20px 16px;background:#fff;border:2px solid var(--gray-200);border-radius:16px;cursor:pointer;transition:all .25s ease;box-shadow:0 2px 8px rgba(0,0,0,.04);text-align:center;}
 .analysis-type-btn:hover{border-color:var(--green);background:linear-gradient(135deg,#f0fdf8,#e8faf4);transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,200,150,.15);}
 .analysis-type-btn.selected{border-color:var(--green);background:linear-gradient(135deg,#e8faf4,#dcfce7);box-shadow:0 4px 16px rgba(0,200,150,.2);}
 .analysis-type-btn.selected::after{content:'✓';position:absolute;top:8px;right:10px;font-size:.7rem;font-weight:700;color:#fff;background:var(--green);width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
 .analysis-type-btn input{display:none;}
 .type-icon-luc{width:32px;height:32px;stroke-width:1.6;color:var(--green);}
 .analysis-type-btn.selected .type-icon-luc{color:var(--green-d);}
-.type-label{font-size:1.05rem;font-weight:800;color:var(--gray-800);letter-spacing:-.3px;}
-.type-desc{font-size:.78rem;color:var(--gray-500);font-weight:500;text-align:center;line-height:1.4;}
+.type-label{display:block;font-size:1.05rem;font-weight:800;color:var(--gray-800);letter-spacing:-.3px;text-align:center;}
+.type-desc{display:block;font-size:.75rem;color:var(--gray-500);font-weight:500;text-align:center;line-height:1.45;margin-top:2px;}
 
 /* RANK CHANGE INDICATOR */
 .rank-change{font-size:.68rem;font-weight:600;margin-left:4px;}
