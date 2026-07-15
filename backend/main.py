@@ -3986,7 +3986,7 @@ def _report_data(place_id: str, data: dict) -> dict:
         "grade": g, "gc": gc, "gbg": gbg, "results": results,
         "first_page": first_page, "best": best, "headline": headline, "desc": desc,
         "title": "우리 가게 네이버 플레이스 순위는 몇 위일까?",
-        "og_img": f"https://placeranking.com/og/{place_id}.png?v=3",
+        "og_img": f"https://placeranking.com/og/{place_id}.png?v=4",
         "url": f"https://placeranking.com/report/{place_id}",
     }
 
@@ -4016,8 +4016,8 @@ def _build_report_html(place_id: str, data: dict) -> str:
 <meta property="og:title" content="{r['title']}">
 <meta property="og:description" content="{r['desc']}">
 <meta property="og:image" content="{r['og_img']}">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+<meta property="og:image:width" content="600">
+<meta property="og:image:height" content="600">
 <meta property="og:url" content="{r['url']}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{r['title']}">
