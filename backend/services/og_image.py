@@ -2,7 +2,7 @@
 """공유용 OG 카드 이미지 생성 (카카오톡 1:1 비율, 600x600 PNG).
 
 - 카카오톡 모바일은 1:1 정사각형으로 표시.
-- 상하좌우 여백 최소화하고 중요 정보를 중앙에 배치.
+- 초록 배경 위에 흰 카드가 떠있는 형태로 카드 느낌 살림.
 """
 import os
 import io
@@ -75,7 +75,7 @@ def _grade(score: int):
 
 
 def generate_card(data: dict) -> bytes:
-    store = (data.get("store_name") or "내 가게").strip()[:14]
+    store = (data.get("store_name") or "내 가게").strip()[:12]
     scores = data.get("scores") or {}
     try:
         score = int(round(float(scores.get("total") or 0)))
@@ -87,7 +87,7 @@ def generate_card(data: dict) -> bytes:
     best = results[0] if results else None
     first_page = len([r for r in results if r["rank"] <= 10])
 
-    img = Image.new("RGB", (W, H), _GREEN)
+    img = Image.new("RGB", (W, H), _WHITE)
     d = ImageDraw.Draw(img)
 
     # 배경: 초록 세로 그라데이션
@@ -99,41 +99,49 @@ def generate_card(data: dict) -> bytes:
             int(top[1] + (bot[1] - top[1]) * t),
             int(top[2] + (bot[2] - top[2]) * t)))
 
-    # 흰 카드 패널 (여백 최소화)
-    d.rounded_rectangle([12, 12, W - 12, H - 12], radius=20, fill=_WHITE)
+    # 흰 카드 패널 (여백 줘서 카드 느낌)
+    CARD_MARGIN = 40
+    d.rounded_rectangle(
+        [CARD_MARGIN, CARD_MARGIN, W - CARD_MARGIN, H - CARD_MARGIN],
+        radius=24, fill=_WHITE
+    )
 
-    # 브랜드 (상단)
-    d.text((W // 2, 42), "플레이스랭킹", font=_font(24), fill=_GREEN, anchor="mm")
+    # 카드 내부 기준점
+    card_cx = W // 2
+    card_top = CARD_MARGIN + 24
 
-    # 매장명 (상단)
-    name_font = _fit_font(d, store, 500, 40, 26)
-    d.text((W // 2, 90), store, font=name_font, fill=_DARK, anchor="mm")
+    # 브랜드 (카드 상단)
+    d.text((card_cx, card_top), "플레이스랭킹", font=_font(22), fill=_GREEN, anchor="mm")
 
-    # 점수 링 (중앙, 크게)
+    # 매장명
+    name_font = _fit_font(d, store, 440, 36, 24)
+    d.text((card_cx, card_top + 50), store, font=name_font, fill=_DARK, anchor="mm")
+
+    # 점수 링 (중앙)
     g, gc = _grade(score)
-    cx, cy, r = W // 2, 240, 110
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=_LIGHT, width=18)
+    cx, cy, r = card_cx, 270, 90
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=_LIGHT, width=14)
     sweep = 360 * max(0, min(100, score)) / 100
-    d.arc([cx - r, cy - r, cx + r, cy + r], start=-90, end=-90 + sweep, fill=gc, width=18)
-    d.text((cx, cy - 10), str(score), font=_font(90), fill=gc, anchor="mm")
-    d.text((cx, cy + 50), "점", font=_font(26), fill=_GRAY, anchor="mm")
+    d.arc([cx - r, cy - r, cx + r, cy + r], start=-90, end=-90 + sweep, fill=gc, width=14)
+    d.text((cx, cy - 8), str(score), font=_font(72), fill=gc, anchor="mm")
+    d.text((cx, cy + 40), "점", font=_font(22), fill=_GRAY, anchor="mm")
 
     # 등급
-    d.text((W // 2, 380), f"{g}등급", font=_font(30), fill=gc, anchor="mm")
+    d.text((card_cx, 385), f"{g}등급", font=_font(26), fill=gc, anchor="mm")
 
-    # 핵심 한 줄 (하단)
+    # 핵심 한 줄 (카드 하단)
     if best:
         line = f"'{best['keyword']}' {best['rank']}위"
         if first_page:
             line += f" · 첫 화면 {first_page}개"
     else:
         line = "내 가게 순위 무료 확인"
-    line_font = _fit_font(d, line, 480, 22, 16)
-    d.rounded_rectangle([60, 430, W - 60, 490], radius=14, fill=(240, 253, 244))
-    d.text((W // 2, 460), line, font=line_font, fill=(21, 128, 61), anchor="mm")
+    line_font = _fit_font(d, line, 420, 20, 16)
+    d.rounded_rectangle([70, 420, W - 70, 475], radius=12, fill=(240, 253, 244))
+    d.text((card_cx, 448), line, font=line_font, fill=(21, 128, 61), anchor="mm")
 
-    # URL (하단)
-    d.text((W // 2, 540), "placeranking.com", font=_font(20), fill=_GREEN_D, anchor="mm")
+    # URL (카드 하단)
+    d.text((card_cx, 510), "placeranking.com", font=_font(18), fill=_GREEN_D, anchor="mm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
