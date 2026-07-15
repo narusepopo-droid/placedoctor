@@ -34,3 +34,5 @@ desktop.ini
 
 # 루트에 남은 플마 원본 (복사본은 _reference/에 있음)
 naver_tracker.py
+placedoctor/
+placeranking-key.pem
