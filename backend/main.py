@@ -3986,7 +3986,7 @@ def _report_data(place_id: str, data: dict) -> dict:
         "grade": g, "gc": gc, "gbg": gbg, "results": results,
         "first_page": first_page, "best": best, "headline": headline, "desc": desc,
         "title": "우리 가게 네이버 플레이스 순위는 몇 위일까?",
-        "og_img": f"https://placeranking.com/og/{place_id}.png?v=2",
+        "og_img": f"https://placeranking.com/og/{place_id}.png?v=3",
         "url": f"https://placeranking.com/report/{place_id}",
     }
 
