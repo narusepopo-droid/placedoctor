@@ -563,94 +563,123 @@ async def get_store_details(page, url):
             except Exception:
                 pass
 
-        # 방문자 리뷰 탭(최근순) → 처음 로드되는 약 10개 리뷰만 사용. 더보기 클릭 없음
+        # 방문자 리뷰 탭(최신순) → 처음 로드되는 약 10개 리뷰만 사용. 더보기 클릭 없음
         # (더보기는 3~2월 오래된 리뷰까지 끌어와 활발도를 왜곡 + 차단 위험 → 제거).
-        # 리뷰 페이지 요청은 진단당 정확히 1회.
+        # 1순위: pcmap (PC버전, 차단 덜함) → 2순위: m.place (모바일) 폴백
         #   처음 ~10개 중 최근 30일 이내 개수: 6+ 활발 / 3~5 보통 / 1~2 한산 / 0 거의 없음
         review_activity    = None   # "활발" | "보통" | "한산" | "거의 없음"
         recent_30d_reviews = None   # 처음 ~10개 중 30일 이내 개수
+
+        _JS_DAYS = r'''() => {
+            function parseTxt(txt) {
+                if (!txt) return null;
+                if (/방금|오늘/.test(txt)) return 0;
+                if (/어제/.test(txt)) return 1;
+                let m;
+                if (m = txt.match(/(\d{1,2})\s*분\s*전/))          return 0;
+                if (m = txt.match(/(\d{1,2})\s*시간\s*전/))         return 0;
+                if (m = txt.match(/(\d{1,3})\s*일\s*전/))          return parseInt(m[1]);
+                if (m = txt.match(/(\d{1,2})\s*주\s*전/))          return parseInt(m[1]) * 7;
+                if (m = txt.match(/(\d{1,2})\s*(?:개월|달)\s*전/)) return parseInt(m[1]) * 30;
+                if (m = txt.match(/(20\d{2})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/)) {
+                    const d = new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
+                    return Math.floor((Date.now()-d)/86400000);
+                }
+                if (m = txt.match(/^(\d{1,2})\.(\d{1,2})$/)) {
+                    const mo = parseInt(m[1]), dy = parseInt(m[2]);
+                    if (mo >= 1 && mo <= 12 && dy >= 1 && dy <= 31) {
+                        const now = new Date();
+                        let d = new Date(now.getFullYear(), mo-1, dy);
+                        let diff = Math.floor((Date.now()-d)/86400000);
+                        if (diff < 0) { d = new Date(now.getFullYear()-1, mo-1, dy); diff = Math.floor((Date.now()-d)/86400000); }
+                        if (diff >= 0) return diff;
+                    }
+                }
+                return null;
+            }
+            // 리뷰 카드(li)를 직접 순회해 각 카드의 날짜 하나씩 추출
+            const out = [];
+            for (const li of document.querySelectorAll('li')) {
+                const t = (li.textContent || '').trim();
+                if (!t) continue;
+                const d = parseTxt(t);
+                if (d !== null && d >= 0 && d <= 4000) out.push(d);
+            }
+            // 폴백: li에서 못 찾으면 페이지 전체 텍스트 줄 단위 파싱
+            if (out.length < 3) {
+                const lines = (document.body ? document.body.innerText : '').split(/\n+/).map(l => l.trim());
+                for (const line of lines) {
+                    const d = parseTxt(line);
+                    if (d !== null && d >= 0 && d <= 4000) out.push(d);
+                }
+            }
+            return out;
+        }'''
+
         if p_id:
             from datetime import date as _date, timedelta as _td
             _today = _date.today()
+            review_days = None
+
+            # 1순위: pcmap (PC버전) 리뷰 탭 — 최신순 정렬 클릭
             try:
-                mob_rev_url = f"https://m.place.naver.com/place/{p_id}/review/visitor"
-                await page.goto(mob_rev_url, wait_until="domcontentloaded", timeout=12000)
+                pc_rev_url = f"https://pcmap.place.naver.com/place/{p_id}/review/visitor"
+                await page.goto(pc_rev_url, wait_until="domcontentloaded", timeout=12000)
                 await page.wait_for_timeout(1500)
 
-                # 최신순 버튼 클릭 (기본=추천순 → 최신순으로 전환)
-                # m.place 리뷰 페이지의 정렬 버튼: "최신순" 텍스트 또는 data-* 속성
+                # 최신순 버튼 클릭 (PC버전: 드롭다운 또는 탭)
                 try:
-                    recent_btn = page.locator('button:has-text("최신순"), a:has-text("최신순"), [data-sort="recent"]').first
+                    recent_btn = page.locator('a:has-text("최신순"), button:has-text("최신순"), [data-sort="recent"]').first
                     if await recent_btn.count() > 0:
                         await recent_btn.click()
                         await page.wait_for_timeout(1500)
+                        logger.info("  리뷰 최신순 클릭 (pcmap)")
                 except Exception:
                     pass
 
-                _JS_DAYS = r'''() => {
-                    function parseTxt(txt) {
-                        if (!txt) return null;
-                        if (/방금|오늘/.test(txt)) return 0;
-                        if (/어제/.test(txt)) return 1;
-                        let m;
-                        if (m = txt.match(/(\d{1,2})\s*분\s*전/))          return 0;
-                        if (m = txt.match(/(\d{1,2})\s*시간\s*전/))         return 0;
-                        if (m = txt.match(/(\d{1,3})\s*일\s*전/))          return parseInt(m[1]);
-                        if (m = txt.match(/(\d{1,2})\s*주\s*전/))          return parseInt(m[1]) * 7;
-                        if (m = txt.match(/(\d{1,2})\s*(?:개월|달)\s*전/)) return parseInt(m[1]) * 30;
-                        if (m = txt.match(/(20\d{2})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/)) {
-                            const d = new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
-                            return Math.floor((Date.now()-d)/86400000);
-                        }
-                        if (m = txt.match(/^(\d{1,2})\.(\d{1,2})$/)) {
-                            const mo = parseInt(m[1]), dy = parseInt(m[2]);
-                            if (mo >= 1 && mo <= 12 && dy >= 1 && dy <= 31) {
-                                const now = new Date();
-                                let d = new Date(now.getFullYear(), mo-1, dy);
-                                let diff = Math.floor((Date.now()-d)/86400000);
-                                if (diff < 0) { d = new Date(now.getFullYear()-1, mo-1, dy); diff = Math.floor((Date.now()-d)/86400000); }
-                                if (diff >= 0) return diff;
-                            }
-                        }
-                        return null;
-                    }
-                    // 리뷰 카드(li)를 직접 순회해 각 카드의 날짜 하나씩 추출 — innerText의
-                    // "화면에 보이는 것만" 제약을 피해 로드된 리뷰를 빠짐없이 센다.
-                    const out = [];
-                    for (const li of document.querySelectorAll('li')) {
-                        const t = (li.textContent || '').trim();
-                        if (!t) continue;
-                        const d = parseTxt(t);
-                        if (d !== null && d >= 0 && d <= 4000) out.push(d);
-                    }
-                    // 폴백: li에서 못 찾으면 페이지 전체 텍스트 줄 단위 파싱
-                    if (out.length < 3) {
-                        const lines = (document.body ? document.body.innerText : '').split(/\n+/).map(l => l.trim());
-                        for (const line of lines) {
-                            const d = parseTxt(line);
-                            if (d !== null && d >= 0 && d <= 4000) out.push(d);
-                        }
-                    }
-                    return out;
-                }'''
-
                 review_days = await page.evaluate(_JS_DAYS)
-
                 if review_days:
-                    recent10 = sorted(review_days)[:10]          # 최근(작은 일수) 10개
-                    recent_30d_reviews = sum(1 for d in recent10 if d <= 30)
-                    c = recent_30d_reviews
-                    review_activity = ("활발" if c >= 6 else "보통" if c >= 3
-                                       else "한산" if c >= 1 else "거의 없음")
-                    logger.info(
-                        f"  리뷰활동: 처음 {len(recent10)}개 중 30일이내 {c}개 → {review_activity} "
-                        f"(경과일 샘플 {recent10})"
-                    )
-                    # 리뷰 탭 최신순 맨 위(가장 최근) = min(경과일). latest_review_date의 유일 신뢰 소스.
-                    d = _today - _td(days=min(review_days))
-                    latest_review_date = d.strftime("%Y.%m.%d")
-            except Exception:
-                pass
+                    logger.info(f"  pcmap 리뷰 탭 수집 성공: {len(review_days)}개")
+            except Exception as e:
+                logger.info(f"  pcmap 리뷰 탭 실패: {e}")
+
+            # 2순위: m.place (모바일) — pcmap 실패 시 폴백
+            if not review_days:
+                try:
+                    mob_rev_url = f"https://m.place.naver.com/place/{p_id}/review/visitor"
+                    await page.goto(mob_rev_url, wait_until="domcontentloaded", timeout=12000)
+                    await page.wait_for_timeout(1500)
+
+                    # 최신순 버튼 클릭 (모바일)
+                    try:
+                        recent_btn = page.locator('button:has-text("최신순"), a:has-text("최신순"), [data-sort="recent"]').first
+                        if await recent_btn.count() > 0:
+                            await recent_btn.click()
+                            await page.wait_for_timeout(1500)
+                            logger.info("  리뷰 최신순 클릭 (m.place)")
+                    except Exception:
+                        pass
+
+                    review_days = await page.evaluate(_JS_DAYS)
+                    if review_days:
+                        logger.info(f"  m.place 리뷰 탭 수집 성공: {len(review_days)}개")
+                except Exception:
+                    pass
+
+            # 결과 처리
+            if review_days:
+                recent10 = sorted(review_days)[:10]          # 최근(작은 일수) 10개
+                recent_30d_reviews = sum(1 for d in recent10 if d <= 30)
+                c = recent_30d_reviews
+                review_activity = ("활발" if c >= 6 else "보통" if c >= 3
+                                   else "한산" if c >= 1 else "거의 없음")
+                logger.info(
+                    f"  리뷰활동: 처음 {len(recent10)}개 중 30일이내 {c}개 → {review_activity} "
+                    f"(경과일 샘플 {recent10})"
+                )
+                # 리뷰 탭 최신순 맨 위(가장 최근) = min(경과일). latest_review_date의 유일 신뢰 소스.
+                d = _today - _td(days=min(review_days))
+                latest_review_date = d.strftime("%Y.%m.%d")
 
         # 블로그 리뷰 수: Apollo에서 0으로 나오는 경우 블로그 리뷰 탭에서 직접 파싱
         # 네이버가 cafeBlogReviewsTotal을 0으로 보내지만 실제로는 리뷰가 있는 경우 대응
