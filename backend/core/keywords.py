@@ -268,15 +268,8 @@ def generate_keywords(store_name, category, address, menu_items, official_keywor
                 if len(loc) > 5:   # 플마 v8.43: '제천청풍호반' 같은 긴 지점명은 지명 아님 → 무시
                     break
                 locations.append(loc)
-                # v8.44: 지점명 loc에서 역/동을 합성할 땐 '실제 지명 base'일 때만.
-                #        '계양구청점' → loc '계양구청'에서 '계양구청역/계양구청동'(가짜)을
-                #        만들던 문제 차단. 시설·행정 접미로 끝나거나 5자↑면 합성 안 함.
-                _loc_synth_ok = (2 <= len(loc) <= 4
-                                 and not loc.endswith(('청', '역', '구', '동', '점', '원', '장', '교')))
-                if _loc_synth_ok:
-                    locations.append(f"{loc}역")
-                    if address and not address.startswith("서울") and not address.startswith("경기"):
-                        locations.append(f"{loc}동")
+                # v8.48: 지점명에서 역/동 합성 제거. 역은 네이버 nearby_stations만 사용.
+                #        "미사한강점" → "미사한강역" 같은 가짜역 합성 방지.
                 if "호수" in loc: locations.append(loc.replace("호수", ""))
                 clean_name = clean_name.replace(loc_match.group(0), "").strip()
             break
