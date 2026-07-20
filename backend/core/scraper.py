@@ -573,9 +573,19 @@ async def get_store_details(page, url):
             from datetime import date as _date, timedelta as _td
             _today = _date.today()
             try:
-                mob_rev_url = f"https://m.place.naver.com/place/{p_id}/review/visitor?reviewSort=recent"
+                mob_rev_url = f"https://m.place.naver.com/place/{p_id}/review/visitor"
                 await page.goto(mob_rev_url, wait_until="domcontentloaded", timeout=12000)
-                await page.wait_for_timeout(2500)
+                await page.wait_for_timeout(1500)
+
+                # 최신순 버튼 클릭 (기본=추천순 → 최신순으로 전환)
+                # m.place 리뷰 페이지의 정렬 버튼: "최신순" 텍스트 또는 data-* 속성
+                try:
+                    recent_btn = page.locator('button:has-text("최신순"), a:has-text("최신순"), [data-sort="recent"]').first
+                    if await recent_btn.count() > 0:
+                        await recent_btn.click()
+                        await page.wait_for_timeout(1500)
+                except Exception:
+                    pass
 
                 _JS_DAYS = r'''() => {
                     function parseTxt(txt) {
