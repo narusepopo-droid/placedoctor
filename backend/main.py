@@ -1011,13 +1011,10 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
     <footer class="company-footer">
       <div class="company-name">광고토대왕</div>
       <div class="company-info">
-        서울특별시 강남구 테헤란로 142, 12층 (역삼동, 아크플레이스)<span>|</span>
-        대표 : 이영재<span>|</span>
-        사업자등록번호 : 212-88-00000
+        서울특별시 강남구 테헤란로 68길36, 2F
       </div>
       <div class="company-info">
-        TEL : 1522-6123<span>|</span>
-        E-mail : help@gwanggoking.com<span>|</span>
+        E-mail : metpopo@hanmail.net<span>|</span>
         <a href="https://www.gwanggoking.com" target="_blank" class="company-link">회사 홈페이지</a>
       </div>
       <div class="copyright">Copyright 2026. 광고토대왕. All rights reserved.</div>
