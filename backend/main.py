@@ -259,18 +259,10 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
 .seo-content li{margin-bottom:6px;}
 .seo-content strong{color:var(--gray-700);}
 /* 하단 링크 */
-.footer-links{text-align:center;padding:var(--spacing-md) 0 var(--spacing-sm);font-size:.85rem;}
+.footer-links{text-align:center;padding:var(--spacing-md) 0 var(--spacing-xl);font-size:.85rem;}
 .footer-links a{color:var(--gray-500);text-decoration:none;transition:color .2s;}
 .footer-links a:hover{color:var(--green);}
 .footer-links .link-sep{color:var(--gray-300);margin:0 12px;}
-/* 회사 정보 푸터 */
-.company-footer{background:var(--gray-50);border-top:1px solid var(--gray-100);padding:24px 16px 32px;margin-top:16px;text-align:center;}
-.company-footer .company-name{font-size:1rem;font-weight:700;color:var(--gray-700);margin-bottom:8px;}
-.company-footer .company-info{font-size:.8rem;color:var(--gray-500);line-height:1.7;}
-.company-footer .company-info span{margin:0 6px;}
-.company-footer .company-link{color:var(--green);text-decoration:none;font-weight:600;}
-.company-footer .company-link:hover{text-decoration:underline;}
-.company-footer .copyright{font-size:.75rem;color:var(--gray-400);margin-top:12px;}
 /* 기존 히어로 (about 페이지용 유지) */
 .hero{text-align:center;padding:var(--spacing-xl) var(--spacing-md) var(--spacing-lg);}
 .hero-icon{font-size:3.2rem;display:block;margin-bottom:var(--spacing-md);filter:drop-shadow(0 4px 12px rgba(0,184,148,.3));}
@@ -1006,19 +998,6 @@ body{background:linear-gradient(180deg,#F7FDFB 0%,#F4F6F8 320px,#F4F6F8 100%);co
       <span class="link-sep">|</span>
       <a href="/guide">상위노출 가이드</a>
     </div>
-
-    <!-- 회사 정보 푸터 -->
-    <footer class="company-footer">
-      <div class="company-name">광고토대왕</div>
-      <div class="company-info">
-        서울특별시 강남구 테헤란로 68길36, 2F
-      </div>
-      <div class="company-info">
-        E-mail : metpopo@hanmail.net<span>|</span>
-        <a href="https://www.gwanggoking.com" target="_blank" class="company-link">회사 홈페이지</a>
-      </div>
-      <div class="copyright">Copyright 2026. 광고토대왕. All rights reserved.</div>
-    </footer>
   </div>
 
   <!-- LOADING (R단계: 게임형 UI) -->
